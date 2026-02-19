@@ -1,0 +1,6 @@
+{
+  "name": "vsport-hub",
+  "version": "1.0.0",
+  "description": "VSPORT schedule viewer with proxy",
+  "engines": { "node": ">=18" }
+}
