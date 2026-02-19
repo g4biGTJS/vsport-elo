@@ -2,12 +2,10 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 
-const TARGET_BASE = 'http://schedulerzrh.aitcloud.de';
-const TARGET_HOST = 'schedulerzrh.aitcloud.de';
+const TARGET_BASE = 'https://vfscigaming.aitcloud.de';
 
 module.exports = async (req, res) => {
   try {
-    // ── Build the target URL from query param "path" + any remaining query string
     const rawPath = (req.query.path || '').replace(/^\/+/, '');
     const extra = Object.entries(req.query)
       .filter(([k]) => k !== 'path')
@@ -15,14 +13,11 @@ module.exports = async (req, res) => {
       .join('&');
     const targetUrl = `${TARGET_BASE}/${rawPath}${extra ? '?' + extra : ''}`;
 
-    // ── Forward cookies the browser already has for this session
     const browserCookies = req.headers['cookie'] || '';
-
     const result = await fetchFollowingRedirects(targetUrl, browserCookies, [], 0);
 
-    // ── Forward Set-Cookie back to browser (so next request carries them)
+    // Forward Set-Cookie back to browser (strip domain/secure so they work on Vercel domain)
     if (result.setCookies.length > 0) {
-      // Strip domain/secure flags so browser stores them under our Vercel domain
       const cleaned = result.setCookies.map(c =>
         c
           .replace(/;\s*domain=[^;]*/gi, '')
@@ -32,12 +27,11 @@ module.exports = async (req, res) => {
       res.setHeader('Set-Cookie', cleaned);
     }
 
-    // ── Strip headers that block iframe embedding, forward the rest
+    // Strip headers that block embedding
     const STRIP = new Set([
       'x-frame-options', 'content-security-policy', 'content-security-policy-report-only',
       'x-content-type-options', 'strict-transport-security',
-      'transfer-encoding', 'connection', 'keep-alive',
-      'set-cookie', // handled above
+      'transfer-encoding', 'connection', 'keep-alive', 'set-cookie',
     ]);
     for (const [k, v] of Object.entries(result.headers)) {
       if (!STRIP.has(k.toLowerCase())) {
@@ -52,44 +46,34 @@ module.exports = async (req, res) => {
     if (ct.includes('text/html')) {
       let body = result.body;
 
-      // 1. Rewrite absolute URLs on the target domain → /proxy/...
+      // Rewrite absolute target-domain URLs
       body = body.replace(
-        /(['"\(])\s*https?:\/\/schedulerzrh\.aitcloud\.de(\/[^'"\)\s>]*)/gi,
+        /(['"\(])\s*https?:\/\/vfscigaming\.aitcloud\.de(\/[^'"\)\s>]*)/gi,
         (_, q, path) => `${q}/proxy${path}`
       );
-
-      // 2. Rewrite root-relative URLs → /proxy/...
+      // Rewrite root-relative URLs
       body = body.replace(
-        /(href|src|action|data-src|data-href)\s*=\s*(['"])(\/(?!proxy)[^'"]*)\2/gi,
+        /(href|src|action|data-src)\s*=\s*(['"])(\/(?!proxy)[^'"]*)\2/gi,
         (_, attr, q, path) => `${attr}=${q}/proxy${path}${q}`
       );
-
-      // 3. Rewrite url(...) in inline CSS
+      // Rewrite url() in inline CSS
       body = body.replace(
         /url\(\s*(['"]?)(\/(?!proxy)[^'"\)]*)\1\s*\)/gi,
         (_, q, path) => `url(${q}/proxy${path}${q})`
       );
-
-      // 4. Inject <base> so any remaining relative URLs resolve correctly,
-      //    and override any existing CSP meta tag
-      const baseTag = `<base href="${TARGET_BASE}/">`;
-      if (/<head[^>]*>/i.test(body)) {
-        body = body.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`);
-      } else {
-        body = baseTag + body;
-      }
-
-      // 5. Remove meta CSP tags
+      // Remove CSP meta tags
       body = body.replace(/<meta[^>]+http-equiv\s*=\s*['"]content-security-policy['"][^>]*>/gi, '');
+      // Inject base tag
+      const baseTag = `<base href="${TARGET_BASE}/">`;
+      body = body.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`);
 
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.status(result.status).end(body);
 
     } else if (ct.includes('css') || ct.includes('javascript') || ct.includes('text/')) {
-      // Rewrite URLs inside CSS/JS too
       let body = result.body || result.bodyBuffer.toString('utf8');
       body = body.replace(
-        /(['"\(])\s*https?:\/\/schedulerzrh\.aitcloud\.de(\/[^'"\)\s]*)/gi,
+        /(['"\(])\s*https?:\/\/vfscigaming\.aitcloud\.de(\/[^'"\)\s]*)/gi,
         (_, q, path) => `${q}/proxy${path}`
       );
       body = body.replace(
@@ -99,7 +83,6 @@ module.exports = async (req, res) => {
       res.status(result.status).end(body);
 
     } else {
-      // Binary assets (images, fonts, etc.) — pass through raw
       res.status(result.status).end(result.bodyBuffer);
     }
 
@@ -109,9 +92,6 @@ module.exports = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────
-// Fetch with redirect following + cookie jar
-// ─────────────────────────────────────────────
 function fetchFollowingRedirects(url, browserCookies, cookieJar, depth) {
   return new Promise((resolve, reject) => {
     if (depth > 12) return reject(new Error('Too many redirects'));
@@ -121,8 +101,6 @@ function fetchFollowingRedirects(url, browserCookies, cookieJar, depth) {
     catch (e) { return reject(new Error(`Bad URL: ${url}`)); }
 
     const lib = parsed.protocol === 'https:' ? https : http;
-
-    // Merge browser cookies + our accumulated jar
     const allCookies = mergeCookies(browserCookies, cookieJar.join('; '));
 
     const opts = {
@@ -133,7 +111,7 @@ function fetchFollowingRedirects(url, browserCookies, cookieJar, depth) {
       headers: {
         'User-Agent':      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
         'Accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'hu-HU,hu;q=0.9,en-US;q=0.7,en;q=0.5',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         'Accept-Encoding': 'identity',
         'Connection':      'close',
         ...(allCookies ? { 'Cookie': allCookies } : {}),
@@ -143,21 +121,17 @@ function fetchFollowingRedirects(url, browserCookies, cookieJar, depth) {
 
     const req = lib.request(opts, (resp) => {
       const status = resp.statusCode;
-
-      // Collect any Set-Cookie headers from this hop
       const newCookies = [].concat(resp.headers['set-cookie'] || []);
-      // Extract just name=value pairs for the jar
       const jarValues = newCookies.map(c => c.split(';')[0].trim());
       const updatedJar = mergeCookiesArray(cookieJar, jarValues);
 
       if ([301, 302, 303, 307, 308].includes(status)) {
         let loc = resp.headers['location'];
         if (!loc) { resp.resume(); return reject(new Error('Redirect missing Location')); }
-        // Resolve relative redirects
         if (!loc.startsWith('http')) {
           loc = new URL(loc, `${parsed.protocol}//${parsed.host}`).toString();
         }
-        resp.resume(); // drain body
+        resp.resume();
         resolve(fetchFollowingRedirects(loc, browserCookies, updatedJar, depth + 1));
         return;
       }
@@ -173,7 +147,7 @@ function fetchFollowingRedirects(url, browserCookies, cookieJar, depth) {
           headers:    resp.headers,
           bodyBuffer,
           body:       isText ? bodyBuffer.toString('utf8') : null,
-          setCookies: newCookies,   // raw Set-Cookie strings to forward to browser
+          setCookies: newCookies,
         });
       });
       resp.on('error', reject);
@@ -192,7 +166,6 @@ function mergeCookies(a, b) {
   return `${a}; ${b}`;
 }
 
-// Merge new name=value pairs into jar, overwriting duplicates
 function mergeCookiesArray(jar, newPairs) {
   const map = new Map();
   for (const c of jar) {
