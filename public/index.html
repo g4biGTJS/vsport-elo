@@ -3,87 +3,314 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>VSPORT</title>
+<title>VSPORT HUB</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
-  iframe {
-    display: block;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-    height: 100%;
-    border: none;
-  }
-  #loader {
-    position: fixed; inset: 0; z-index: 10;
-    background: #020c18;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 20px;
-    font-family: 'Courier New', monospace;
-    color: #29b6f6;
-  }
-  .spinner {
-    width: 50px; height: 50px; border-radius: 50%;
-    border: 3px solid #0d2d50;
-    border-top-color: #29b6f6;
-    border-right-color: #00e676;
-    animation: spin 0.7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .load-text { font-size: 0.8rem; letter-spacing: 0.3em; opacity: 0.7; }
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:      #020c18;
+  --surface: #041426;
+  --card:    #071e38;
+  --border:  #0a3a6a;
+  --green:   #00e676;
+  --blue:    #29b6f6;
+  --blue2:   #0288d1;
+  --text:    #cce8ff;
+  --muted:   #3a7aaa;
+  --dim:     #0d2d50;
+}
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Barlow Condensed', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(0,150,255,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(0,230,118,0.05) 0%, transparent 60%);
+  pointer-events: none; z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    linear-gradient(rgba(41,182,246,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(41,182,246,0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none; z-index: 0;
+}
+
+.page {
+  position: relative; z-index: 1;
+  max-width: 1600px; width: 100%;
+  margin: 0 auto;
+  padding: 20px 20px 0;
+  display: flex; flex-direction: column;
+  flex: 1;
+}
+
+/* ── HEADER ── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px;
+  background: linear-gradient(135deg, #041830 0%, #031020 100%);
+  border: 1px solid var(--border); border-radius: 6px;
+  margin-bottom: 16px; position: relative; overflow: hidden;
+  box-shadow: 0 0 30px rgba(0,150,255,0.1), inset 0 1px 0 rgba(41,182,246,0.12);
+  flex-shrink: 0;
+}
+header::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--blue) 30%, var(--green) 70%, transparent);
+}
+.logo-wrap { display: flex; align-items: center; gap: 14px; }
+.logo-icon { font-size: 1.8rem; filter: drop-shadow(0 0 8px rgba(0,230,118,0.6)); }
+.logo-text {
+  font-family: 'Orbitron', sans-serif; font-size: 1.6rem; font-weight: 900; letter-spacing: 0.22em;
+  background: linear-gradient(90deg, var(--blue), var(--green));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.logo-sub { font-family: 'Orbitron', sans-serif; font-size: 0.5rem; letter-spacing: 0.3em; color: var(--muted); margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.live-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0,230,118,0.08); border: 1px solid var(--green);
+  border-radius: 3px; padding: 4px 12px;
+  font-family: 'Orbitron', sans-serif; font-size: 0.58rem; letter-spacing: 0.18em; color: var(--green);
+}
+.pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.15;} }
+#clock { font-family: 'Orbitron', sans-serif; font-size: 0.85rem; letter-spacing: 0.1em; color: var(--blue); }
+
+/* ── TABS ── */
+.tabs { display: flex; gap: 4px; flex-shrink: 0; }
+.tab {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 24px;
+  background: var(--card); border: 1px solid var(--dim);
+  border-radius: 4px 4px 0 0; cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 0.65rem; letter-spacing: 0.1em; color: var(--muted);
+  transition: all 0.2s; border-bottom: none; user-select: none;
+}
+.tab:hover { color: var(--text); border-color: var(--border); }
+.tab.active { color: var(--blue); border-color: var(--border); background: var(--surface); }
+.tab-flag { font-size: 1rem; }
+.tab-vs {
+  font-size: 0.52rem; background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.3);
+  color: var(--green); padding: 2px 6px; border-radius: 2px;
+}
+
+/* ── VIEWER BOX ── */
+.viewer-box {
+  border: 1px solid var(--border); border-radius: 0 4px 4px 4px;
+  background: var(--surface);
+  box-shadow: 0 0 40px rgba(41,182,246,0.08);
+  display: flex; flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin-bottom: 16px;
+}
+
+.viewer-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 18px;
+  background: linear-gradient(90deg, #041a32, #031525);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.viewer-label {
+  font-family: 'Orbitron', sans-serif; font-size: 0.62rem; letter-spacing: 0.1em; color: var(--blue);
+  display: flex; align-items: center; gap: 8px;
+}
+.vdot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 7px var(--green); animation: blink 1.4s ease-in-out infinite; }
+.viewer-btns { display: flex; gap: 8px; }
+.vbtn {
+  background: var(--dim); border: 1px solid var(--border); color: var(--muted);
+  border-radius: 3px; padding: 5px 12px; cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 0.58rem; letter-spacing: 0.08em;
+  transition: all 0.2s;
+}
+.vbtn:hover { border-color: var(--blue); color: var(--blue); }
+
+/* ── FRAME AREA ── */
+.frame-area {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+iframe#main-frame {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  border: none; display: block;
+  background: #020c18;
+}
+
+/* ── LOADING OVERLAY ── */
+.overlay {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  background: var(--surface);
+  transition: opacity 0.4s;
+}
+.overlay.hidden { opacity: 0; pointer-events: none; }
+
+.spinner {
+  width: 46px; height: 46px; border-radius: 50%;
+  border: 3px solid var(--dim);
+  border-top-color: var(--blue);
+  border-right-color: var(--green);
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.load-txt { font-family: 'Orbitron', sans-serif; font-size: 0.68rem; letter-spacing: 0.2em; color: var(--muted); }
+
+/* corner accents */
+.corner { position: absolute; width: 14px; height: 14px; z-index: 6; pointer-events: none; }
+.c-tl { top:5px; left:5px;  border-top: 2px solid var(--blue); border-left: 2px solid var(--blue); }
+.c-tr { top:5px; right:5px; border-top: 2px solid var(--blue); border-right: 2px solid var(--blue); }
+.c-bl { bottom:5px; left:5px;  border-bottom: 2px solid var(--green); border-left: 2px solid var(--green); }
+.c-br { bottom:5px; right:5px; border-bottom: 2px solid var(--green); border-right: 2px solid var(--green); }
+
+footer {
+  text-align: center; padding: 12px;
+  font-family: 'Orbitron', sans-serif; font-size: 0.52rem; letter-spacing: 0.18em; color: var(--muted);
+  border-top: 1px solid var(--dim); flex-shrink: 0;
+}
+
+@media(max-width:600px){
+  header { flex-direction: column; gap: 12px; }
+  .header-right { flex-direction: column; gap: 8px; }
+  .tab { padding: 9px 14px; font-size: 0.58rem; }
+}
 </style>
 </head>
 <body>
+<div class="page">
 
-<div id="loader">
-  <div class="spinner"></div>
-  <div class="load-text">BETÖLTÉS...</div>
+  <header>
+    <div class="logo-wrap">
+      <span class="logo-icon">⚽</span>
+      <div>
+        <div class="logo-text">VSPORT HUB</div>
+        <div class="logo-sub">MŰSORKÖZVETÍTŐ RENDSZER</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-pill"><span class="pulse"></span> ÉLŐBEN</div>
+      <div id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" id="tab-0" onclick="switchTab(0)">
+      <span class="tab-flag">🇭🇺</span>
+      MAGYAR PREMIER LIGA
+      <span class="tab-vs">VSPORT</span>
+    </div>
+    <div class="tab" id="tab-1" onclick="switchTab(1)">
+      <span class="tab-flag">🇪🇸</span>
+      SPANYOL LA LIGA
+      <span class="tab-vs">VSPORT</span>
+    </div>
+  </div>
+
+  <div class="viewer-box">
+    <div class="viewer-bar">
+      <div class="viewer-label">
+        <span class="vdot"></span>
+        <span id="viewer-lbl">MAGYAR PREMIER LIGA – VSPORT</span>
+      </div>
+      <div class="viewer-btns">
+        <button class="vbtn" onclick="reloadFrame()">↺ FRISSÍT</button>
+        <button class="vbtn" onclick="openNew()">⤤ ÚJ LAP</button>
+      </div>
+    </div>
+
+    <div class="frame-area">
+      <span class="corner c-tl"></span>
+      <span class="corner c-tr"></span>
+      <span class="corner c-bl"></span>
+      <span class="corner c-br"></span>
+
+      <div class="overlay" id="loader">
+        <div class="spinner"></div>
+        <div class="load-txt">BETÖLTÉS...</div>
+      </div>
+
+      <iframe id="main-frame" src="" scrolling="auto" allowfullscreen allow="fullscreen; autoplay"></iframe>
+    </div>
+  </div>
+
+  <footer>VSPORT HUB &nbsp;·&nbsp; © <span id="yr"></span></footer>
 </div>
 
-<iframe
-  id="main"
-  scrolling="no"
-  allowfullscreen
-  allow="fullscreen; autoplay"
-></iframe>
-
 <script>
-  const DIRECT = 'https://vfscigaming.aitcloud.de/vflmshop/retail/index?clientid=4997&lang=zh&style=scigamingcdn&screen=betradar_vflm_one_screen&channel=0';
-  const PROXY  = '/proxy/vflmshop/retail/index?clientid=4997&lang=zh&style=scigamingcdn&screen=betradar_vflm_one_screen&channel=0';
+const PROXY_PATHS = [
+  '/proxy/retail_scheduler/display/index/schedule:13a92cec0a3b58c3944f2e4b0f2c1ef6',
+  '/proxy/retail_scheduler/display/index/schedule:13a92cec0a3b58c3944f2e4b0f2c1ef0',
+];
+const DIRECT_URLS = [
+  'http://schedulerzrh.aitcloud.de/retail_scheduler/display/index/schedule:13a92cec0a3b58c3944f2e4b0f2c1ef6',
+  'http://schedulerzrh.aitcloud.de/retail_scheduler/display/index/schedule:13a92cec0a3b58c3944f2e4b0f2c1ef0',
+];
+const LABELS = ['MAGYAR PREMIER LIGA – VSPORT', 'SPANYOL LA LIGA – VSPORT'];
 
-  const frame  = document.getElementById('main');
+let current = 0;
+let loadTimer = null;
+
+function loadFrame(idx) {
+  const frame  = document.getElementById('main-frame');
   const loader = document.getElementById('loader');
 
-  let loaded = false;
+  loader.classList.remove('hidden');
+  frame.src = 'about:blank';
 
-  frame.onload = () => {
-    if (loaded) return;
-    try {
-      // If cross-origin loaded fine, this throws — that means it worked
-      const loc = frame.contentWindow.location.href;
-      // If we can read href and it's blank, something went wrong
-      if (loc === 'about:blank') return;
-    } catch(e) {
-      // Cross-origin = loaded successfully
-    }
-    loaded = true;
-    loader.style.display = 'none';
-  };
-
-  // Try direct first
-  frame.src = DIRECT;
-
-  // If not loaded in 5s, switch to proxy
+  clearTimeout(loadTimer);
+  // Short pause so about:blank registers, then load proxy URL
   setTimeout(() => {
-    if (!loaded) {
-      frame.src = PROXY;
-      // Give proxy 10s
-      setTimeout(() => {
-        if (!loaded) loader.innerHTML = '<div style="color:#ff6060;font-family:monospace;text-align:center;padding:20px">⚠️ Nem sikerült betölteni.<br><br><a href="' + DIRECT + '" target="_blank" style="color:#29b6f6">Megnyitás új lapon →</a></div>';
-      }, 10000);
-    }
-  }, 5000);
+    frame.src = PROXY_PATHS[idx];
+  }, 80);
+
+  // Hide loader after reasonable time regardless (page may load silently)
+  loadTimer = setTimeout(() => loader.classList.add('hidden'), 8000);
+}
+
+function switchTab(idx) {
+  if (idx === current && document.getElementById('main-frame').src !== 'about:blank') return;
+  current = idx;
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+  document.getElementById('viewer-lbl').textContent = LABELS[idx];
+  loadFrame(idx);
+}
+
+document.getElementById('main-frame').addEventListener('load', () => {
+  const loader = document.getElementById('loader');
+  clearTimeout(loadTimer);
+  setTimeout(() => loader.classList.add('hidden'), 300);
+});
+
+function reloadFrame() { loadFrame(current); }
+function openNew() { window.open(DIRECT_URLS[current], '_blank', 'noopener,noreferrer'); }
+
+// Init
+loadFrame(0);
+
+// Clock
+function tick() { document.getElementById('clock').textContent = new Date().toLocaleTimeString('hu-HU'); }
+tick(); setInterval(tick, 1000);
+document.getElementById('yr').textContent = new Date().getFullYear();
 </script>
 </body>
 </html>
