@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VSPORT HUB</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Barlow+Condensed:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:      #020c18;
+  --surface: #041426;
+  --card:    #071e38;
+  --border:  #0a3a6a;
+  --green:   #00e676;
+  --blue:    #29b6f6;
+  --blue2:   #0288d1;
+  --teal:    #00bcd4;
+  --text:    #cce8ff;
+  --muted:   #3a7aaa;
+  --dim:     #0d2d50;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Barlow Condensed', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(0,150,255,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(0,230,118,0.05) 0%, transparent 60%);
+  pointer-events: none; z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    linear-gradient(rgba(41,182,246,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(41,182,246,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none; z-index: 0;
+}
+
+.page { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 28px 24px; }
+
+/* ── HEADER ── */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 22px 36px;
+  background: linear-gradient(135deg, #041830 0%, #031020 100%);
+  border: 1px solid var(--border); border-radius: 6px;
+  margin-bottom: 28px; position: relative; overflow: hidden;
+  box-shadow: 0 0 40px rgba(0,150,255,0.1), inset 0 1px 0 rgba(41,182,246,0.12);
+}
+header::after {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent 0%, var(--blue) 30%, var(--green) 70%, transparent 100%);
+}
+
+.logo-wrap { display: flex; align-items: center; gap: 18px; }
+.logo-icon { font-size: 2.2rem; filter: drop-shadow(0 0 10px rgba(0,230,118,0.6)); }
+.logo-text {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2rem; font-weight: 900; letter-spacing: 0.25em;
+  background: linear-gradient(90deg, var(--blue) 0%, var(--green) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  filter: drop-shadow(0 0 16px rgba(41,182,246,0.4));
+}
+.logo-sub {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.6rem; letter-spacing: 0.3em; color: var(--muted); margin-top: 3px;
+}
+
+.header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.live-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(0,230,118,0.08); border: 1px solid var(--green);
+  border-radius: 3px; padding: 5px 14px;
+  font-family: 'Orbitron', sans-serif; font-size: 0.65rem; letter-spacing: 0.18em; color: var(--green);
+  box-shadow: 0 0 12px rgba(0,230,118,0.15);
+}
+.pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green); box-shadow: 0 0 8px var(--green);
+  animation: blink 1.4s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+#clock { font-family: 'Orbitron', sans-serif; font-size: 0.9rem; letter-spacing: 0.12em; color: var(--blue); }
+
+/* ── INFO BAR ── */
+.infobar {
+  display: flex;
+  background: var(--surface); border: 1px solid var(--dim);
+  border-radius: 6px; overflow: hidden; margin-bottom: 28px;
+}
+.info-item {
+  flex: 1; padding: 16px 24px;
+  display: flex; align-items: center; gap: 12px;
+  border-right: 1px solid var(--dim);
+}
+.info-item:last-child { border-right: none; }
+.info-icon { font-size: 1.3rem; }
+.info-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.1em; font-family: 'Orbitron', sans-serif; }
+.info-value { font-size: 1rem; font-weight: 600; color: var(--text); margin-top: 2px; }
+.info-value.green { color: var(--green); }
+.info-value.blue  { color: var(--blue); }
+
+/* ── CARDS ── */
+.channels-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+
+.channel-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+  padding: 32px 36px; position: relative; overflow: hidden;
+  cursor: pointer; transition: all 0.3s ease;
+}
+.channel-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--blue), var(--green)); opacity: 0; transition: opacity 0.3s;
+}
+.channel-card::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at top left, rgba(41,182,246,0.07) 0%, transparent 65%);
+  opacity: 0; transition: opacity 0.3s;
+}
+.channel-card:hover { border-color: var(--blue); box-shadow: 0 0 35px rgba(41,182,246,0.15), 0 8px 30px rgba(0,0,0,0.4); transform: translateY(-4px); }
+.channel-card:hover::before { opacity: 1; }
+.channel-card:hover::after  { opacity: 1; }
+
+.card-inner { position: relative; z-index: 1; }
+.card-flag  { font-size: 3rem; margin-bottom: 16px; display: block; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); }
+
+.card-channel {
+  font-family: 'Orbitron', sans-serif; font-size: 0.62rem; letter-spacing: 0.25em; color: var(--green);
+  background: rgba(0,230,118,0.1); border: 1px solid rgba(0,230,118,0.3);
+  display: inline-block; padding: 3px 10px; border-radius: 2px; margin-bottom: 14px;
+}
+.card-title {
+  font-size: 2rem; font-weight: 700; letter-spacing: 0.04em; color: var(--text);
+  line-height: 1.1; margin-bottom: 10px;
+}
+.card-desc { font-size: 0.95rem; color: var(--muted); font-weight: 400; line-height: 1.4; }
+
+.card-btn {
+  margin-top: 22px;
+  display: inline-flex; align-items: center; gap: 10px;
+  background: linear-gradient(135deg, rgba(41,182,246,0.12) 0%, rgba(0,230,118,0.06) 100%);
+  border: 1px solid var(--blue); border-radius: 4px;
+  padding: 11px 24px;
+  font-family: 'Orbitron', sans-serif; font-size: 0.68rem; letter-spacing: 0.15em; color: var(--blue);
+  transition: all 0.25s;
+}
+.channel-card:hover .card-btn {
+  background: linear-gradient(135deg, rgba(41,182,246,0.22) 0%, rgba(0,230,118,0.1) 100%);
+  border-color: var(--green); color: var(--green); box-shadow: 0 0 20px rgba(0,230,118,0.2);
+}
+.card-arrow { transition: transform 0.2s; }
+.channel-card:hover .card-arrow { transform: translateX(5px); }
+
+.card-num {
+  position: absolute; right: 20px; bottom: 10px;
+  font-family: 'Orbitron', sans-serif; font-size: 6rem; font-weight: 900;
+  color: rgba(41,182,246,0.04); line-height: 1; user-select: none;
+}
+
+/* ── MODAL ── */
+.modal-backdrop {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(2,10,22,0.93); backdrop-filter: blur(8px);
+  flex-direction: column;
+}
+.modal-backdrop.open { display: flex; animation: fadeIn 0.25s ease; }
+@keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 28px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modal-title {
+  font-family: 'Orbitron', sans-serif; font-size: 0.78rem; letter-spacing: 0.15em; color: var(--blue);
+  display: flex; align-items: center; gap: 12px;
+}
+.modal-actions { display: flex; gap: 10px; }
+
+.btn-act {
+  background: var(--dim); border: 1px solid var(--border); color: var(--text);
+  border-radius: 4px; padding: 8px 16px; cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 0.65rem; letter-spacing: 0.1em;
+  transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+}
+.btn-act:hover { border-color: var(--blue); color: var(--blue); }
+.btn-close-m { background: rgba(255,50,50,0.08); border-color: rgba(255,80,80,0.3); color: #ff6060; }
+.btn-close-m:hover { background: rgba(255,50,50,0.18); border-color: #ff6060; color: #ff9090; }
+
+.modal-body { flex: 1; position: relative; display: flex; flex-direction: column; }
+
+.modal-body iframe {
+  width: 100%; height: 100%; border: none; flex: 1;
+}
+
+.modal-fallback {
+  display: none;
+  flex: 1; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; text-align: center; padding: 60px 40px;
+}
+.modal-fallback.show { display: flex; }
+
+.err-icon { font-size: 4rem; }
+.err-title {
+  font-family: 'Orbitron', sans-serif; font-size: 1rem; letter-spacing: 0.1em;
+  color: var(--blue); margin-bottom: 4px;
+}
+.err-desc { color: var(--muted); max-width: 460px; line-height: 1.6; font-size: 1.05rem; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue2), var(--blue));
+  border: none; border-radius: 4px; color: #fff;
+  padding: 13px 32px; cursor: pointer;
+  font-family: 'Orbitron', sans-serif; font-size: 0.72rem; letter-spacing: 0.15em;
+  transition: all 0.2s; box-shadow: 0 4px 20px rgba(41,182,246,0.3);
+}
+.btn-primary:hover { box-shadow: 0 4px 30px rgba(41,182,246,0.5); transform: translateY(-2px); }
+
+footer {
+  text-align: center; padding: 18px;
+  font-family: 'Orbitron', sans-serif; font-size: 0.6rem; letter-spacing: 0.2em; color: var(--muted);
+  border-top: 1px solid var(--dim); margin-top: 4px;
+}
+
+@media(max-width:700px){
+  .channels-grid{grid-template-columns:1fr;}
+  header{flex-direction:column;gap:16px;text-align:center;}
+  .header-right{align-items:center;}
+  .infobar{flex-direction:column;}
+  .info-item{border-right:none;border-bottom:1px solid var(--dim);}
+  .info-item:last-child{border-bottom:none;}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="logo-wrap">
+      <div>
+        <div class="logo-text">VSPORT HUB</div>
+        <div class="logo-sub"VSPORT ÉLŐ</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-pill"><span class="pulse"></span> ÉLŐBEN MINDENNAP </div>
+      <div id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <div class="infobar">
+    <div class="info-item">
+      <span class="info-icon">📡</span>
+      <div>
+        <div class="info-label">STÁTUSZ</div>
+        <div class="info-value green">● AKTÍV</div>
+      </div>
+    </div>
+    <div class="info-item">
+      <span class="info-icon">📺</span>
+      <div>
+        <div class="info-label">CSATORNÁK</div>
+        <div class="info-value blue">2 × VSPORT</div>
+      </div>
+    </div>
+    <div class="info-item">
+      <span class="info-icon">🗓️</span>
+      <div>
+        <div class="info-label">MAI DÁTUM</div>
+        <div class="info-value" id="datestr">–</div>
+      </div>
+    </div>
+    <div class="info-item">
+      <span class="info-icon">🕐</span>
+      <div>
+        <div class="info-label">HELYI IDŐ</div>
+        <div class="info-value blue" id="clock2">–</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="channels-grid">
+
+    <div class="channel-card" onclick="openSchedule(0)">
+      <div class="card-num">01</div>
+      <div class="card-inner">
+        <span class="card-flag">🇭🇺</span>
+        <div class="card-channel">VSPORT</div>
+        <div class="card-title">MAGYAR<br>PREMIER LIGA</div>
+        <div class="card-desc">Premier Liga élő közvetítése</div>
+        <div class="card-btn">ÉLŐ MEGTEKINTÉS <span class="card-arrow">→</span></div>
+      </div>
+    </div>
+
+    <div class="channel-card" onclick="openSchedule(1)">
+      <div class="card-num">02</div>
+      <div class="card-inner">
+        <span class="card-flag">🇪🇸</span>
+        <div class="card-channel">VSPORT</div>
+        <div class="card-title">SPANYOL<br>LA LIGA</div>
+        <div class="card-desc">Spanyol Liga élő közvetítése</div>
+        <div class="card-btn">ÉLŐ MEGTEKINTÉS <span class="card-arrow">→</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>VSPORT HUB &nbsp;·&nbsp; SPORTKÖZVETÍTÉSEK MENETRENDJE &nbsp;·&nbsp; © <span id="yr"></span></footer>
+</div>
+
+<!-- MODAL -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal-header">
+    <div class="modal-title">
+      <span id="modal-flag">🏆</span>
+      <span id="modal-label">MŰSOR</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-act" onclick="openInNew()">🔗 ÚJ LAPON NYITÁS</button>
+      <button class="btn-act btn-close-m" onclick="closeModal()">✕ BEZÁRÁS</button>
+    </div>
+  </div>
+  <div class="modal-body">
+    <iframe id="modal-frame" src="about:blank"></iframe>
+    <div class="modal-fallback" id="modal-fallback">
+      <div class="err-icon">📡</div>
+      <div class="err-title">AZ OLDAL NEM TÖLTHETŐ BE BEÁGYAZVA</div>
+      <p class="err-desc">A műsorrend oldal biztonsági beállításai (X-Frame-Options / redirect) megakadályozzák a közvetlen megjelenítést. Nyisd meg egy új lapon a teljes megtekintéshez.</p>
+      <button class="btn-primary" onclick="openInNew()">🔗 MEGNYITÁS ÚJ LAPON</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const urls   = [
+  "http://schedulerzrh.aitcloud.de/retail_scheduler/display/index/schedule:13a92cec0a3b58c3944f2e4b0f2c1ef6",
+  "http://schedulerzrh.aitcloud.de/retail_scheduler/display/index/schedule:13a92cec0a3b58c3944f2e4b0f2c1ef0"
+];
+const flags  = ["🇭🇺","🇪🇸"];
+const labels = ["MAGYAR PREMIER LIGA – VSPORT","SPANYOL LA LIGA – VSPORT"];
+
+let currentIdx = 0;
+let errTimer   = null;
+
+function openSchedule(idx) {
+  currentIdx = idx;
+  document.getElementById('modal-flag').textContent  = flags[idx];
+  document.getElementById('modal-label').textContent = labels[idx];
+
+  const frame    = document.getElementById('modal-frame');
+  const fallback = document.getElementById('modal-fallback');
+
+  fallback.classList.remove('show');
+  frame.style.display = 'block';
+  frame.src = 'about:blank';
+
+  // Give the browser 6s to load; if it can't (X-Frame / redirect loop), show fallback
+  clearTimeout(errTimer);
+  errTimer = setTimeout(showFallback, 6000);
+
+  frame.onload = () => {
+    clearTimeout(errTimer);
+    // Check if we landed on about:blank still (redirect loop killed it)
+    try {
+      if (frame.contentWindow.location.href === 'about:blank') { showFallback(); return; }
+    } catch(e) {
+      // Cross-origin → actually loaded fine in iframe, keep it visible
+    }
+  };
+
+  frame.onerror = () => { clearTimeout(errTimer); showFallback(); };
+
+  // Small delay so about:blank clears first
+  setTimeout(() => { frame.src = urls[idx]; }, 80);
+
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function showFallback() {
+  document.getElementById('modal-frame').style.display = 'none';
+  document.getElementById('modal-fallback').classList.add('show');
+}
+
+function openInNew() { window.open(urls[currentIdx], '_blank', 'noopener,noreferrer'); }
+
+function closeModal() {
+  clearTimeout(errTimer);
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('modal-frame').src = 'about:blank';
+  document.getElementById('modal-frame').style.display = 'block';
+  document.getElementById('modal-fallback').classList.remove('show');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closeModal(); });
+
+// Clock
+function tick() {
+  const n = new Date();
+  const t = n.toLocaleTimeString('hu-HU');
+  const d = n.toLocaleDateString('hu-HU',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  document.getElementById('clock').textContent  = t;
+  document.getElementById('clock2').textContent = t;
+  document.getElementById('datestr').textContent = d;
+}
+tick(); setInterval(tick, 1000);
+document.getElementById('yr').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
