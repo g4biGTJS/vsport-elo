@@ -332,17 +332,13 @@ async function generateAITable() {
     const aiBody = document.getElementById('aiBody');
     const errorBox = document.getElementById('errorBox');
     const updateTime = document.getElementById('aiUpdateTime');
-    
+
     meta.className = 'lb-meta loading';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI generálás (5mp várakozás)...';
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI generálás...';
     aiTable.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
     aiPanel.style.display = 'none';
     errorBox.classList.remove('show');
-    
-    // ⏱️ VÁRAKOZÁS 5 MÁSODPERCET A RATE LIMIT ELKERÜLÉSÉRE
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    // Ha nincs valódi adat, töltsük be előbb
+
     if (realStandings.length === 0) {
         try {
             realStandings = await fetchRealStandings();
@@ -353,26 +349,23 @@ async function generateAITable() {
             return;
         }
     }
-    
+
     if (realStandings.length === 0) {
         errorBox.textContent = '❌ Nincs adat az elemzéshez';
         errorBox.classList.add('show');
         meta.className = 'lb-meta error';
         return;
     }
-    
-    // Top 5 és bottom 5 a promptba
+
+    // Prompt összeállítása (változatlan)
     const top5 = realStandings.slice(0, 5).map(t => 
         `${t.pos}. ${t.team} - ${t.pts} pont (${t.goalsFor||0}:${t.goalsAgainst||0})`
     ).join('\n');
-    
     const bottom5 = realStandings.slice(-5).map(t => 
         `${t.pos}. ${t.team} - ${t.pts} pont (${t.goalsFor||0}:${t.goalsAgainst||0})`
     ).join('\n');
-    
-    // Összes csapat név felsorolása
     const allTeams = realStandings.map(t => t.team).join(', ');
-    
+
     const prompt = `Te egy Virtuális Labdarúgás Liga (Premier Liga) profi elemzője vagy.
 A valós tabella alapján készíts egy ELMÉLETI, AI ÁLTAL ELEMZETT tabellát!
 
@@ -417,103 +410,121 @@ FONTOS:
 - A trend lehet: "up", "down", vagy "same"
 - 16 csapatot adj vissza (1-től 16-ig)!
 - CSAK JSON tömböt adj vissza, semmi magyarázatot, semmi mást!`;
-    
-    try {
-        const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyBqMXTttW2v0-0f5u8nekTA4Ojk2mQbV68`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { 
-                        temperature: 0.7,
-                        maxOutputTokens: 1024
-                    }
-                })
+
+    // --- VÁLTOZTATÁSOK ITT KEZDŐDNEK ---
+    const MAX_RETRIES = 2; // Maximális újrapróbálkozások száma 429-es hiba esetén
+    let retryCount = 0;
+    let success = false;
+    let response, data, text;
+
+    while (retryCount <= MAX_RETRIES && !success) {
+        try {
+            // Várakozás a Gemini API limitjének elkerülésére (minden próbálkozás előtt)
+            if (retryCount > 0) {
+                const waitTime = 10000 * retryCount; // 10, 20 másodperc...
+                console.log(`Rate limit miatt várakozás ${waitTime/1000} másodpercet, majd újrapróbálkozás (${retryCount}/${MAX_RETRIES})...`);
+                meta.querySelector('span:first-child').innerHTML = `<span class="refresh-dot"></span>Várakozás (${waitTime/1000}mp)...`;
+                await new Promise(resolve => setTimeout(resolve, waitTime));
             }
-        );
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.error('Gemini hiba:', errorData);
-            
-            // Ha 429-es hiba, várjunk tovább
-            if (response.status === 429) {
-                errorBox.textContent = `⚠️ Túl sok kérés. Várj 30 másodpercet és próbáld újra.`;
+
+            // --- Gemini 2.5 Flash endpoint HASZNÁLATA ---
+            response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBqMXTttW2v0-0f5u8nekTA4Ojk2mQbV68`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { 
+                            temperature: 0.7,
+                            maxOutputTokens: 1024
+                        }
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Gemini hiba:', errorData);
+
+                // Ha 429-es hibát kapunk, és van még újrapróbálkozási lehetőségünk
+                if (response.status === 429 && retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    continue; // Újrapróbálkozás a while ciklus elejéről
+                } else {
+                    // Ha nem 429-es, vagy elfogytak a próbálkozások, dobjunk hibát
+                    throw new Error(`Gemini API hiba (${response.status})`);
+                }
+            }
+
+            data = await response.json();
+            text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!text) throw new Error('Az AI nem adott választ');
+            success = true; // Ha idáig eljutottunk, sikeres a kérés
+
+        } catch (e) {
+            if (retryCount >= MAX_RETRIES || !e.message.includes('429')) {
+                // Ha elfogytak a próbálkozások vagy nem 429-es hibáról van szó
+                console.error('Generálási hiba:', e);
+                errorBox.textContent = `⚠️ ${e.message}`;
                 errorBox.classList.add('show');
                 meta.className = 'lb-meta error';
-                meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Rate limit';
-                aiTable.innerHTML = '<div style="padding:30px; text-align:center; color:#555">Túl sok kérés. Várj 30 másodpercet.</div>';
+                meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
+                aiTable.innerHTML = '<div style="padding:30px; text-align:center; color:#555">Hiba történt. Próbáld újra később.</div>';
                 return;
-            }
-            
-            throw new Error(`Gemini API hiba (${response.status})`);
-        }
-        
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        
-        if (!text) throw new Error('Az AI nem adott választ');
-        
-        console.log('Gemini válasz:', text);
-        
-        // JSON feldolgozás
-        let aiStandings = [];
-        
-        // JSON blokk keresése
-        const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-        const codeBlockMatch = text.match(/```\s*([\s\S]*?)\s*```/);
-        const arrayMatch = text.match(/\[\s*\{[\s\S]*?\}\s*\]/);
-        
-        let jsonString = '';
-        
-        if (jsonBlockMatch && jsonBlockMatch[1]) {
-            jsonString = jsonBlockMatch[1];
-        } else if (codeBlockMatch && codeBlockMatch[1]) {
-            jsonString = codeBlockMatch[1];
-        } else if (arrayMatch && arrayMatch[0]) {
-            jsonString = arrayMatch[0];
-        } else {
-            jsonString = text;
-        }
-        
-        jsonString = jsonString.trim();
-        
-        try {
-            aiStandings = JSON.parse(jsonString);
-        } catch (e) {
-            console.warn('JSON parse hiba');
-            
-            // Próbáljuk meg az első objektumot kinyerni
-            const firstObjMatch = jsonString.match(/\{[\s\S]*?\}/);
-            if (firstObjMatch) {
-                const singleObj = JSON.parse(firstObjMatch[0]);
-                aiStandings = [singleObj];
             } else {
-                throw new Error('Nem található érvényes JSON');
+                retryCount++;
             }
         }
-        
-        if (!aiStandings || aiStandings.length === 0) {
-            throw new Error('Üres JSON tömb érkezett');
-        }
-        
-        renderAITable(aiStandings);
-        await generateAnalysis(aiStandings);
-        
-        meta.className = 'lb-meta';
-        meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI becslés';
-        updateTime.textContent = new Date().toLocaleTimeString('hu-HU');
-        
-    } catch(e) {
-        console.error('Generálási hiba:', e);
-        errorBox.textContent = `⚠️ ${e.message}`;
-        errorBox.classList.add('show');
-        meta.className = 'lb-meta error';
-        meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
-        aiTable.innerHTML = '<div style="padding:30px; text-align:center; color:#555">Hiba történt. Próbáld újra.</div>';
     }
+    // --- VÁLTOZTATÁSOK ITT ÉRNEK VÉGET ---
+
+    // --- JSON FELDOLGOZÁS (sikeres lekérés után) ---
+    console.log('Gemini válasz:', text);
+    let aiStandings = [];
+    const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+    const codeBlockMatch = text.match(/```\s*([\s\S]*?)\s*```/);
+    const arrayMatch = text.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+
+    let jsonString = '';
+    if (jsonBlockMatch && jsonBlockMatch[1]) {
+        jsonString = jsonBlockMatch[1];
+    } else if (codeBlockMatch && codeBlockMatch[1]) {
+        jsonString = codeBlockMatch[1];
+    } else if (arrayMatch && arrayMatch[0]) {
+        jsonString = arrayMatch[0];
+    } else {
+        jsonString = text;
+    }
+
+    jsonString = jsonString.trim();
+    try {
+        aiStandings = JSON.parse(jsonString);
+    } catch (e) {
+        console.warn('JSON parse hiba, első objektum keresése...');
+        const firstObjMatch = jsonString.match(/\{[\s\S]*?\}/);
+        if (firstObjMatch) {
+            aiStandings = [JSON.parse(firstObjMatch[0])];
+        } else {
+            errorBox.textContent = `⚠️ Nem sikerült feldolgozni az AI válaszát.`;
+            errorBox.classList.add('show');
+            return;
+        }
+    }
+
+    if (!aiStandings || aiStandings.length === 0) {
+        errorBox.textContent = `⚠️ Üres válasz érkezett.`;
+        errorBox.classList.add('show');
+        return;
+    }
+
+    renderAITable(aiStandings);
+    await generateAnalysis(aiStandings);
+
+    meta.className = 'lb-meta';
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI becslés';
+    updateTime.textContent = new Date().toLocaleTimeString('hu-HU');
 }
 
 function renderAITable(standings) {
