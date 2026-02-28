@@ -90,6 +90,11 @@
       letter-spacing: 1px;
     }
 
+    .badge.maintenance {
+      background: #f59e0b;
+      color: #000;
+    }
+
     .iframe-wrapper {
       width: 400px;
       height: 225px;
@@ -102,6 +107,72 @@
       height: 100%;
       border: none;
       display: block;
+    }
+
+    /* Leaderboard section */
+    .leaderboard-block {
+      background: #111;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .leaderboard-label {
+      background: #141414;
+      border-bottom: 1px solid #222;
+      padding: 0 14px;
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #888;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 30px;
+    }
+
+    .leaderboard-wrapper {
+      width: 400px;
+      height: 420px;
+      overflow: hidden;
+      background: #0d0d0d;
+    }
+
+    .leaderboard-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* Maintenance notice */
+    .maintenance-notice {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 420px;
+      background: #0d0d0d;
+      color: #555;
+      font-size: 0.78rem;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .maintenance-notice .icon {
+      font-size: 2rem;
+      opacity: 0.5;
+    }
+
+    .maintenance-notice p {
+      max-width: 260px;
+      line-height: 1.6;
+      color: #666;
+    }
+
+    .maintenance-notice strong {
+      color: #f59e0b;
     }
 
     .schedule-btn {
@@ -133,6 +204,9 @@
         width: 100%;
         height: calc((100vw - 24px) * 0.5625);
       }
+      .leaderboard-wrapper {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -159,6 +233,20 @@
           </iframe>
         </div>
       </div>
+
+      <!-- Premier Liga Eredménytábla -->
+      <div class="leaderboard-block">
+        <div class="leaderboard-label">
+          🏆 Eredménytábla – Premier Liga
+        </div>
+        <div class="leaderboard-wrapper">
+          <iframe
+            src="https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061001"
+            allowfullscreen scrolling="no">
+          </iframe>
+        </div>
+      </div>
+
       <a class="schedule-btn"
          href="https://vfscigaming.aitcloud.de/vflmshop/retail/index?clientid=4997&lang=zh&style=scigamingcdn&screen=betradar_vflm_one_screen&channel=0"
          target="_blank">
@@ -180,6 +268,23 @@
           </iframe>
         </div>
       </div>
+
+      <!-- Spanyol Liga Eredménytábla – Karbantartás -->
+      <div class="leaderboard-block">
+        <div class="leaderboard-label">
+          <span class="badge maintenance">⚙</span>
+          Eredménytábla – Spanyol Liga
+        </div>
+        <div class="maintenance-notice">
+          <div class="icon">🔧</div>
+          <p>
+            A <strong>Spanyol Liga eredménytáblája</strong> jelenleg
+            <strong>karbantartás alatt</strong> van.<br><br>
+            Hamarosan visszatér. Köszönjük a türelmedet!
+          </p>
+        </div>
+      </div>
+
       <a class="schedule-btn"
          href="https://schedulerzrh.aitcloud.de/retail_scheduler/display/index/schedule:f94efd4aed2cae288d1ab3abaf828b38"
          target="_blank">
