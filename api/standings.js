@@ -76,53 +76,50 @@ function parsePL(html) {
 function parseSL(html) {
   const standings = [];
 
-  // Minden vsm-livetable-row sort megkeresünk
-  // A sorok egymás után jönnek, </tr> után következik a következő <tr>
-  const trRegex = /<tr[^>]+class="[^"]*vsm-livetable-row[^"]*"[^>]*>([\s\S]*?)<\/tr>/gi;
-  let trMatch;
+  // Megkeressük az összes vsm-livetable-row TR-t
+  // Fontos: data-reactid attribútumok közbeszúródnak mindenütt – ezeket figyelmen kívül kell hagyni
+  const trRegex = /<tr[^>]+id="vsm-vflm-livetable-row-\d+"[^>]*>([\s\S]*?)<\/tr>/g;
+  let m;
 
-  while ((trMatch = trRegex.exec(html)) !== null) {
-    const row = trMatch[1];
+  while ((m = trRegex.exec(html)) !== null) {
+    const row = m[1];
 
-    // ── Pozíció: első vsm-current span értéke a vsm-livetable-pos TD-ben ──
-    const posMatch = row.match(/vsm-livetable-pos[\s\S]*?<span class="vsm-current"[^>]*>(\d+)<\/span>/);
-    if (!posMatch) continue;
-    const pos = parseInt(posMatch[1]);
+    // ── Pozíció: vsm-livetable-pos TD-ben az ELSŐ vsm-current span ──
+    // <td class="vsm-livetable-pos" ...><div ...><span class="vsm-current" ...>1</span>
+    const posM = row.match(/vsm-livetable-pos[\s\S]*?<span class="vsm-current"[^>]*>(\d+)<\/span>/);
+    if (!posM) continue;
+    const pos = parseInt(posM[1]);
     if (isNaN(pos) || pos < 1 || pos > 30) continue;
 
-    // ── Trend: vsm-icon-position-up/down osztály VAGY title="prev->curr" ──
+    // ── Trend: title="prev->curr" HTML-entitással (&gt;) ──
+    // <i class="vsm-icon vsm-unchanged" title="1-&gt;1" ...>
+    // <i class="vsm-icon vsm-icon-position-up" title="7-&gt;5" ...>
     let trend = 'same';
-    const iconMatch = row.match(/class="vsm-icon([^"]+)"/);
-    if (iconMatch) {
-      if (/position-up|vsm-up|improved/i.test(iconMatch[1]))   trend = 'up';
-      if (/position-down|vsm-down|worsened/i.test(iconMatch[1])) trend = 'down';
-    }
-    // title="7->5" → prev=7, curr=5 → feljebb → up
-    const titleMatch = row.match(/title="(\d+)-&gt;(\d+)"/);
-    if (titleMatch) {
-      const prev = parseInt(titleMatch[1]);
-      const curr = parseInt(titleMatch[2]);
+    const trendM = row.match(/title="(\d+)-&gt;(\d+)"/);
+    if (trendM) {
+      const prev = parseInt(trendM[1]), curr = parseInt(trendM[2]);
       trend = curr < prev ? 'up' : curr > prev ? 'down' : 'same';
     }
 
-    // ── Csapatnév: vsm-livetable-team TD első span szövege ──
-    const teamMatch = row.match(/vsm-livetable-team[\s\S]*?<span[^>]*>([A-Za-záéíóöőúüűÁÉÍÓÖŐÚÜŰ0-9 .'-]+)<\/span>/);
-    if (!teamMatch) continue;
-    const team = teamMatch[1].trim();
-    if (!team || team.length < 2) continue;
+    // ── Csapatnév: vsm-livetable-team TD-ben a span szövege ──
+    // <td class="vsm-livetable-team" ...><span data-reactid="...">MAF</span>
+    const teamM = row.match(/vsm-livetable-team[\s\S]*?<span[^>]*>([^<]{2,10})<\/span>/);
+    if (!teamM) continue;
+    const team = teamM[1].trim();
+    if (!team) continue;
 
-    // ── Gólok: vsm-livetable-score → vsm-current → "29:26" ──
+    // ── Gólok: vsm-livetable-score TD-ben az ELSŐ vsm-current span "45:22" ──
     let goalsFor = 0, goalsAgainst = 0;
-    const scoreMatch = row.match(/vsm-livetable-score[\s\S]*?<span class="vsm-current"[^>]*>(\d+):(\d+)<\/span>/);
-    if (scoreMatch) {
-      goalsFor     = parseInt(scoreMatch[1]);
-      goalsAgainst = parseInt(scoreMatch[2]);
+    const scoreM = row.match(/vsm-livetable-score[\s\S]*?<span class="vsm-current"[^>]*>(\d+):(\d+)<\/span>/);
+    if (scoreM) {
+      goalsFor = parseInt(scoreM[1]);
+      goalsAgainst = parseInt(scoreM[2]);
     }
 
-    // ── Pontok: vsm-livetable-points → vsm-current ──
-    const ptsMatch = row.match(/vsm-livetable-points[\s\S]*?<span class="vsm-current"[^>]*>(\d+)<\/span>/);
-    if (!ptsMatch) continue;
-    const pts = parseInt(ptsMatch[1]);
+    // ── Pontok: vsm-livetable-points TD-ben az ELSŐ vsm-current span ──
+    const ptsM = row.match(/vsm-livetable-points[\s\S]*?<span class="vsm-current"[^>]*>(\d+)<\/span>/);
+    if (!ptsM) continue;
+    const pts = parseInt(ptsM[1]);
 
     standings.push({ pos, team, logo: null, goalsFor, goalsAgainst, pts, trend });
   }
@@ -132,7 +129,6 @@ function parseSL(html) {
     .filter(r => { if (seen.has(r.pos)) return false; seen.add(r.pos); return true; })
     .sort((a, b) => a.pos - b.pos);
 }
-
 // ─────────────────────────────────────────────
 // FALLBACKEK
 // ─────────────────────────────────────────────
@@ -156,8 +152,22 @@ const FALLBACK_PL = [
 ];
 
 const FALLBACK_SL = [
-  { pos: 1,  team: 'MAF', goalsFor: 44, goalsAgainst: 21, pts: 45, trend: 'same', logo: null },
-  { pos: 2,  team: '???', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 1,  team: 'MAF', goalsFor: 45, goalsAgainst: 22, pts: 46, trend: 'same', logo: null },
+  { pos: 2,  team: 'SEP', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 3,  team: 'RSO', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 4,  team: 'BAR', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 5,  team: 'VLC', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 6,  team: 'GET', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 7,  team: 'SEZ', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 8,  team: 'VIL', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 9,  team: 'GIR', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 10, team: 'MAL', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 11, team: 'ALA', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 12, team: 'BIL', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 13, team: 'OSA', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 14, team: 'ELC', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 15, team: 'VIG', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
+  { pos: 16, team: 'MAP', goalsFor: 0,  goalsAgainst: 0,  pts: 0,  trend: 'same', logo: null },
 ];
 
 // ─────────────────────────────────────────────
