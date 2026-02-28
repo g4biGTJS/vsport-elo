@@ -64,59 +64,63 @@ function parsePL(html) {
 
 // ─────────────────────────────────────────────
 // SPANYOL LIGA parser (schedulerzrh VSM widget)
-// Struktúra: <tr id="vsm-vflm-livetable-row-XXXXX" class="vsm-livetable-row vsm-row-position-N">
-//   <td class="vsm-livetable-pos">   <span class="vsm-current">1</span>
-//   <td class="vsm-livetable-team">  <span>MAF</span>
-//   <td class="vsm-livetable-score"> <span class="vsm-current">44:21</span>
-//   <td class="vsm-livetable-points"><span class="vsm-current">45</span>
-//   trend: <i class="vsm-icon vsm-up/vsm-down/vsm-unchanged" title="1->2">
+// Valós struktúra:
+//   <tr id="vsm-vflm-livetable-row-276513" class="vsm-livetable-row vsm-row-position-5">
+//   Pozíció:  <span class="vsm-current">5</span>  (első ilyen a sorban)
+//   Trend:    <i class="vsm-icon vsm-icon-position-up" title="7->5">
+//             title="prev->curr" – kisebb curr = up
+//   Csapat:   <td class="vsm-livetable-team"><span ...>VLC</span>
+//   Gólok:    <td class="vsm-livetable-score">...<span class="vsm-current">29:26</span>
+//   Pont:     <td class="vsm-livetable-points">...<span class="vsm-current">28</span>
 // ─────────────────────────────────────────────
 function parseSL(html) {
   const standings = [];
 
   // Minden vsm-livetable-row sort megkeresünk
-  const trRegex = /<tr[^>]*class="[^"]*vsm-livetable-row[^"]*"[^>]*>([\s\S]*?)<\/tr>/gi;
+  // A sorok egymás után jönnek, </tr> után következik a következő <tr>
+  const trRegex = /<tr[^>]+class="[^"]*vsm-livetable-row[^"]*"[^>]*>([\s\S]*?)<\/tr>/gi;
   let trMatch;
 
   while ((trMatch = trRegex.exec(html)) !== null) {
     const row = trMatch[1];
 
-    // Pozíció – vsm-current a pozíció TD-ben
-    const posMatch = row.match(/class="vsm-livetable-pos"[^>]*>[\s\S]*?<span class="vsm-current"[^>]*>(\d+)<\/span>/);
+    // ── Pozíció: első vsm-current span értéke a vsm-livetable-pos TD-ben ──
+    const posMatch = row.match(/vsm-livetable-pos[\s\S]*?<span class="vsm-current"[^>]*>(\d+)<\/span>/);
     if (!posMatch) continue;
     const pos = parseInt(posMatch[1]);
     if (isNaN(pos) || pos < 1 || pos > 30) continue;
 
-    // Trend – vsm-icon osztályból
+    // ── Trend: vsm-icon-position-up/down osztály VAGY title="prev->curr" ──
     let trend = 'same';
-    if (/class="vsm-icon vsm-up"/.test(row) || /class="vsm-icon vsm-improved"/.test(row)) trend = 'up';
-    if (/class="vsm-icon vsm-down"/.test(row) || /class="vsm-icon vsm-worsened"/.test(row)) trend = 'down';
-    // title="1->2" formátum alapján is
-    const titleMatch = row.match(/title="(\d+)->(\d+)"/);
+    const iconMatch = row.match(/class="vsm-icon([^"]+)"/);
+    if (iconMatch) {
+      if (/position-up|vsm-up|improved/i.test(iconMatch[1]))   trend = 'up';
+      if (/position-down|vsm-down|worsened/i.test(iconMatch[1])) trend = 'down';
+    }
+    // title="7->5" → prev=7, curr=5 → feljebb → up
+    const titleMatch = row.match(/title="(\d+)-&gt;(\d+)"/);
     if (titleMatch) {
       const prev = parseInt(titleMatch[1]);
       const curr = parseInt(titleMatch[2]);
-      if (curr < prev) trend = 'up';
-      else if (curr > prev) trend = 'down';
-      else trend = 'same';
+      trend = curr < prev ? 'up' : curr > prev ? 'down' : 'same';
     }
 
-    // Csapatnév – vsm-livetable-team TD-ben a span szövege
-    const teamMatch = row.match(/class="vsm-livetable-team"[^>]*>[\s\S]*?<span[^>]*>([^<]+)<\/span>/);
+    // ── Csapatnév: vsm-livetable-team TD első span szövege ──
+    const teamMatch = row.match(/vsm-livetable-team[\s\S]*?<span[^>]*>([A-Za-záéíóöőúüűÁÉÍÓÖŐÚÜŰ0-9 .'-]+)<\/span>/);
     if (!teamMatch) continue;
     const team = teamMatch[1].trim();
     if (!team || team.length < 2) continue;
 
-    // Gólok – vsm-livetable-score, vsm-current: "44:21"
+    // ── Gólok: vsm-livetable-score → vsm-current → "29:26" ──
     let goalsFor = 0, goalsAgainst = 0;
-    const scoreMatch = row.match(/class="vsm-livetable-score"[^>]*>[\s\S]*?<span class="vsm-current"[^>]*>(\d+):(\d+)<\/span>/);
+    const scoreMatch = row.match(/vsm-livetable-score[\s\S]*?<span class="vsm-current"[^>]*>(\d+):(\d+)<\/span>/);
     if (scoreMatch) {
       goalsFor     = parseInt(scoreMatch[1]);
       goalsAgainst = parseInt(scoreMatch[2]);
     }
 
-    // Pontok – vsm-livetable-points, vsm-current
-    const ptsMatch = row.match(/class="vsm-livetable-points"[^>]*>[\s\S]*?<span class="vsm-current"[^>]*>(\d+)<\/span>/);
+    // ── Pontok: vsm-livetable-points → vsm-current ──
+    const ptsMatch = row.match(/vsm-livetable-points[\s\S]*?<span class="vsm-current"[^>]*>(\d+)<\/span>/);
     if (!ptsMatch) continue;
     const pts = parseInt(ptsMatch[1]);
 
