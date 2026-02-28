@@ -1,9 +1,7 @@
 {
-  "cleanUrls": true,
+  "version": 2,
   "rewrites": [
-    {
-      "source": "/",
-      "destination": "/VSPORT"
-    }
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }
