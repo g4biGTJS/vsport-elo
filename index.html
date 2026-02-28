@@ -38,10 +38,10 @@
     .leaderboard-header-bar {
       background:#1e6b1e;
       display:grid;
-      grid-template-columns: 28px 20px 1fr 56px 56px 44px;
+      grid-template-columns: 28px 20px 1fr 70px 52px 40px;
       align-items:center; padding:7px 10px; gap:4px;
     }
-    .leaderboard-header-bar span { font-size:.65rem; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:.5px; }
+    .leaderboard-header-bar span { font-size:.6rem; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .leaderboard-header-bar .h-right { text-align:right; }
 
     .lb-meta {
@@ -57,7 +57,7 @@
 
     .lb-row {
       display:grid;
-      grid-template-columns: 28px 20px 1fr 56px 56px 44px;
+      grid-template-columns: 28px 20px 1fr 70px 52px 40px;
       align-items:center; padding:4px 10px; gap:4px;
       border-bottom:1px solid #1d1d1d; transition:background .12s;
     }
@@ -150,9 +150,9 @@
         <span>#</span>
         <span></span>
         <span>Csapat</span>
-        <span class="h-right">Lőtt:Kapott</span>
-        <span class="h-right">Különbség</span>
-        <span class="h-right">Pont</span>
+        <span class="h-right">Gól</span>
+        <span class="h-right">GK</span>
+        <span class="h-right">Pt</span>
       </div>
       <div class="lb-meta loading" id="pl-meta">
         <span><span class="refresh-dot"></span>Betöltés...</span>
@@ -169,9 +169,9 @@
     </div>
 
     <a class="schedule-btn"
-       href="https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061001"
+       href="https://vfscigaming.aitcloud.de/vflmshop/retail/index?clientid=4997&lang=zh&style=scigamingcdn&screen=betradar_vflm_one_screen&channel=0"
        target="_blank">
-      Teljes táblázat &amp; menetrend – <strong>Premier Liga</strong> →
+      🔴 Élő közvetítés – <strong>Premier Liga</strong> →
     </a>
   </div>
 
@@ -193,28 +193,22 @@
         <span>#</span>
         <span></span>
         <span>Csapat</span>
-        <span class="h-right">Lőtt:Kapott</span>
-        <span class="h-right">Különbség</span>
-        <span class="h-right">Pont</span>
+        <span class="h-right">Gól</span>
+        <span class="h-right">GK</span>
+        <span class="h-right">Pt</span>
       </div>
-      <div class="lb-meta loading" id="sl-meta">
-        <span><span class="refresh-dot"></span>Betöltés...</span>
-        <span id="sl-time">–</span>
-      </div>
-      <div class="leaderboard-body" id="sl-table">
-        <div class="lb-skeleton">
-          <div class="skel-row"></div><div class="skel-row"></div>
-          <div class="skel-row"></div><div class="skel-row"></div>
-          <div class="skel-row"></div><div class="skel-row"></div>
-          <div class="skel-row"></div><div class="skel-row"></div>
+      <div class="leaderboard-body">
+        <div class="maintenance-notice">
+          <div class="icon">🔧</div>
+          <p>A <strong>Spanyol Liga eredménytáblája</strong> jelenleg <strong>karbantartás alatt</strong> van.<br><br>Hamarosan visszatér!</p>
         </div>
       </div>
     </div>
 
     <a class="schedule-btn"
-       href="https://schedulerzrh.aitcloud.de/retail_scheduler/display/index/schedule:f94efd4aed2cae288d1ab3abaf828b38"
+       href="https://vflive-vs001.akamaized.net/vflmshopsts/retail/index?clientid=5027&lang=zh&screen=scigaming_vflm_one_screen_sts_scout&style=scigamingcdn&channel=0"
        target="_blank">
-      Menetrend – <strong>Spanyol Liga</strong> →
+      🔴 Élő közvetítés – <strong>Spanyol Liga</strong> →
     </a>
   </div>
 
@@ -310,8 +304,7 @@
   }
 
   loadStandings('pl');
-  loadStandings('sl');
-  setInterval(() => { loadStandings('pl'); loadStandings('sl'); }, REFRESH_MS);
+  setInterval(() => loadStandings('pl'), REFRESH_MS);
 </script>
 
 </body>
