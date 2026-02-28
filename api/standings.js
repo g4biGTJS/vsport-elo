@@ -76,24 +76,25 @@ function parsePL(html) {
 function parseSL(html) {
   const standings = [];
 
-  // Megkeressük az összes vsm-livetable-row TR-t
-  // Fontos: data-reactid attribútumok közbeszúródnak mindenütt – ezeket figyelmen kívül kell hagyni
-  const trRegex = /<tr[^>]+id="vsm-vflm-livetable-row-\d+"[^>]*>([\s\S]*?)<\/tr>/g;
-  let m;
+  // A sorok KÖZÖTT nincs sortörés – a TR-eket az id alapján vágjuk szét
+  // Split megközelítés: megkeressük az összes TR kezdetét és tartalma a következő TR-ig tart
+  const splitParts = html.split(/<tr\s+id="(vsm-vflm-livetable-row-\d+)"[^>]*>/);
+  // splitParts: [előtte, id1, tartalom1, id2, tartalom2, ...]
 
-  while ((m = trRegex.exec(html)) !== null) {
-    const row = m[1];
+  for (let i = 1; i < splitParts.length; i += 2) {
+    // i = id, i+1 = tartalom (</tr>-ig)
+    const rowRaw = splitParts[i + 1];
+    if (!rowRaw) continue;
+    // Levágjuk a </tr> utáni részt
+    const row = rowRaw.split('</tr>')[0];
 
-    // ── Pozíció: vsm-livetable-pos TD-ben az ELSŐ vsm-current span ──
-    // <td class="vsm-livetable-pos" ...><div ...><span class="vsm-current" ...>1</span>
+    // ── Pozíció ──
     const posM = row.match(/vsm-livetable-pos[\s\S]*?<span class="vsm-current"[^>]*>(\d+)<\/span>/);
     if (!posM) continue;
     const pos = parseInt(posM[1]);
     if (isNaN(pos) || pos < 1 || pos > 30) continue;
 
-    // ── Trend: title="prev->curr" HTML-entitással (&gt;) ──
-    // <i class="vsm-icon vsm-unchanged" title="1-&gt;1" ...>
-    // <i class="vsm-icon vsm-icon-position-up" title="7-&gt;5" ...>
+    // ── Trend: title="prev-&gt;curr" ──
     let trend = 'same';
     const trendM = row.match(/title="(\d+)-&gt;(\d+)"/);
     if (trendM) {
@@ -101,14 +102,13 @@ function parseSL(html) {
       trend = curr < prev ? 'up' : curr > prev ? 'down' : 'same';
     }
 
-    // ── Csapatnév: vsm-livetable-team TD-ben a span szövege ──
-    // <td class="vsm-livetable-team" ...><span data-reactid="...">MAF</span>
+    // ── Csapatnév ──
     const teamM = row.match(/vsm-livetable-team[\s\S]*?<span[^>]*>([^<]{2,10})<\/span>/);
     if (!teamM) continue;
     const team = teamM[1].trim();
     if (!team) continue;
 
-    // ── Gólok: vsm-livetable-score TD-ben az ELSŐ vsm-current span "45:22" ──
+    // ── Gólok ──
     let goalsFor = 0, goalsAgainst = 0;
     const scoreM = row.match(/vsm-livetable-score[\s\S]*?<span class="vsm-current"[^>]*>(\d+):(\d+)<\/span>/);
     if (scoreM) {
@@ -116,7 +116,7 @@ function parseSL(html) {
       goalsAgainst = parseInt(scoreM[2]);
     }
 
-    // ── Pontok: vsm-livetable-points TD-ben az ELSŐ vsm-current span ──
+    // ── Pontok ──
     const ptsM = row.match(/vsm-livetable-points[\s\S]*?<span class="vsm-current"[^>]*>(\d+)<\/span>/);
     if (!ptsM) continue;
     const pts = parseInt(ptsM[1]);
