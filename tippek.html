@@ -277,69 +277,118 @@
 </div>
 
 <script>
-const LOGO  = 'https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/';
-const DATA  = [
-  {r:17,home:'Manchester Kék', hid:'276510',away:'Nottingham',    aid:'276516',hs:5,as:0},
-  {r:17,home:'Newcastle',      hid:'276512',away:'Aston Oroszlán',aid:'276504',hs:1,as:2},
-  {r:17,home:'Vörös Ördögök',  hid:'276502',away:'Everton',       aid:'276501',hs:1,as:1},
-  {r:17,home:'Brighton',       hid:'276511',away:'Fulham',         aid:'276503',hs:2,as:1},
-  {r:17,home:'West Ham',       hid:'276515',away:'Chelsea',        aid:'276508',hs:0,as:1},
-  {r:17,home:'Liverpool',      hid:'276507',away:'Tottenham',      aid:'276505',hs:0,as:1},
-  {r:17,home:'Crystal Palace', hid:'276509',away:'London Ágyúk',   aid:'276513',hs:0,as:0},
-  {r:17,home:'Wolverhampton',  hid:'276514',away:'Brentford',      aid:'276506',hs:0,as:1},
-  {r:16,home:'Aston Oroszlán', hid:'276504',away:'West Ham',       aid:'276515',hs:5,as:1},
-  {r:16,home:'Fulham',         hid:'276503',away:'Wolverhampton',  aid:'276514',hs:2,as:3},
-  {r:16,home:'London Ágyúk',   hid:'276513',away:'Brighton',       aid:'276511',hs:0,as:2},
-  {r:16,home:'Everton',        hid:'276501',away:'Crystal Palace', aid:'276509',hs:1,as:2},
-  {r:16,home:'Brentford',      hid:'276506',away:'Manchester Kék', aid:'276510',hs:0,as:0},
-];
+const LOGO   = 'https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/';
+const GEMINI = 'AIzaSyD6tfnMdM2_FdYjL6QQuXYjq7BVkfUvizg';
 
+// ── STATE ──
+let RESULTS  = [];   // lejátszott meccsek (az /api/matches-ből)
+let UPCOMING = [];   // következő meccsek
+let NEXT_ROUND = null;
 let sel = new Set();
-let round = 'all';
-let apiKey = 'AIzaSyD6tfnMdM2_FdYjL6QQuXYjq7BVkfUvizg';
+let viewMode = 'results'; // 'results' | 'upcoming'
 
 // ── INIT ──
-function init() {
-  // Build tabs
-  const rounds = [...new Set(DATA.map(m=>m.r))].sort((a,b)=>b-a);
-  document.getElementById('tabs').innerHTML =
-    `<button class="rtab active" data-r="all" onclick="setRound('all')">Összes</button>` +
-    rounds.map(r=>`<button class="rtab" data-r="${r}" onclick="setRound(${r})">${r}. forduló</button>`).join('');
-  render();
+async function init() {
+  showLoading();
+  try {
+    const r = await fetch('/api/matches');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+
+    RESULTS  = data.recentResults  || [];
+    UPCOMING = data.nextFixtures   || [];
+    NEXT_ROUND = data.nextRound    || null;
+
+    if (RESULTS.length === 0 && UPCOMING.length === 0) {
+      showError('Nem sikerült betölteni a meccsadatokat. Próbáld újra!');
+      return;
+    }
+    buildUI();
+  } catch(e) {
+    showError('Hálózati hiba: ' + e.message);
+  }
+}
+
+function showLoading() {
+  document.getElementById('tabs').innerHTML = '';
+  document.getElementById('grid').innerHTML = `
+    <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--muted)">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div style="margin-top:12px;font-size:.78rem">Meccsek betöltése...</div>
+    </div>`;
+  document.getElementById('aiBtn').disabled = true;
+}
+
+function showError(msg) {
+  document.getElementById('grid').innerHTML = `
+    <div style="grid-column:1/-1;padding:30px;text-align:center;color:var(--muted);font-size:.78rem">${msg}</div>`;
+}
+
+function buildUI() {
+  // Tabs: "Legutóbbi" + fordulók + "Következő"
+  const rounds = [...new Set(RESULTS.map(m => m.round))].sort((a,b) => b-a);
+  let tabsHtml = '';
+
+  if (UPCOMING.length > 0) {
+    tabsHtml += `<button class="rtab upcoming-tab" data-mode="upcoming" onclick="setMode('upcoming')">
+      ⚡ Következő (${NEXT_ROUND}. kör)
+    </button>`;
+  }
+
+  rounds.forEach((r, i) => {
+    tabsHtml += `<button class="rtab${i===0?' active':''}" data-r="${r}" onclick="setRound(${r})">${r}. forduló</button>`;
+  });
+
+  document.getElementById('tabs').innerHTML = tabsHtml;
+
+  // Default: show latest completed round
+  if (rounds.length > 0) {
+    setRound(rounds[0]);
+  }
+}
+
+function setMode(mode) {
+  viewMode = mode;
+  sel.clear();
+  document.querySelectorAll('.rtab').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === mode);
+  });
+  renderUpcoming();
 }
 
 function setRound(r) {
-  round = r;
+  viewMode = 'results';
   sel.clear();
-  document.querySelectorAll('.rtab').forEach(t=>t.classList.toggle('active', t.dataset.r==r));
-  render();
+  document.querySelectorAll('.rtab').forEach(t => {
+    t.classList.toggle('active', String(t.dataset.r) === String(r) && !t.dataset.mode);
+  });
+  renderResults(r);
 }
 
-function render() {
-  const list = round==='all' ? DATA : DATA.filter(m=>m.r==round);
-  document.getElementById('slabel').textContent =
-    round==='all' ? 'Összes forduló eredményei' : `${round}. forduló – Eredmények`;
+function renderResults(round) {
+  const list = RESULTS.filter(m => m.round === round);
+  document.getElementById('slabel').textContent = `${round}. forduló – Eredmények`;
 
-  document.getElementById('grid').innerHTML = list.map(m=>{
-    const i = DATA.indexOf(m);
-    const hw=m.hs>m.as, aw=m.as>m.hs, dr=m.hs===m.as;
-    const vt = dr?'Döntetlen': hw?`${m.home} győzött`:`${m.away} győzött`;
-    const vc = dr?'dr': hw?'hw':'aw';
-    const hs = hw?`<span class="sw">${m.hs}</span>`:`<span>${m.hs}</span>`;
-    const as_ = aw?`<span class="sw">${m.as}</span>`:`<span>${m.as}</span>`;
+  document.getElementById('grid').innerHTML = list.map((m, i) => {
+    const idx = RESULTS.indexOf(m);
+    const hw = m.hs > m.as, aw = m.as > m.hs, dr = m.hs === m.as;
+    const vt = dr ? 'Döntetlen' : hw ? `${m.home} győzött` : `${m.away} győzött`;
+    const vc = dr ? 'dr' : hw ? 'hw' : 'aw';
+    const hs = hw ? `<span class="sw">${m.hs}</span>` : `<span>${m.hs}</span>`;
+    const as_ = aw ? `<span class="sw">${m.as}</span>` : `<span>${m.as}</span>`;
     return `
-    <div class="mcard" id="mc${i}" onclick="toggle(${i})">
-      <div class="chk">${sel.has(i)?'✓':''}</div>
-      <div class="mround">${m.r}. forduló</div>
+    <div class="mcard" id="mc${idx}" onclick="toggle(${idx})">
+      <div class="chk">${sel.has(idx) ? '✓' : ''}</div>
+      <div class="mround">${m.round}. forduló</div>
       <div class="mteams">
         <div class="mside h">
-          <img class="crest" src="${LOGO}${m.hid}.png" onerror="this.style.display='none'">
+          ${m.hid ? `<img class="crest" src="${LOGO}${m.hid}.png" onerror="this.style.display='none'">` : ''}
           <span class="tnm" style="font-weight:${hw?600:400};color:${hw?'var(--text)':'var(--muted2)'}">${m.home}</span>
         </div>
         <div class="mscore">${hs}<span class="ss">:</span>${as_}</div>
         <div class="mside a">
           <span class="tnm" style="font-weight:${aw?600:400};color:${aw?'var(--text)':'var(--muted2)'}">${m.away}</span>
-          <img class="crest" src="${LOGO}${m.aid}.png" onerror="this.style.display='none'">
+          ${m.aid ? `<img class="crest" src="${LOGO}${m.aid}.png" onerror="this.style.display='none'">` : ''}
         </div>
       </div>
       <div class="mverdict ${vc}">${vt}</div>
@@ -348,38 +397,87 @@ function render() {
   updateUI();
 }
 
-function toggle(i) {
-  sel.has(i) ? sel.delete(i) : sel.add(i);
-  const card = document.getElementById(`mc${i}`);
-  card.classList.toggle('sel', sel.has(i));
-  card.querySelector('.chk').textContent = sel.has(i)?'✓':'';
+function renderUpcoming() {
+  document.getElementById('slabel').textContent = `${NEXT_ROUND}. forduló – Következő meccsek`;
+  document.getElementById('grid').innerHTML = UPCOMING.map((m, idx) => {
+    const uidx = 10000 + idx; // unique index offset for upcoming
+    return `
+    <div class="mcard upcoming" id="mc${uidx}" onclick="toggleU(${idx})">
+      <div class="chk">${sel.has(uidx) ? '✓' : ''}</div>
+      <div class="mround" style="color:var(--accent)">⚡ ${m.round}. forduló · ${m.time || 'Hamarosan'}</div>
+      <div class="mteams">
+        <div class="mside h">
+          ${m.hid ? `<img class="crest" src="${LOGO}${m.hid}.png" onerror="this.style.display='none'">` : ''}
+          <span class="tnm">${m.home}</span>
+        </div>
+        <div class="mscore" style="color:var(--muted);font-size:.7rem;letter-spacing:1px">VS</div>
+        <div class="mside a">
+          <span class="tnm">${m.away}</span>
+          ${m.aid ? `<img class="crest" src="${LOGO}${m.aid}.png" onerror="this.style.display='none'">` : ''}
+        </div>
+      </div>
+      <div class="mverdict" style="color:var(--muted)">Kijelölés → AI tipp</div>
+    </div>`;
+  }).join('');
+  updateUI();
+}
+
+function toggle(idx) {
+  sel.has(idx) ? sel.delete(idx) : sel.add(idx);
+  const card = document.getElementById(`mc${idx}`);
+  if (card) {
+    card.classList.toggle('sel', sel.has(idx));
+    card.querySelector('.chk').textContent = sel.has(idx) ? '✓' : '';
+  }
+  updateUI();
+}
+
+function toggleU(idx) {
+  const uidx = 10000 + idx;
+  sel.has(uidx) ? sel.delete(uidx) : sel.add(uidx);
+  const card = document.getElementById(`mc${uidx}`);
+  if (card) {
+    card.classList.toggle('sel', sel.has(uidx));
+    card.querySelector('.chk').textContent = sel.has(uidx) ? '✓' : '';
+  }
   updateUI();
 }
 
 function toggleAll() {
-  const list = round==='all' ? DATA : DATA.filter(m=>m.r==round);
-  const idxs = list.map(m=>DATA.indexOf(m));
-  const allS = idxs.every(i=>sel.has(i));
-  idxs.forEach(i=>{
-    allS ? sel.delete(i) : sel.add(i);
-    const c = document.getElementById(`mc${i}`);
-    if(c){ c.classList.toggle('sel',!allS); c.querySelector('.chk').textContent=allS?'':'✓'; }
-  });
-  document.getElementById('selAllBtn').textContent = allS ? 'Összes kijelölése' : 'Kijelölés törlése';
+  if (viewMode === 'upcoming') {
+    const idxs = UPCOMING.map((_, i) => 10000 + i);
+    const allS = idxs.every(i => sel.has(i));
+    idxs.forEach(i => {
+      allS ? sel.delete(i) : sel.add(i);
+      const c = document.getElementById(`mc${i}`);
+      if (c) { c.classList.toggle('sel', !allS); c.querySelector('.chk').textContent = allS ? '' : '✓'; }
+    });
+    document.getElementById('selAllBtn').textContent = allS ? 'Összes kijelölése' : 'Kijelölés törlése';
+  } else {
+    // Get current visible results
+    const roundTab = document.querySelector('.rtab.active:not([data-mode])');
+    const curRound = roundTab ? parseInt(roundTab.dataset.r) : null;
+    const list = curRound ? RESULTS.filter(m => m.round === curRound) : RESULTS;
+    const idxs = list.map(m => RESULTS.indexOf(m));
+    const allS = idxs.every(i => sel.has(i));
+    idxs.forEach(i => {
+      allS ? sel.delete(i) : sel.add(i);
+      const c = document.getElementById(`mc${i}`);
+      if (c) { c.classList.toggle('sel', !allS); c.querySelector('.chk').textContent = allS ? '' : '✓'; }
+    });
+    document.getElementById('selAllBtn').textContent = allS ? 'Összes kijelölése' : 'Kijelölés törlése';
+  }
   updateUI();
 }
 
 function updateUI() {
   document.getElementById('scnt').textContent = sel.size;
-  document.getElementById('aiBtn').disabled = sel.size===0;
+  document.getElementById('aiBtn').disabled = sel.size === 0;
 }
-
-// ── API KEY ── (hardcoded, no modal needed)
 
 // ── ANALYZE ──
 async function analyze() {
-  const chosen = [...sel].map(i=>DATA[i]);
-  if(!chosen.length) return;
+  if (sel.size === 0) return;
 
   const panel = document.getElementById('aipanel');
   const body  = document.getElementById('aibody');
@@ -391,69 +489,89 @@ async function analyze() {
   btn.disabled = true;
   body.className = 'aibody';
   body.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
-  setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'nearest'}),120);
+  setTimeout(() => panel.scrollIntoView({behavior:'smooth', block:'nearest'}), 120);
 
-  // Build form table for ALL teams from full dataset
+  // Szétválasztjuk a kiválasztott meccseket: lejátszott vs következő
+  const selectedResults  = [...sel].filter(i => i < 10000).map(i => RESULTS[i]);
+  const selectedUpcoming = [...sel].filter(i => i >= 10000).map(i => UPCOMING[i - 10000]);
+
+  // Form kalkuláció az összes lejátszott meccsből
   const form = {};
-  DATA.forEach(m=>{
-    if(!form[m.home]) form[m.home]=[];
-    if(!form[m.away]) form[m.away]=[];
-    if(m.hs>m.as){ form[m.home].push('W'); form[m.away].push('V'); }
-    else if(m.as>m.hs){ form[m.away].push('W'); form[m.home].push('V'); }
+  RESULTS.forEach(m => {
+    if (!form[m.home]) form[m.home] = [];
+    if (!form[m.away]) form[m.away] = [];
+    if (m.hs > m.as) { form[m.home].push('W'); form[m.away].push('V'); }
+    else if (m.as > m.hs) { form[m.away].push('W'); form[m.home].push('V'); }
     else { form[m.home].push('D'); form[m.away].push('D'); }
   });
-
   const formStr = Object.entries(form)
-    .map(([t,f])=>`${t}: ${f.join('')} (${f.filter(x=>x==='W').length}W ${f.filter(x=>x==='D').length}D ${f.filter(x=>x==='V').length}V)`)
+    .map(([t, f]) => `${t}: ${f.join('')} (${f.filter(x=>x==='W').length}W ${f.filter(x=>x==='D').length}D ${f.filter(x=>x==='V').length}V)`)
     .join('\n');
 
-  const matchLines = chosen.map(m=>{
-    const r = m.hs>m.as?`${m.home} nyert`:m.as>m.hs?`${m.away} nyert`:'Döntetlen';
-    return `  • ${m.r}. forduló: ${m.home} ${m.hs}–${m.as} ${m.away} → ${r}`;
-  }).join('\n');
+  // Prompt összeállítása
+  let prompt = `Te egy Betradar Virtuális Labdarúgás Liga (VLLM Premier Liga) szakértő elemzője vagy.\n\n`;
 
-  const prompt = `Te egy Betradar Virtuális Labdarúgás Liga (VLLM Premier Liga) szakértő elemzője vagy.
+  if (selectedResults.length > 0) {
+    const matchLines = selectedResults.map(m => {
+      const r = m.hs > m.as ? `${m.home} nyert` : m.as > m.hs ? `${m.away} nyert` : 'Döntetlen';
+      return `  • ${m.round}. forduló: ${m.home} ${m.hs}–${m.as} ${m.away} → ${r}`;
+    }).join('\n');
+    prompt += `KIVÁLASZTOTT LEJÁTSZOTT MECCSEK:\n${matchLines}\n\n`;
+  }
 
-ELEMZENDŐ MECCSEK:
-${matchLines}
+  if (selectedUpcoming.length > 0) {
+    const upLines = selectedUpcoming.map(m =>
+      `  • ${m.round}. forduló: ${m.home} vs ${m.away} (${m.time || 'hamarosan'})`
+    ).join('\n');
+    prompt += `KÖVETKEZŐ MECCSEK (amikre tippet kérek):\n${upLines}\n\n`;
+  }
 
-ÖSSZES CSAPAT FORMÁJA (utolsó fordulók alapján, W=győzelem D=döntetlen V=vereség):
-${formStr}
+  prompt += `CSAPAT FORMÁK (utolsó fordulók alapján, W=győzelem D=döntetlen V=vereség):\n${formStr}\n\n`;
 
-Kérlek elemezd ki a fenti adatokat és adj KONKRÉT tippeket!
+  if (selectedUpcoming.length > 0) {
+    prompt += `Kérlek elemezd a formát és adj KONKRÉT tippeket a következő meccsekre!
 
 Kért szekciók:
-1. 🔥 Forma elemzés – melyik 2-3 csapat van a legjobb / legrosszabb formában
-2. 📊 Érdekesség – egy meglepő eredmény vagy trend amit észreveszel
-3. ⚽ Tippek a következő fordulóra – 3-5 konkrét mérkőzés javaslat (pl. "Brighton hazai győzelem esélyes")
+1. 🔥 Forma elemzés – melyik csapatok vannak legjobb/legrosszabb formában
+2. ⚽ Tippek – minden kiválasztott következő meccsre konkrét javaslat (pl. "hazai győzelem", "vendég győzelem", "döntetlen")
+3. ⭐ Legjobb fogadás – egyetlen legbiztosabb tipp részletes indoklással
+
+Fontos: Válaszolj MAGYARUL. Félkövérrel **csapatneveket**. Tömör, konkrét. Max 300 szó.`;
+  } else {
+    prompt += `Kérlek elemezd ki a fenti meccseket és adj tippeket a következő körre!
+
+Kért szekciók:
+1. 🔥 Forma elemzés – melyik 2-3 csapat van legjobb/legrosszabb formában
+2. 📊 Érdekesség – egy meglepő eredmény vagy trend
+3. ⚽ Tippek a következő fordulóra – 3-5 konkrét javaslat
 4. ⭐ Legjobb fogadás – egyetlen legbiztosabb tipp indoklással
 
-Fontos: Válaszolj MAGYARUL. Használj **félkövér** kiemelést csapatneveknél. Legyél tömör és konkrét. Max 280 szó.`;
+Fontos: Válaszolj MAGYARUL. Félkövérrel **csapatneveket**. Tömör, konkrét. Max 300 szó.`;
+  }
 
   try {
     const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI}`,
       {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          contents:[{parts:[{text:prompt}]}],
-          generationConfig:{temperature:0.7, maxOutputTokens:900}
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          contents: [{parts: [{text: prompt}]}],
+          generationConfig: {temperature: 0.7, maxOutputTokens: 1000}
         })
       }
     );
 
-    if(!r.ok){
-      const e = await r.json().catch(()=>({}));
-      const m = e?.error?.message || `HTTP ${r.status}`;
-      if(r.status===400) throw new Error('Érvénytelen API kulcs. Kattints az "API Kulcs" gombra és add meg helyesen!');
-      if(r.status===429) throw new Error('Túl sok kérés – várj 1 percet és próbáld újra.');
-      throw new Error(m);
+    if (!r.ok) {
+      const e = await r.json().catch(() => ({}));
+      const msg = e?.error?.message || `HTTP ${r.status}`;
+      if (r.status === 429) throw new Error('Túl sok kérés – várj 1 percet és próbáld újra.');
+      throw new Error(msg);
     }
 
     const data = await r.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if(!text) throw new Error('Az AI üres választ küldött.');
+    if (!text) throw new Error('Az AI üres választ küldött.');
 
     body.className = 'aibody';
     body.innerHTML = fmt(text);
@@ -463,7 +581,7 @@ Fontos: Válaszolj MAGYARUL. Használj **félkövér** kiemelést csapatnevekné
     err.textContent = '⚠️ ' + e.message;
     err.classList.add('show');
   } finally {
-    btn.disabled = sel.size===0;
+    btn.disabled = sel.size === 0;
   }
 }
 
@@ -484,6 +602,14 @@ function fmt(txt) {
     .replace(/\n/g,'<br>');
   return `<p>${h}</p>`.replace(/<p>(<h3>)/g,'$1').replace(/(<\/h3>)<\/p>/g,'$1').replace(/<p><\/p>/g,'');
 }
+
+// ── UPCOMING CARD STÍLUS ──
+const style = document.createElement('style');
+style.textContent = `.mcard.upcoming { border-color: rgba(0,212,255,.1); }
+.mcard.upcoming:hover { border-color: rgba(0,212,255,.25); }
+.rtab.upcoming-tab { background:rgba(0,212,255,.06); border-color:rgba(0,212,255,.2); color:var(--accent); }
+.rtab.upcoming-tab.active { background:rgba(0,212,255,.12); border-color:var(--accent); }`;
+document.head.appendChild(style);
 
 init();
 </script>
