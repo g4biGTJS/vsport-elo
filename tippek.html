@@ -295,17 +295,28 @@ async function init() {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
 
-    RESULTS  = data.recentResults  || [];
-    UPCOMING = data.nextFixtures   || [];
-    NEXT_ROUND = data.nextRound    || null;
+    if (data.error && (!data.recentResults || data.recentResults.length === 0)) {
+      showError(`Scrape hiba: ${data.error}<br><br>
+        <small style="color:var(--muted)">Ellenőrzéshez: 
+        <a href="/api/matches?debug=1" target="_blank" style="color:var(--accent)">debug oldal</a></small><br><br>
+        <button onclick="init()" style="margin-top:10px;background:var(--card);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:.78rem">↺ Újrapróbálás</button>`);
+      return;
+    }
+
+    RESULTS    = data.recentResults  || [];
+    UPCOMING   = data.nextFixtures   || [];
+    NEXT_ROUND = data.nextRound      || null;
 
     if (RESULTS.length === 0 && UPCOMING.length === 0) {
-      showError('Nem sikerült betölteni a meccsadatokat. Próbáld újra!');
+      showError(`Nem sikerült betölteni a meccsadatokat.<br><br>
+        <small style="color:var(--muted)">Debug: <a href="/api/matches?debug=1" target="_blank" style="color:var(--accent)">api/matches?debug=1</a></small><br><br>
+        <button onclick="init()" style="margin-top:10px;background:var(--card);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:.78rem">↺ Újrapróbálás</button>`);
       return;
     }
     buildUI();
   } catch(e) {
-    showError('Hálózati hiba: ' + e.message);
+    showError(`Hálózati hiba: ${e.message}<br><br>
+      <button onclick="init()" style="margin-top:10px;background:var(--card);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:.78rem">↺ Újrapróbálás</button>`);
   }
 }
 
@@ -321,7 +332,7 @@ function showLoading() {
 
 function showError(msg) {
   document.getElementById('grid').innerHTML = `
-    <div style="grid-column:1/-1;padding:30px;text-align:center;color:var(--muted);font-size:.78rem">${msg}</div>`;
+    <div style="grid-column:1/-1;padding:30px;text-align:center;color:var(--muted2);font-size:.78rem;line-height:1.8">${msg}</div>`;
 }
 
 function buildUI() {
