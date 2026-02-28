@@ -109,7 +109,7 @@ export default async function handler(req) {
   const corsHeaders = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
-    'Cache-Control': 's-maxage=55, stale-while-revalidate=110',
+    'Cache-Control': 's-maxage=8, stale-while-revalidate=16',
   };
 
   const { searchParams } = new URL(req.url);
