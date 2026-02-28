@@ -5,7 +5,7 @@
 export const config = { runtime: 'edge' };
 
 const SOURCES = {
-  pl: 'https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061001',
+  pl: 'https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061057',
   // SL: try multiple endpoints - the main page embeds the livetable widget
   sl: 'https://schedulerzrh.aitcloud.de/retail_scheduler/display/index/schedule:f94efd4aed2cae288d1ab3abaf828b38',
 };
