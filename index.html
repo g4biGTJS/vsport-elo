@@ -117,6 +117,23 @@
     .schedule-btn:visited strong { color:#888; }
     .schedule-btn:visited::after { content:' (megtekintve)'; font-size:.65rem; color:#4caf50; }
 
+    /* AI Tippek gomb – illeszkedik a VSPORT sötét témához */
+    .ai-tips-btn {
+      margin-left:auto;
+      display:flex; align-items:center; gap:7px;
+      background:#161616; border:1px solid #2e2e2e;
+      color:#aaa; text-decoration:none;
+      font-size:.65rem; font-weight:700; letter-spacing:2px;
+      text-transform:uppercase;
+      padding:5px 14px; border-radius:3px;
+      transition:all .15s;
+    }
+    .ai-tips-btn:hover { background:#1e1e1e; border-color:#444; color:#fff; }
+    .ai-tips-btn .ai-dot {
+      width:6px; height:6px; border-radius:50%; background:#fff;
+      animation:pulse 1.5s infinite;
+    }
+
     @media (max-width:520px) {
       .streams { padding:16px 12px; gap:16px; }
       .stream-card { width:100%; }
@@ -128,6 +145,7 @@
 <header>
   <div class="dot"></div>
   <h1>VSPORT &mdash; Élő</h1>
+  <a class="ai-tips-btn" href="/tippek.html"><span class="ai-dot"></span>AI Tippek</a>
 </header>
 
 <div class="streams">
