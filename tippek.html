@@ -218,7 +218,7 @@
     <div class="aipanel" id="aiPanel" style="display:none;">
       <div class="aipanel-hdr">
         <span class="aipanel-title">📊 AI Elemzés</span>
-        <span class="ai-badge">puter.ai / gpt-4o</span>
+        <span class="ai-badge">groq / llama-3.3-70b</span>
       </div>
       <div class="aibody" id="aiBody"></div>
     </div>
@@ -227,9 +227,28 @@
   <div class="error-box" id="errorBox"></div>
 </div>
 
-<script src="https://js.puter.com/v2/"></script>
 <script>
 let realStandings = [];
+
+// LLM7 hívás – ingyenes token, nincs login
+async function callAI(prompt) {
+  const res = await fetch('https://api.llm7.io/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer /WF1cs8NieiVJAvBfBR+n5Fb/vxRW1oSmv3EqtTSTRxWQBGMexqcI4Xivs+BqTXfNYMZI8OUFZpv5YAA0FOjcumYWgcG8AkhePVVO8zCVKQo3GMYfArXw2yPPKY7w3tRvofNvQ=='
+    },
+    body: JSON.stringify({
+      model: 'default',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.9,
+      max_tokens: 4096
+    })
+  });
+  if (!res.ok) throw new Error(`LLM7 hiba: ${res.status}`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || '';
+}
 
 // ─────────────────────────────────────────────────────────────
 // SEGÉDFÜGGVÉNYEK
@@ -407,15 +426,12 @@ Válaszolj KIZÁRÓLAG kompakt JSON tömbbel (egy sorban), semmi más szöveg:
 [{"pos":1,"team":"Cs.Név","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},{"pos":2,...}]`;
 
   try {
-    const text = await puter.ai.chat(prompt, {
-      model: 'gpt-4o',
-      temperature: 0.9
-    });
+    const text = await callAI(prompt, true);
 
-    console.log('Puter AI nyers válasz:', text);
+    console.log('LLM77 nyers válasz:', text);
 
     // Robusztus JSON kinyerés
-    const aiStandings = extractJSONArray(typeof text === 'string' ? text : text?.message?.content || JSON.stringify(text));
+    const aiStandings = extractJSONArray(text);
 
     if (!aiStandings || aiStandings.length === 0) {
       throw new Error('Üres tabella érkezett az AI-tól');
@@ -474,10 +490,9 @@ Utolsó 3: ${bot3}
 Miért lehetnek ezek a csapatok ilyen helyzetben a következő körökben?`;
 
   try {
-    const text = await puter.ai.chat(prompt, { model: 'gpt-4o' });
-    const textStr = typeof text === 'string' ? text : text?.message?.content || '';
-    if (textStr) {
-      aiBody.innerHTML = textStr.replace(/\n/g, '<br>');
+    const text = await callAI(prompt);
+    if (text) {
+      aiBody.innerHTML = text.replace(/\n/g, '<br>');
       aiPanel.style.display = 'block';
     }
   } catch(e) {
