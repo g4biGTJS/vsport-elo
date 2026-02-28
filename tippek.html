@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VSPORT – AI Tippek</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #07080a;
+      --surface:  #0d0f12;
+      --card:     #101318;
+      --border:   #1c2028;
+      --border2:  #252a33;
+      --accent:   #00d4ff;
+      --purple:   #8b5cf6;
+      --green:    #22c55e;
+      --red:      #f43f5e;
+      --amber:    #f59e0b;
+      --text:     #dde3ed;
+      --muted:    #4b5566;
+      --muted2:   #6b7585;
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html, body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+
+    header {
+      position:sticky; top:0; z-index:100;
+      background:rgba(7,8,10,.94); backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border);
+      padding:0 20px; height:48px;
+      display:flex; align-items:center; gap:12px;
+    }
+    .back-btn {
+      display:flex; align-items:center; gap:5px;
+      color:var(--muted2); font-size:.75rem; text-decoration:none;
+      padding:5px 10px; border:1px solid var(--border); border-radius:4px;
+      transition:all .15s;
+    }
+    .back-btn:hover { color:var(--text); border-color:var(--border2); }
+    .hdr-logo { font-family:'Bebas Neue',sans-serif; font-size:1.2rem; letter-spacing:4px; color:var(--accent); }
+    .hdr-sep { width:1px; height:18px; background:var(--border); }
+    .hdr-sub { font-size:.7rem; color:var(--muted2); letter-spacing:1.5px; text-transform:uppercase; }
+    .api-btn {
+      margin-left:auto; display:flex; align-items:center; gap:6px;
+      background:none; border:1px solid var(--border); color:var(--muted2);
+      font-family:'DM Sans',sans-serif; font-size:.72rem; padding:5px 12px;
+      border-radius:4px; cursor:pointer; transition:all .15s;
+    }
+    .api-btn:hover { color:var(--text); border-color:var(--border2); }
+    .api-btn.set { border-color:#22c55e33; color:var(--green); }
+
+    /* MODAL */
+    .overlay {
+      display:none; position:fixed; inset:0; z-index:300;
+      background:rgba(0,0,0,.75); backdrop-filter:blur(6px);
+      align-items:center; justify-content:center;
+    }
+    .overlay.open { display:flex; }
+    .modal {
+      background:#0c1016; border:1px solid var(--border2);
+      border-radius:10px; padding:28px 26px; width:min(440px,92vw);
+      box-shadow:0 32px 80px rgba(0,0,0,.7);
+    }
+    .modal h2 { font-size:.95rem; font-weight:600; margin-bottom:8px; }
+    .modal p { font-size:.78rem; color:var(--muted2); line-height:1.65; margin-bottom:20px; }
+    .modal p a { color:var(--accent); text-decoration:none; }
+    .modal p a:hover { text-decoration:underline; }
+    .modal input {
+      width:100%; background:#070a0e; border:1px solid var(--border2);
+      color:var(--text); font-family:'DM Mono',monospace; font-size:.78rem;
+      padding:10px 14px; border-radius:6px; outline:none; margin-bottom:14px;
+      transition:border-color .15s;
+    }
+    .modal input:focus { border-color:var(--accent); }
+    .modal-btns { display:flex; gap:8px; justify-content:flex-end; }
+    .btn-cancel {
+      background:none; border:1px solid var(--border); color:var(--muted2);
+      font-family:'DM Sans',sans-serif; font-size:.78rem; padding:8px 16px;
+      border-radius:5px; cursor:pointer; transition:all .15s;
+    }
+    .btn-cancel:hover { border-color:var(--border2); color:var(--text); }
+    .btn-save {
+      background:var(--purple); border:none; color:#fff;
+      font-family:'DM Sans',sans-serif; font-size:.78rem; font-weight:600;
+      padding:8px 22px; border-radius:5px; cursor:pointer; transition:opacity .15s;
+    }
+    .btn-save:hover { opacity:.85; }
+
+    /* PAGE */
+    .page { max-width:900px; margin:0 auto; padding:22px 16px 60px; }
+
+    /* TABS */
+    .round-tabs { display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap; }
+    .rtab {
+      background:var(--card); border:1px solid var(--border);
+      color:var(--muted2); font-family:'DM Sans',sans-serif;
+      font-size:.74rem; font-weight:500; padding:6px 16px;
+      border-radius:20px; cursor:pointer; transition:all .14s;
+    }
+    .rtab:hover { border-color:var(--border2); color:var(--text); }
+    .rtab.active { background:rgba(0,212,255,.07); border-color:var(--accent); color:var(--accent); }
+
+    /* SECTION LABEL */
+    .slabel {
+      font-size:.62rem; font-weight:600; letter-spacing:2px; text-transform:uppercase;
+      color:var(--muted); margin-bottom:12px;
+      display:flex; align-items:center; gap:10px;
+    }
+    .slabel::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* MATCHES */
+    .matches-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:20px; }
+    @media(max-width:560px) { .matches-grid { grid-template-columns:1fr; } }
+
+    .mcard {
+      background:var(--card); border:1px solid var(--border);
+      border-radius:7px; padding:11px 13px 9px;
+      cursor:pointer; transition:all .14s; position:relative; user-select:none;
+    }
+    .mcard:hover { border-color:var(--border2); background:#12161c; }
+    .mcard.sel {
+      border-color:rgba(0,212,255,.45);
+      background:rgba(0,212,255,.035);
+    }
+    .mcard .chk {
+      position:absolute; top:9px; right:10px;
+      width:15px; height:15px; border-radius:50%;
+      border:1px solid var(--border2);
+      display:flex; align-items:center; justify-content:center;
+      font-size:.6rem; font-weight:800; transition:all .14s;
+    }
+    .mcard.sel .chk { background:var(--accent); border-color:var(--accent); color:#000; }
+
+    .mround { font-size:.58rem; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:7px; }
+    .mteams { display:flex; align-items:center; gap:5px; }
+    .mside { flex:1; display:flex; align-items:center; gap:5px; }
+    .mside.h { flex-direction:row-reverse; justify-content:flex-end; }
+    .mside.a { justify-content:flex-start; }
+    .crest { width:20px; height:20px; object-fit:contain; flex-shrink:0; }
+    .tnm { font-size:.72rem; line-height:1.25; max-width:85px; word-break:break-word; }
+    .mside.h .tnm { text-align:right; }
+    .mside.a .tnm { text-align:left; }
+    .mscore {
+      background:#0a0c10; border:1px solid var(--border);
+      border-radius:5px; padding:4px 9px;
+      font-family:'DM Mono',monospace; font-size:.88rem; font-weight:500;
+      white-space:nowrap; text-align:center; flex-shrink:0; min-width:50px;
+    }
+    .sw { color:var(--green); font-weight:700; }
+    .ss { color:var(--border2); margin:0 1px; }
+    .mverdict {
+      font-size:.6rem; text-align:center; margin-top:5px; letter-spacing:.3px;
+    }
+    .mverdict.hw,.mverdict.aw { color:#22c55e77; }
+    .mverdict.dr { color:#f59e0b77; }
+
+    /* ACTION BAR */
+    .abar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+    .abar-left { display:flex; align-items:center; gap:10px; }
+    .btn-selall {
+      background:none; border:1px solid var(--border); color:var(--muted2);
+      font-family:'DM Sans',sans-serif; font-size:.73rem; padding:7px 14px;
+      border-radius:5px; cursor:pointer; transition:all .15s;
+    }
+    .btn-selall:hover { border-color:var(--border2); color:var(--text); }
+    .scnt { font-size:.73rem; color:var(--muted); }
+    .scnt b { color:var(--accent); }
+    .btn-ai {
+      display:flex; align-items:center; gap:8px;
+      background:linear-gradient(135deg,#7c3aed,#a855f7);
+      border:none; color:#fff; font-family:'DM Sans',sans-serif;
+      font-size:.82rem; font-weight:600; padding:9px 22px; border-radius:6px;
+      cursor:pointer; transition:all .16s; letter-spacing:.3px;
+      box-shadow:0 4px 20px rgba(124,58,237,.3);
+    }
+    .btn-ai:hover { transform:translateY(-1px); box-shadow:0 7px 28px rgba(124,58,237,.45); }
+    .btn-ai:active { transform:none; }
+    .btn-ai:disabled { opacity:.3; cursor:not-allowed; transform:none; box-shadow:none; }
+
+    /* ERROR */
+    .errbox {
+      display:none; background:rgba(244,63,94,.07); border:1px solid rgba(244,63,94,.2);
+      border-radius:6px; padding:12px 16px; font-size:.78rem; color:#fda4af;
+      margin-bottom:16px; line-height:1.65;
+    }
+    .errbox.show { display:block; }
+
+    /* AI PANEL */
+    .aipanel { display:none; background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+    .aipanel.show { display:block; }
+    .aipanel-hdr {
+      background:linear-gradient(135deg,#0c0b1a,#0f0c20);
+      border-bottom:1px solid var(--border);
+      padding:12px 18px; display:flex; align-items:center; gap:10px;
+    }
+    .orb {
+      width:9px; height:9px; border-radius:50%; background:var(--purple);
+      box-shadow:0 0 10px var(--purple); animation:orb 2s infinite;
+    }
+    @keyframes orb { 0%,100%{opacity:1;box-shadow:0 0 10px var(--purple)} 50%{opacity:.4;box-shadow:0 0 3px var(--purple)} }
+    .aipanel-title { font-family:'Bebas Neue',sans-serif; font-size:.95rem; letter-spacing:2px; }
+    .aitag { margin-left:auto; font-size:.58rem; color:var(--muted); background:rgba(255,255,255,.04); padding:2px 8px; border-radius:3px; font-family:'DM Mono',monospace; }
+    .aibody {
+      padding:20px 22px; font-size:.84rem; line-height:1.8; color:#c0cad8; min-height:60px;
+    }
+    .aibody.typing::after { content:'▋'; color:var(--accent); animation:cur .6s infinite; }
+    @keyframes cur { 0%,100%{opacity:1} 50%{opacity:0} }
+    .dots { display:flex; gap:5px; padding:10px 0; }
+    .dots span { width:7px; height:7px; border-radius:50%; background:var(--purple); opacity:.4; animation:d 1s infinite; }
+    .dots span:nth-child(2){ animation-delay:.18s; }
+    .dots span:nth-child(3){ animation-delay:.36s; }
+    @keyframes d { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
+
+    /* AI content styling */
+    .aibody h3 {
+      font-family:'Bebas Neue',sans-serif; font-size:.95rem; letter-spacing:1.5px;
+      color:var(--accent); margin:18px 0 9px; padding-bottom:5px;
+      border-bottom:1px solid var(--border);
+    }
+    .aibody h3:first-child { margin-top:0; }
+    .aibody strong { color:var(--text); font-weight:600; }
+    .aibody p { margin-bottom:10px; }
+    .aibody p:last-child { margin-bottom:0; }
+    .tiprow {
+      display:flex; align-items:flex-start; gap:9px;
+      padding:9px 0; border-bottom:1px solid var(--border);
+    }
+    .tiprow:last-child { border-bottom:none; }
+    .tiptag {
+      flex-shrink:0; font-size:.58rem; font-weight:700;
+      padding:2px 7px; border-radius:3px; text-transform:uppercase;
+      letter-spacing:.5px; margin-top:2px;
+    }
+    .tiptag.t { background:rgba(139,92,246,.15); color:var(--purple); }
+    .tiptag.f { background:rgba(34,197,94,.1); color:var(--green); }
+    .tiptag.g { background:rgba(244,63,94,.1); color:var(--red); }
+    .tiptag.s { background:rgba(245,158,11,.12); color:var(--amber); }
+    .tiptag.i { background:rgba(0,212,255,.08); color:var(--accent); }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <a class="back-btn" href="/">← Vissza</a>
+  <div class="hdr-sep"></div>
+  <span class="hdr-logo">VSPORT</span>
+  <div class="hdr-sep"></div>
+  <span class="hdr-sub">AI Tippek</span>
+
+</header>
+
+<!-- PAGE -->
+<div class="page">
+  <div class="round-tabs" id="tabs"></div>
+  <div class="slabel" id="slabel">Eredmények</div>
+  <div class="matches-grid" id="grid"></div>
+  <div class="abar">
+    <div class="abar-left">
+      <button class="btn-selall" id="selAllBtn" onclick="toggleAll()">Összes kijelölése</button>
+      <span class="scnt">Kijelölve: <b id="scnt">0</b> meccs</span>
+    </div>
+    <button class="btn-ai" id="aiBtn" onclick="analyze()" disabled>✦ &nbsp;AI Elemzés</button>
+  </div>
+  <div class="errbox" id="errbox"></div>
+  <div class="aipanel" id="aipanel">
+    <div class="aipanel-hdr">
+      <div class="orb"></div>
+      <span class="aipanel-title">Gemini Analízis</span>
+      <span class="aitag">gemini-2.0-flash</span>
+    </div>
+    <div class="aibody" id="aibody">
+      <div class="dots"><span></span><span></span><span></span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const LOGO  = 'https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/';
+const DATA  = [
+  {r:17,home:'Manchester Kék', hid:'276510',away:'Nottingham',    aid:'276516',hs:5,as:0},
+  {r:17,home:'Newcastle',      hid:'276512',away:'Aston Oroszlán',aid:'276504',hs:1,as:2},
+  {r:17,home:'Vörös Ördögök',  hid:'276502',away:'Everton',       aid:'276501',hs:1,as:1},
+  {r:17,home:'Brighton',       hid:'276511',away:'Fulham',         aid:'276503',hs:2,as:1},
+  {r:17,home:'West Ham',       hid:'276515',away:'Chelsea',        aid:'276508',hs:0,as:1},
+  {r:17,home:'Liverpool',      hid:'276507',away:'Tottenham',      aid:'276505',hs:0,as:1},
+  {r:17,home:'Crystal Palace', hid:'276509',away:'London Ágyúk',   aid:'276513',hs:0,as:0},
+  {r:17,home:'Wolverhampton',  hid:'276514',away:'Brentford',      aid:'276506',hs:0,as:1},
+  {r:16,home:'Aston Oroszlán', hid:'276504',away:'West Ham',       aid:'276515',hs:5,as:1},
+  {r:16,home:'Fulham',         hid:'276503',away:'Wolverhampton',  aid:'276514',hs:2,as:3},
+  {r:16,home:'London Ágyúk',   hid:'276513',away:'Brighton',       aid:'276511',hs:0,as:2},
+  {r:16,home:'Everton',        hid:'276501',away:'Crystal Palace', aid:'276509',hs:1,as:2},
+  {r:16,home:'Brentford',      hid:'276506',away:'Manchester Kék', aid:'276510',hs:0,as:0},
+];
+
+let sel = new Set();
+let round = 'all';
+let apiKey = 'AIzaSyD6tfnMdM2_FdYjL6QQuXYjq7BVkfUvizg';
+
+// ── INIT ──
+function init() {
+  // Build tabs
+  const rounds = [...new Set(DATA.map(m=>m.r))].sort((a,b)=>b-a);
+  document.getElementById('tabs').innerHTML =
+    `<button class="rtab active" data-r="all" onclick="setRound('all')">Összes</button>` +
+    rounds.map(r=>`<button class="rtab" data-r="${r}" onclick="setRound(${r})">${r}. forduló</button>`).join('');
+  render();
+}
+
+function setRound(r) {
+  round = r;
+  sel.clear();
+  document.querySelectorAll('.rtab').forEach(t=>t.classList.toggle('active', t.dataset.r==r));
+  render();
+}
+
+function render() {
+  const list = round==='all' ? DATA : DATA.filter(m=>m.r==round);
+  document.getElementById('slabel').textContent =
+    round==='all' ? 'Összes forduló eredményei' : `${round}. forduló – Eredmények`;
+
+  document.getElementById('grid').innerHTML = list.map(m=>{
+    const i = DATA.indexOf(m);
+    const hw=m.hs>m.as, aw=m.as>m.hs, dr=m.hs===m.as;
+    const vt = dr?'Döntetlen': hw?`${m.home} győzött`:`${m.away} győzött`;
+    const vc = dr?'dr': hw?'hw':'aw';
+    const hs = hw?`<span class="sw">${m.hs}</span>`:`<span>${m.hs}</span>`;
+    const as_ = aw?`<span class="sw">${m.as}</span>`:`<span>${m.as}</span>`;
+    return `
+    <div class="mcard" id="mc${i}" onclick="toggle(${i})">
+      <div class="chk">${sel.has(i)?'✓':''}</div>
+      <div class="mround">${m.r}. forduló</div>
+      <div class="mteams">
+        <div class="mside h">
+          <img class="crest" src="${LOGO}${m.hid}.png" onerror="this.style.display='none'">
+          <span class="tnm" style="font-weight:${hw?600:400};color:${hw?'var(--text)':'var(--muted2)'}">${m.home}</span>
+        </div>
+        <div class="mscore">${hs}<span class="ss">:</span>${as_}</div>
+        <div class="mside a">
+          <span class="tnm" style="font-weight:${aw?600:400};color:${aw?'var(--text)':'var(--muted2)'}">${m.away}</span>
+          <img class="crest" src="${LOGO}${m.aid}.png" onerror="this.style.display='none'">
+        </div>
+      </div>
+      <div class="mverdict ${vc}">${vt}</div>
+    </div>`;
+  }).join('');
+  updateUI();
+}
+
+function toggle(i) {
+  sel.has(i) ? sel.delete(i) : sel.add(i);
+  const card = document.getElementById(`mc${i}`);
+  card.classList.toggle('sel', sel.has(i));
+  card.querySelector('.chk').textContent = sel.has(i)?'✓':'';
+  updateUI();
+}
+
+function toggleAll() {
+  const list = round==='all' ? DATA : DATA.filter(m=>m.r==round);
+  const idxs = list.map(m=>DATA.indexOf(m));
+  const allS = idxs.every(i=>sel.has(i));
+  idxs.forEach(i=>{
+    allS ? sel.delete(i) : sel.add(i);
+    const c = document.getElementById(`mc${i}`);
+    if(c){ c.classList.toggle('sel',!allS); c.querySelector('.chk').textContent=allS?'':'✓'; }
+  });
+  document.getElementById('selAllBtn').textContent = allS ? 'Összes kijelölése' : 'Kijelölés törlése';
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById('scnt').textContent = sel.size;
+  document.getElementById('aiBtn').disabled = sel.size===0;
+}
+
+// ── API KEY ── (hardcoded, no modal needed)
+
+// ── ANALYZE ──
+async function analyze() {
+  const chosen = [...sel].map(i=>DATA[i]);
+  if(!chosen.length) return;
+
+  const panel = document.getElementById('aipanel');
+  const body  = document.getElementById('aibody');
+  const err   = document.getElementById('errbox');
+  const btn   = document.getElementById('aiBtn');
+
+  panel.classList.add('show');
+  err.classList.remove('show');
+  btn.disabled = true;
+  body.className = 'aibody';
+  body.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+  setTimeout(()=>panel.scrollIntoView({behavior:'smooth',block:'nearest'}),120);
+
+  // Build form table for ALL teams from full dataset
+  const form = {};
+  DATA.forEach(m=>{
+    if(!form[m.home]) form[m.home]=[];
+    if(!form[m.away]) form[m.away]=[];
+    if(m.hs>m.as){ form[m.home].push('W'); form[m.away].push('V'); }
+    else if(m.as>m.hs){ form[m.away].push('W'); form[m.home].push('V'); }
+    else { form[m.home].push('D'); form[m.away].push('D'); }
+  });
+
+  const formStr = Object.entries(form)
+    .map(([t,f])=>`${t}: ${f.join('')} (${f.filter(x=>x==='W').length}W ${f.filter(x=>x==='D').length}D ${f.filter(x=>x==='V').length}V)`)
+    .join('\n');
+
+  const matchLines = chosen.map(m=>{
+    const r = m.hs>m.as?`${m.home} nyert`:m.as>m.hs?`${m.away} nyert`:'Döntetlen';
+    return `  • ${m.r}. forduló: ${m.home} ${m.hs}–${m.as} ${m.away} → ${r}`;
+  }).join('\n');
+
+  const prompt = `Te egy Betradar Virtuális Labdarúgás Liga (VLLM Premier Liga) szakértő elemzője vagy.
+
+ELEMZENDŐ MECCSEK:
+${matchLines}
+
+ÖSSZES CSAPAT FORMÁJA (utolsó fordulók alapján, W=győzelem D=döntetlen V=vereség):
+${formStr}
+
+Kérlek elemezd ki a fenti adatokat és adj KONKRÉT tippeket!
+
+Kért szekciók:
+1. 🔥 Forma elemzés – melyik 2-3 csapat van a legjobb / legrosszabb formában
+2. 📊 Érdekesség – egy meglepő eredmény vagy trend amit észreveszel
+3. ⚽ Tippek a következő fordulóra – 3-5 konkrét mérkőzés javaslat (pl. "Brighton hazai győzelem esélyes")
+4. ⭐ Legjobb fogadás – egyetlen legbiztosabb tipp indoklással
+
+Fontos: Válaszolj MAGYARUL. Használj **félkövér** kiemelést csapatneveknél. Legyél tömör és konkrét. Max 280 szó.`;
+
+  try {
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          contents:[{parts:[{text:prompt}]}],
+          generationConfig:{temperature:0.7, maxOutputTokens:900}
+        })
+      }
+    );
+
+    if(!r.ok){
+      const e = await r.json().catch(()=>({}));
+      const m = e?.error?.message || `HTTP ${r.status}`;
+      if(r.status===400) throw new Error('Érvénytelen API kulcs. Kattints az "API Kulcs" gombra és add meg helyesen!');
+      if(r.status===429) throw new Error('Túl sok kérés – várj 1 percet és próbáld újra.');
+      throw new Error(m);
+    }
+
+    const data = await r.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if(!text) throw new Error('Az AI üres választ küldött.');
+
+    body.className = 'aibody';
+    body.innerHTML = fmt(text);
+
+  } catch(e) {
+    panel.classList.remove('show');
+    err.textContent = '⚠️ ' + e.message;
+    err.classList.add('show');
+  } finally {
+    btn.disabled = sel.size===0;
+  }
+}
+
+function fmt(txt) {
+  let h = txt
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/^#{1,3}\s*([🔥📊⚽⭐✅🏆🎯➡️])\s*(.+)$/gm,(_,e,t)=>`<h3>${e} ${t}</h3>`)
+    .replace(/^#{1,3}\s+(.+)$/gm,(_,t)=>`<h3>${t}</h3>`)
+    .replace(/^[-•*]\s+(.+)$/gm,(_,c)=>{
+      let cls='i',lbl='→';
+      if(/győz|nyerhet|esélyes|hazai|vendég/i.test(c)){cls='t';lbl='TIPP';}
+      else if(/legjobb|biztos|⭐|top tipp/i.test(c)){cls='s';lbl='⭐ TOP';}
+      else if(/jó form|erős|sorozat|vezet/i.test(c)){cls='f';lbl='FORMA';}
+      else if(/gyenge|vereség|nehézség|problém/i.test(c)){cls='g';lbl='GYENGE';}
+      return `<div class="tiprow"><span class="tiptag ${cls}">${lbl}</span><span>${c}</span></div>`;
+    })
+    .replace(/\n\n+/g,'</p><p>')
+    .replace(/\n/g,'<br>');
+  return `<p>${h}</p>`.replace(/<p>(<h3>)/g,'$1').replace(/(<\/h3>)<\/p>/g,'$1').replace(/<p><\/p>/g,'');
+}
+
+init();
+</script>
+</body>
+</html>
