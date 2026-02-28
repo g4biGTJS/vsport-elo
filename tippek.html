@@ -218,7 +218,7 @@
     <div class="aipanel" id="aiPanel" style="display:none;">
       <div class="aipanel-hdr">
         <span class="aipanel-title">📊 AI Elemzés</span>
-        <span class="ai-badge">gemini-2.5-flash</span>
+        <span class="ai-badge">puter.ai / gpt-4o</span>
       </div>
       <div class="aibody" id="aiBody"></div>
     </div>
@@ -227,10 +227,8 @@
   <div class="error-box" id="errorBox"></div>
 </div>
 
+<script src="https://js.puter.com/v2/"></script>
 <script>
-const GEMINI_KEY = 'AIzaSyAMJMkW3o4opoXjq3XDlQebWuYd-iFU2bQ';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyAMJMkW3o4opoXjq3XDlQebWuYd-iFU2bQ`;
-
 let realStandings = [];
 
 // ─────────────────────────────────────────────────────────────
@@ -409,33 +407,15 @@ Válaszolj KIZÁRÓLAG kompakt JSON tömbbel (egy sorban), semmi más szöveg:
 [{"pos":1,"team":"Cs.Név","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},{"pos":2,...}]`;
 
   try {
-    const response = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.9,
-          maxOutputTokens: 8192,
-          responseMimeType: 'application/json'
-        }
-      })
+    const text = await puter.ai.chat(prompt, {
+      model: 'gpt-4o',
+      temperature: 0.9
     });
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      console.error('Gemini hiba:', err);
-      throw new Error(`Gemini API hiba (${response.status})`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Az AI nem adott választ');
-
-    console.log('Gemini nyers válasz:', text);
+    console.log('Puter AI nyers válasz:', text);
 
     // Robusztus JSON kinyerés
-    const aiStandings = extractJSONArray(text);
+    const aiStandings = extractJSONArray(typeof text === 'string' ? text : text?.message?.content || JSON.stringify(text));
 
     if (!aiStandings || aiStandings.length === 0) {
       throw new Error('Üres tabella érkezett az AI-tól');
@@ -494,18 +474,10 @@ Utolsó 3: ${bot3}
 Miért lehetnek ezek a csapatok ilyen helyzetben a következő körökben?`;
 
   try {
-    const response = await fetch(GEMINI_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
-      })
-    });
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (text) {
-      aiBody.innerHTML = text.replace(/\n/g, '<br>');
+    const text = await puter.ai.chat(prompt, { model: 'gpt-4o' });
+    const textStr = typeof text === 'string' ? text : text?.message?.content || '';
+    if (textStr) {
+      aiBody.innerHTML = textStr.replace(/\n/g, '<br>');
       aiPanel.style.display = 'block';
     }
   } catch(e) {
