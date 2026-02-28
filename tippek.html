@@ -94,7 +94,7 @@
 
     .col-team { display:flex; align-items:center; gap:6px; }
     .team-logo { width:16px; height:16px; object-fit:contain; flex-shrink:0; }
-    .team-logo-placeholder { width:16px; height:16px; flex-shrink:0; }
+    .team-logo-placeholder { width:16px; height:16px; flex-shrink:0; background:#1a1a1a; border-radius:50%; }
     .team-name { font-size:.76rem; font-weight:600; color:#ccc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
     .col-goals { font-size:.68rem; color:#666; text-align:right; font-variant-numeric:tabular-nums; }
@@ -120,7 +120,7 @@
       color: #ccc; min-height: 100px;
     }
 
-    .dots { display: flex; gap: 5px; padding: 10px 0; }
+    .dots { display: flex; gap: 5px; padding: 10px 0; justify-content: center; }
     .dots span {
       width: 6px; height: 6px; border-radius: 50%; background: #4caf50;
       opacity: .4; animation: d 1s infinite;
@@ -136,9 +136,12 @@
     }
     .error-box.show { display: block; }
 
-    .ai-table-note {
-      font-size: .65rem; color: #4caf50; margin-left: 10px; font-style: italic;
+    .btn {
+      background: #1a1a1a; border: 1px solid #333; color: #aaa;
+      font-size: .7rem; padding: 5px 12px; border-radius: 4px;
+      cursor: pointer; transition: all .15s;
     }
+    .btn:hover { background: #242424; border-color: #555; color: #fff; }
   </style>
 </head>
 <body>
@@ -157,18 +160,15 @@
     <button class="tab" id="aiTab" onclick="showAITable()">🤖 AI elemzett tabella</button>
   </div>
 
-  <!-- VALÓDI TÁBLÁZAT (alapból látszik) -->
+  <!-- VALÓDI TÁBLÁZAT -->
   <div id="realTableContainer">
-    <div class="form-header" style="margin-bottom:15px">
+    <div class="form-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
       <div class="title-section">
         <h2>⚡ Premier Liga - Élő tabella</h2>
       </div>
-      <div class="controls">
-        <button class="refresh-btn" id="refreshRealBtn">🔄 Frissítés</button>
-      </div>
+      <button class="btn" id="refreshRealBtn">🔄 Frissítés</button>
     </div>
 
-    <!-- Teljesítmény táblázat -->
     <div class="leaderboard-block">
       <div class="leaderboard-header-bar">
         <span>#</span>
@@ -183,28 +183,20 @@
         <span id="realUpdateTime">–</span>
       </div>
       <div class="leaderboard-body" id="realTable">
-        <!-- Szkeleton betöltés -->
-        <div style="padding:8px 10px">
-          <div style="height:20px; background:#1a1a1a; border-radius:3px; margin-bottom:5px;"></div>
-          <div style="height:20px; background:#1a1a1a; border-radius:3px; margin-bottom:5px;"></div>
-          <div style="height:20px; background:#1a1a1a; border-radius:3px;"></div>
-        </div>
+        <div style="padding:20px; text-align:center; color:#555">Betöltés...</div>
       </div>
     </div>
   </div>
 
-  <!-- AI TÁBLÁZAT (kezdetben rejtett) -->
+  <!-- AI TÁBLÁZAT -->
   <div id="aiTableContainer" style="display: none;">
-    <div class="form-header" style="margin-bottom:15px">
+    <div class="form-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
       <div class="title-section">
-        <h2>🤖 AI elemzett tabella <span class="ai-badge">AI</span></h2>
+        <h2>🤖 AI becsült tabella <span class="ai-badge">AI</span></h2>
       </div>
-      <div class="controls">
-        <button class="refresh-btn" id="refreshAIBtn" onclick="loadAITable()">🔄 AI frissítés</button>
-      </div>
+      <button class="btn" id="generateAIBtn">✨ AI generálás</button>
     </div>
 
-    <!-- AI Teljesítmény táblázat -->
     <div class="leaderboard-block">
       <div class="leaderboard-header-bar">
         <span>#</span>
@@ -214,26 +206,25 @@
         <span class="h-right">Különb.</span>
         <span class="h-right">Pont</span>
       </div>
-      <div class="lb-meta loading" id="aiMeta">
-        <span><span class="refresh-dot"></span>AI elemzés...</span>
+      <div class="lb-meta" id="aiMeta">
+        <span><span class="refresh-dot"></span>AI becslés</span>
         <span id="aiUpdateTime">–</span>
       </div>
       <div class="leaderboard-body" id="aiTable">
-        <div class="dots" style="justify-content:center; padding:20px">
-          <span></span><span></span><span></span>
+        <div style="padding:30px; text-align:center; color:#555">
+          Kattints az "AI generálás" gombra<br>
+          <span style="font-size:.6rem; color:#333">A Gemini elemzi a valós adatokat és készít egy becslést</span>
         </div>
       </div>
     </div>
 
     <!-- AI Elemzés szöveges panel -->
-    <div class="aipanel" id="aiPanel">
+    <div class="aipanel" id="aiPanel" style="display:none;">
       <div class="aipanel-hdr">
         <span class="aipanel-title">📊 AI Elemzés</span>
         <span class="ai-badge">gemini-2.5-flash</span>
       </div>
-      <div class="aibody" id="aiBody">
-        Kattints az "AI frissítés" gombra az elemzéshez
-      </div>
+      <div class="aibody" id="aiBody"></div>
     </div>
   </div>
 
@@ -241,13 +232,14 @@
 </div>
 
 <script>
-const GEMINI_KEY = 'AIzaSyD7j_N6YgsaeOapaLznrRAKtrnUWYvBZro'; // Cseréld ki!
+// ⚠️ CSERÉLD KI A SAJÁT API KULCSODRA!
+const GEMINI_KEY = 'AIzaSyD6tfnMdM2_FdYjL6QQuXYjq7BVkfUvizg';
 
 // State
 let realStandings = [];
 
 // ─────────────────────────────────────────────────────────────
-// 1. Segédfüggvények
+// 1. SEGÉDFÜGGVÉNYEK
 // ─────────────────────────────────────────────────────────────
 function gd(gf, ga) {
     const diff = (gf || 0) - (ga || 0);
@@ -257,7 +249,7 @@ function gd(gf, ga) {
 }
 
 function trendHtml(t) {
-    if (t === 'up')   return '<span class="trend-up">▲</span>';
+    if (t === 'up') return '<span class="trend-up">▲</span>';
     if (t === 'down') return '<span class="trend-down">▼</span>';
     return '<span class="trend-same">—</span>';
 }
@@ -274,7 +266,7 @@ function rowClass(pos, total) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 2. Valódi tabella betöltése
+// 2. VALÓDI TABELLA BETÖLTÉSE
 // ─────────────────────────────────────────────────────────────
 async function fetchRealStandings() {
     const response = await fetch('/api/standings?liga=pl');
@@ -289,7 +281,7 @@ function renderRealTable(standings) {
     const updateTime = document.getElementById('realUpdateTime');
     
     if (!standings || standings.length === 0) {
-        table.innerHTML = '<div style="padding:20px;text-align:center;color:#555">Nincs adat</div>';
+        table.innerHTML = '<div style="padding:20px; text-align:center; color:#555">Nincs adat</div>';
         return;
     }
     
@@ -331,16 +323,20 @@ async function loadRealTable() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 3. AI tabella generálása
+// 3. AI TABELLA GENERÁLÁSA (JSON-t kérünk a Gemini-tól)
 // ─────────────────────────────────────────────────────────────
 async function generateAITable() {
     const meta = document.getElementById('aiMeta');
+    const aiTable = document.getElementById('aiTable');
+    const aiPanel = document.getElementById('aiPanel');
     const aiBody = document.getElementById('aiBody');
     const errorBox = document.getElementById('errorBox');
+    const updateTime = document.getElementById('aiUpdateTime');
     
     meta.className = 'lb-meta loading';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI elemzés folyamatban...';
-    aiBody.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI generálás...';
+    aiTable.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+    aiPanel.style.display = 'none';
     errorBox.classList.remove('show');
     
     // Ha nincs valódi adat, töltsük be előbb
@@ -362,61 +358,82 @@ async function generateAITable() {
         return;
     }
     
-    // Top csapatok a promptba
-    const topTeams = realStandings.slice(0, 5).map(t => 
+    // Top 5 és bottom 5 a promptba
+    const top5 = realStandings.slice(0, 5).map(t => 
         `${t.pos}. ${t.team} - ${t.pts} pont (${t.goalsFor||0}:${t.goalsAgainst||0})`
     ).join('\n');
     
-    const bottomTeams = realStandings.slice(-5).map(t => 
+    const bottom5 = realStandings.slice(-5).map(t => 
         `${t.pos}. ${t.team} - ${t.pts} pont (${t.goalsFor||0}:${t.goalsAgainst||0})`
     ).join('\n');
+    
+    // Összes csapat név felsorolása
+    const allTeams = realStandings.map(t => t.team).join(', ');
     
     const prompt = `Te egy Virtuális Labdarúgás Liga (Premier Liga) profi elemzője vagy.
 A valós tabella alapján készíts egy ELMÉLETI, AI ÁLTAL ELEMZETT tabellát!
 
 VALÓS TABELLA (top 5):
-${topTeams}
+${top5}
 
 VALÓS TABELLA (utolsó 5):
-${bottomTeams}
+${bottom5}
+
+ÖSSZES CSAPAT: ${allTeams}
 
 Feladatod:
-Készíts egy ELMÉLETI tabellát, ami megmutatja, hogy szerinted melyik csapatok lehetnének a legjobb formában a jövőben!
+Készíts egy ELMÉLETI tabellát arról, hogy szerinted a következő körökben melyik csapatok lehetnek a legjobb formában!
 A tabella PONTOSAN ugyanolyan formátumban kell, hogy legyen, mint a valós, de az adatok AI becslések!
 
-Válaszolj PONTOSAN ebben a formátumban (CSAK ezt add vissza, semmi mást!):
+Válaszolj PONTOSAN ebben a JSON formátumban (CSAK ezt add vissza, semmi mást!):
 
 [
-  { "pos": 1, "team": "CSAPAT1", "goalsFor": 35, "goalsAgainst": 18, "pts": 42, "trend": "up", "logo": null },
-  { "pos": 2, "team": "CSAPAT2", "goalsFor": 32, "goalsAgainst": 20, "pts": 38, "trend": "same", "logo": null },
-  { "pos": 3, "team": "CSAPAT3", "goalsFor": 30, "goalsAgainst": 22, "pts": 35, "trend": "down", "logo": null },
-  { "pos": 4, "team": "CSAPAT4", "goalsFor": 28, "goalsAgainst": 24, "pts": 32, "trend": "up", "logo": null },
-  { "pos": 5, "team": "CSAPAT5", "goalsFor": 25, "goalsAgainst": 23, "pts": 30, "trend": "up", "logo": null },
-  { "pos": 6, "team": "CSAPAT6", "goalsFor": 24, "goalsAgainst": 25, "pts": 28, "trend": "down", "logo": null },
-  { "pos": 7, "team": "CSAPAT7", "goalsFor": 22, "goalsAgainst": 24, "pts": 26, "trend": "same", "logo": null },
-  { "pos": 8, "team": "CSAPAT8", "goalsFor": 20, "goalsAgainst": 26, "pts": 24, "trend": "up", "logo": null },
-  { "pos": 9, "team": "CSAPAT9", "goalsFor": 18, "goalsAgainst": 28, "pts": 22, "trend": "down", "logo": null },
-  { "pos": 10, "team": "CSAPAT10", "goalsFor": 16, "goalsAgainst": 30, "pts": 20, "trend": "down", "logo": null }
+  {
+    "pos": 1,
+    "team": "CSAPATNEVE",
+    "goalsFor": 35,
+    "goalsAgainst": 18,
+    "pts": 42,
+    "trend": "up",
+    "logo": null
+  },
+  {
+    "pos": 2,
+    "team": "CSAPATNEVE",
+    "goalsFor": 32,
+    "goalsAgainst": 20,
+    "pts": 38,
+    "trend": "same",
+    "logo": null
+  }
 ]
 
-HASZNÁLD a valós csapatneveket (pl. Manchester Kék, Liverpool, stb.)!
-ADJ MEG reális pontszámokat és gólokat!
-CSAK JSON tömböt adj vissza, semmi mást!`;
+FONTOS: 
+- Használd a VALÓS csapatneveket a fenti listából!
+- Adj meg reális pontszámokat és gólokat (a valóság alapján)!
+- A trend lehet: "up", "down", vagy "same"
+- 16 csapatot adj vissza (1-től 16-ig)!
+- CSAK JSON tömböt adj vissza, semmi magyarázatot, semmi mást!`;
     
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyD7j_N6YgsaeOapaLznrRAKtrnUWYvBZro`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.7, maxOutputTokens: 800 }
+                    generationConfig: { 
+                        temperature: 0.7,
+                        maxOutputTokens: 1024
+                    }
                 })
             }
         );
         
         if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('Gemini hiba:', errorData);
             throw new Error(`Gemini API hiba (${response.status})`);
         }
         
@@ -425,33 +442,39 @@ CSAK JSON tömböt adj vissza, semmi mást!`;
         
         if (!text) throw new Error('Az AI nem adott választ');
         
+        console.log('Gemini válasz:', text);
+        
         // JSON kinyerése a szövegből
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         if (!jsonMatch) throw new Error('Nem található JSON a válaszban');
         
         const aiStandings = JSON.parse(jsonMatch[0]);
         
-        // AI tabella renderelése
+        // AI tabella megjelenítése
         renderAITable(aiStandings);
         
         // Elemző szöveg generálása
         await generateAnalysis(aiStandings);
         
+        meta.className = 'lb-meta';
+        meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI becslés';
+        updateTime.textContent = new Date().toLocaleTimeString('hu-HU');
+        
     } catch(e) {
-        errorBox.textContent = `⚠️ AI hiba: ${e.message}`;
+        console.error('Generálási hiba:', e);
+        errorBox.textContent = `⚠️ ${e.message}`;
         errorBox.classList.add('show');
         meta.className = 'lb-meta error';
-        document.getElementById('aiBody').innerHTML = 'Hiba az elemzés során';
+        meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
+        aiTable.innerHTML = '<div style="padding:30px; text-align:center; color:#555">Hiba történt. Próbáld újra.</div>';
     }
 }
 
 function renderAITable(standings) {
     const table = document.getElementById('aiTable');
-    const meta = document.getElementById('aiMeta');
-    const updateTime = document.getElementById('aiUpdateTime');
     
     if (!standings || standings.length === 0) {
-        table.innerHTML = '<div style="padding:20px;text-align:center;color:#555">Nincs AI adat</div>';
+        table.innerHTML = '<div style="padding:20px; text-align:center; color:#555">Nincs AI adat</div>';
         return;
     }
     
@@ -461,9 +484,12 @@ function renderAITable(standings) {
         return `
             <div class="${cls}">
                 <span class="col-pos">${r.pos}</span>
-                <span class="col-trend">${trendHtml(r.trend ?? 'same')}</span>
-                <span class="col-team">${logoHtml(r.logo)}<span class="team-name">${r.team}</span></span>
-                <span class="col-goals">${r.goalsFor ?? '–'}:${r.goalsAgainst ?? '–'}</span>
+                <span class="col-trend">${trendHtml(r.trend)}</span>
+                <span class="col-team">
+                    <span class="team-logo-placeholder"></span>
+                    <span class="team-name">${r.team}</span>
+                </span>
+                <span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span>
                 <span class="col-gd">${gd(r.goalsFor, r.goalsAgainst)}</span>
                 <span class="col-pts">${r.pts}</span>
             </div>
@@ -471,13 +497,11 @@ function renderAITable(standings) {
     }).join('');
     
     table.innerHTML = html;
-    meta.className = 'lb-meta';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI becslés';
-    updateTime.textContent = new Date().toLocaleTimeString('hu-HU');
 }
 
 async function generateAnalysis(standings) {
-    const body = document.getElementById('aiBody');
+    const aiPanel = document.getElementById('aiPanel');
+    const aiBody = document.getElementById('aiBody');
     
     const top3 = standings.slice(0, 3);
     const bottom3 = standings.slice(-3);
@@ -485,10 +509,10 @@ async function generateAnalysis(standings) {
     const prompt = `Elemezd röviden ezt az AI által becsült tabellát!
 
 TOP 3:
-${top3.map(t => `${t.pos}. ${t.team} (${t.pts} pont)`).join('\n')}
+${top3.map(t => `${t.pos}. ${t.team} (${t.pts} pont, ${t.goalsFor}:${t.goalsAgainst})`).join('\n')}
 
 UTOLSÓ 3:
-${bottom3.map(t => `${t.pos}. ${t.team} (${t.pts} pont)`).join('\n')}
+${bottom3.map(t => `${t.pos}. ${t.team} (${t.pts} pont, ${t.goalsFor}:${t.goalsAgainst})`).join('\n')}
 
 Adj egy 3-4 mondatos elemzést MAGYARUL arról, hogy szerinted miért ezek a csapatok lehetnek a legjobb formában!`;
     
@@ -509,18 +533,20 @@ Adj egy 3-4 mondatos elemzést MAGYARUL arról, hogy szerinted miért ezek a csa
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         
         if (text) {
-            body.innerHTML = text.replace(/\n/g, '<br>');
+            aiBody.innerHTML = text.replace(/\n/g, '<br>');
+            aiPanel.style.display = 'block';
         } else {
-            body.innerHTML = 'Az AI elemzés nem elérhető';
+            aiPanel.style.display = 'none';
         }
         
     } catch(e) {
-        body.innerHTML = 'Elemzés nem elérhető';
+        console.error('Elemzési hiba:', e);
+        aiPanel.style.display = 'none';
     }
 }
 
 // ─────────────────────────────────────────────────────────────
-// 4. Tab váltás
+// 4. TAB VÁLTÁS
 // ─────────────────────────────────────────────────────────────
 function showRealTable() {
     document.getElementById('realTableContainer').style.display = 'block';
@@ -534,24 +560,16 @@ function showAITable() {
     document.getElementById('aiTableContainer').style.display = 'block';
     document.getElementById('realTab').classList.remove('active');
     document.getElementById('aiTab').classList.add('active');
-    
-    // Automatikusan generáljuk az AI táblát, ha még üres
-    if (document.getElementById('aiTable').children.length < 3) {
-        loadAITable();
-    }
-}
-
-function loadAITable() {
-    generateAITable();
 }
 
 // ─────────────────────────────────────────────────────────────
-// 5. Inicializálás
+// 5. INICIALIZÁLÁS
 // ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
     loadRealTable();
     
     document.getElementById('refreshRealBtn').addEventListener('click', loadRealTable);
+    document.getElementById('generateAIBtn').addEventListener('click', generateAITable);
     
     // Automatikus frissítés 30 másodpercenként (csak a valódi táblát)
     setInterval(loadRealTable, 30000);
