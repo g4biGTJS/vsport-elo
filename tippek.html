@@ -392,20 +392,13 @@ async function generateAITable() {
     `${t.pos}. ${t.team}: ${t.pts}pt ${t.goalsFor||0}:${t.goalsAgainst||0}`
   ).join('\n');
 
-  // Rövidített, tömör prompt a token limit elkerülésére
-  const prompt = `Te egy virtuális futball liga elemzője vagy. Az alábbi valós tabella alapján adj egy AI-becsült tabellát!
-
-VALÓS TABELLA:
+  // Compact prompt – minden sor egy csapat, minimális token felhasználás
+  const prompt = `Virtuális futball liga elemző vagy. Valós tabella:
 ${allTeamsData}
 
-Készíts egy elméleti tabellát (${teamCount} csapat, 1-től ${teamCount}-ig) arról, hogy az eddigi teljesítmény alapján a jövőben melyik csapat hol végezhet.
-
-NAGYON FONTOS: Válaszolj KIZÁRÓLAG érvényes JSON tömbbel, semmi mást ne írj!
-Minden objektumnak PONTOSAN ezeket a mezőket kell tartalmaznia:
-{"pos":1,"team":"CsapatNeve","goalsFor":35,"goalsAgainst":18,"pts":42,"trend":"up"}
-
-trend értéke csak "up", "down" vagy "same" lehet.
-Csak a valós csapatneveket használd!`;
+Adj vissza egy JSON tömböt ${teamCount} csapattal (1-${teamCount}). CSAK kompakt egysoros JSON-t írj, semmi mást!
+Formátum (minden mező kötelező): [{"pos":1,"team":"Név","goalsFor":35,"goalsAgainst":18,"pts":42,"trend":"up"},...]
+trend: "up"/"down"/"same". Csak a fenti csapatneveket használd!`;
 
   try {
     const response = await fetch(GEMINI_URL, {
@@ -414,9 +407,9 @@ Csak a valós csapatneveket használd!`;
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.5,
-          maxOutputTokens: 4096,        // ← FIX: volt 1024, az túl kevés volt!
-          responseMimeType: 'application/json' // ← FIX: JSON módra kényszerítjük
+          temperature: 0.3,
+          maxOutputTokens: 8192,
+          responseMimeType: 'application/json'
         }
       })
     });
@@ -498,7 +491,7 @@ Miért lehetnek ezek a csapatok ilyen helyzetben a következő körökben?`;
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 512 }
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 }
       })
     });
     const data = await response.json();
