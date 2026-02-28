@@ -113,6 +113,9 @@
     }
     .schedule-btn:hover { background:#242424; border-color:#555; color:#fff; }
     .schedule-btn strong { color:#fff; }
+    .schedule-btn:visited { background:#111; border-color:#222; color:#666; }
+    .schedule-btn:visited strong { color:#888; }
+    .schedule-btn:visited::after { content:' (megtekintve)'; font-size:.65rem; color:#4caf50; }
 
     @media (max-width:520px) {
       .streams { padding:16px 12px; gap:16px; }
@@ -147,9 +150,9 @@
         <span>#</span>
         <span></span>
         <span>Csapat</span>
-        <span class="h-right">LG:KG</span>
-        <span class="h-right">GK</span>
-        <span class="h-right">Pt</span>
+        <span class="h-right">Lőtt:Kapott</span>
+        <span class="h-right">Különbség</span>
+        <span class="h-right">Pont</span>
       </div>
       <div class="lb-meta loading" id="pl-meta">
         <span><span class="refresh-dot"></span>Betöltés...</span>
@@ -190,14 +193,20 @@
         <span>#</span>
         <span></span>
         <span>Csapat</span>
-        <span class="h-right">LG:KG</span>
-        <span class="h-right">GK</span>
-        <span class="h-right">Pt</span>
+        <span class="h-right">Lőtt:Kapott</span>
+        <span class="h-right">Különbség</span>
+        <span class="h-right">Pont</span>
       </div>
-      <div class="leaderboard-body">
-        <div class="maintenance-notice">
-          <div class="icon">🔧</div>
-          <p>A <strong>Spanyol Liga eredménytáblája</strong> jelenleg <strong>karbantartás alatt</strong> van.<br><br>Hamarosan visszatér!</p>
+      <div class="lb-meta loading" id="sl-meta">
+        <span><span class="refresh-dot"></span>Betöltés...</span>
+        <span id="sl-time">–</span>
+      </div>
+      <div class="leaderboard-body" id="sl-table">
+        <div class="lb-skeleton">
+          <div class="skel-row"></div><div class="skel-row"></div>
+          <div class="skel-row"></div><div class="skel-row"></div>
+          <div class="skel-row"></div><div class="skel-row"></div>
+          <div class="skel-row"></div><div class="skel-row"></div>
         </div>
       </div>
     </div>
@@ -301,7 +310,8 @@
   }
 
   loadStandings('pl');
-  setInterval(() => loadStandings('pl'), REFRESH_MS);
+  loadStandings('sl');
+  setInterval(() => { loadStandings('pl'); loadStandings('sl'); }, REFRESH_MS);
 </script>
 
 </body>
