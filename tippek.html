@@ -8,7 +8,6 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { background: #0a0a0a; color: #fff; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
 
-    /* ── HEADER (pont ugyanaz, mint index.html) ── */
     header {
       background: #111; border-bottom: 2px solid #222;
       padding: 0 20px; height: 44px;
@@ -27,7 +26,6 @@
     .back-btn:hover { color: #fff; border-color: #444; }
     .header-sep { width: 1px; height: 18px; background: #222; margin: 0 5px; }
 
-    /* ── FORM TABLE (ugyanaz a design, mint a leaderboard) ── */
     .page { max-width: 900px; margin: 0 auto; padding: 20px 16px 40px; }
 
     .form-header {
@@ -51,12 +49,6 @@
     .controls {
       display: flex; gap: 8px; align-items: center;
     }
-    .matches-select {
-      background: #111; border: 1px solid #2a2a2a; color: #fff;
-      font-size: .7rem; padding: 5px 8px; border-radius: 4px;
-      font-family: inherit; cursor: pointer;
-    }
-    .matches-select:hover { border-color: #444; }
     .refresh-btn {
       background: #1a1a1a; border: 1px solid #333; color: #aaa;
       font-size: .7rem; padding: 5px 12px; border-radius: 4px;
@@ -64,15 +56,15 @@
     }
     .refresh-btn:hover { background: #242424; border-color: #555; color: #fff; }
 
-    /* Leaderboard táblázat (pont ugyanaz, mint index.html) */
+    /* Leaderboard táblázat */
     .leaderboard-block { background:#111; border:1px solid #2a2a2a; border-radius:4px; overflow:hidden; margin-bottom: 20px; }
     .leaderboard-header-bar {
       background:#1e6b1e;
       display:grid;
-      grid-template-columns: 26px 1fr 60px 70px 60px;
+      grid-template-columns: 26px 1fr 40px 60px 60px 60px;
       align-items:center; padding:7px 10px; gap:4px;
     }
-    .leaderboard-header-bar span { font-size:.58rem; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .leaderboard-header-bar span { font-size:.58rem; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:.2px; }
     .leaderboard-header-bar .h-right { text-align:right; }
 
     .lb-meta {
@@ -88,7 +80,7 @@
 
     .lb-row {
       display:grid;
-      grid-template-columns: 26px 1fr 60px 70px 60px;
+      grid-template-columns: 26px 1fr 40px 60px 60px 60px;
       align-items:center; padding:4px 10px; gap:4px;
       border-bottom:1px solid #1d1d1d; transition:background .12s;
     }
@@ -105,17 +97,20 @@
 
     .col-team { display:flex; align-items:center; gap:6px; }
     .team-logo { width:16px; height:16px; object-fit:contain; flex-shrink:0; }
-    .team-logo-placeholder { width:16px; height:16px; flex-shrink:0; }
     .team-name { font-size:.76rem; font-weight:600; color:#ccc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-    .col-form { font-size:.68rem; color:#aaa; text-align:center; font-family: monospace; letter-spacing: 1px; }
-    .col-avg { font-size:.65rem; color:#4caf50; text-align:right; font-weight: 600; }
-    .col-pts { font-size:.8rem; font-weight:800; color:#fff; text-align:right; font-variant-numeric:tabular-nums; }
+    .col-gf, .col-ga, .col-gd, .col-pts { 
+      font-size:.7rem; 
+      text-align:right; 
+      font-variant-numeric:tabular-nums;
+    }
+    .col-gf { color:#aaa; }
+    .col-ga { color:#aaa; }
+    .col-gd { font-weight:600; }
+    .col-pts { font-size:.8rem; font-weight:800; color:#fff; }
 
-    .trend-indicator { display: inline-block; margin-left: 3px; font-size: .6rem; }
-    .trend-up { color: #4caf50; }
-    .trend-down { color: #e53935; }
-    .trend-same { color: #666; }
+    .trend-up { color: #4caf50; margin-left: 3px; }
+    .trend-down { color: #e53935; margin-left: 3px; }
 
     /* Statisztika kártyák */
     .stats-grid {
@@ -133,9 +128,8 @@
     .stat-value {
       font-size: 1.2rem; font-weight: 700; color: #fff;
     }
-    .stat-value small { font-size: .7rem; color: #4caf50; margin-left: 4px; }
 
-    /* AI Elemzés panel (stílusban illeszkedik) */
+    /* AI Panel */
     .aipanel {
       background: #111; border: 1px solid #2a2a2a; border-radius: 4px;
       overflow: hidden; margin-top: 20px;
@@ -157,8 +151,6 @@
       padding: 16px 20px; font-size: .82rem; line-height: 1.7;
       color: #ccc; min-height: 80px;
     }
-    .aibody.typing::after { content: '▋'; color: #4caf50; animation: cur .6s infinite; }
-    @keyframes cur { 0%,100%{opacity:1} 50%{opacity:0} }
 
     .dots { display: flex; gap: 5px; padding: 10px 0; }
     .dots span {
@@ -178,7 +170,7 @@
 
     @media (max-width:560px) {
       .stats-grid { grid-template-columns: 1fr; }
-      .leaderboard-header-bar { grid-template-columns: 26px 1fr 50px 60px 50px; }
+      .leaderboard-header-bar { grid-template-columns: 26px 1fr 30px 45px 45px 45px; }
     }
   </style>
 </head>
@@ -188,58 +180,52 @@
   <a class="back-btn" href="/">← Vissza</a>
   <div class="header-sep"></div>
   <div class="dot"></div>
-  <h1>VSPORT &mdash; Forma & Teljesítmény</h1>
+  <h1>VSPORT &mdash; Teljesítmény & Forma</h1>
 </header>
 
 <div class="page">
-  <!-- Fejléc + vezérlők -->
   <div class="form-header">
     <div class="title-section">
-      <h2>⚡ Legjobb formában lévő csapatok</h2>
-      <span class="season-badge" id="seasonBadge">Aktív szezon</span>
+      <h2>⚡ Élő Teljesítménytábla</h2>
+      <span class="season-badge" id="seasonBadge">Premier Liga</span>
     </div>
     <div class="controls">
-      <select class="matches-select" id="matchCountSelect">
-        <option value="3">Utolsó 3 meccs</option>
-        <option value="5" selected>Utolsó 5 meccs</option>
-        <option value="8">Utolsó 8 meccs</option>
-        <option value="10">Utolsó 10 meccs</option>
-      </select>
-      <button class="refresh-btn" onclick="loadData()">🔄 Frissítés</button>
+      <button class="refresh-btn" id="refreshBtn">🔄 Frissítés</button>
     </div>
   </div>
 
   <!-- Gyors statisztikák -->
   <div class="stats-grid" id="statsGrid">
     <div class="stat-card">
-      <div class="stat-label">Legjobb forma</div>
+      <div class="stat-label">Legtöbb pont</div>
       <div class="stat-value" id="bestTeamStat">–</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Átlag pont/meccs</div>
-      <div class="stat-value" id="avgPtsStat">– <small>(top 5)</small></div>
+      <div class="stat-label">Legjobb gólkülönbség</div>
+      <div class="stat-value" id="bestGDStat">–</div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">Lejátszott meccsek</div>
-      <div class="stat-value" id="matchesCountStat">–</div>
+      <div class="stat-label">Csapatok száma</div>
+      <div class="stat-value" id="teamsCountStat">–</div>
     </div>
   </div>
 
-  <!-- Forma táblázat (leaderboard stílusban) -->
+  <!-- Teljesítmény táblázat -->
   <div class="leaderboard-block">
     <div class="leaderboard-header-bar">
       <span>#</span>
       <span>Csapat</span>
-      <span class="h-right">Forma</span>
-      <span class="h-right">Pont/Meccs</span>
-      <span class="h-right">Pont</span>
+      <span class="h-right">L</span>
+      <span class="h-right">K</span>
+      <span class="h-right">GK</span>
+      <span class="h-right">P</span>
     </div>
     <div class="lb-meta loading" id="formMeta">
-      <span><span class="refresh-dot"></span>Forma számítás...</span>
+      <span><span class="refresh-dot"></span>Adatok betöltése...</span>
       <span id="updateTime">–</span>
     </div>
     <div class="leaderboard-body" id="formTable">
-      <div class="lb-skeleton" style="padding:8px 10px">
+      <div style="padding:8px 10px">
         <div style="height:20px; background:#1a1a1a; border-radius:3px; margin-bottom:5px;"></div>
         <div style="height:20px; background:#1a1a1a; border-radius:3px; margin-bottom:5px;"></div>
         <div style="height:20px; background:#1a1a1a; border-radius:3px;"></div>
@@ -250,7 +236,7 @@
   <!-- AI Elemzés panel -->
   <div class="aipanel" id="aiPanel">
     <div class="aipanel-hdr">
-      <span class="aipanel-title">📊 AI Forma Elemzés</span>
+      <span class="aipanel-title">📊 AI Teljesítmény Elemzés</span>
       <span class="ai-badge">gemini-2.0</span>
     </div>
     <div class="aibody" id="aiBody">
@@ -258,309 +244,176 @@
     </div>
   </div>
 
-  <!-- Hibaüzenet -->
   <div class="error-box" id="errorBox"></div>
 </div>
 
 <script>
-const LOGO_BASE = 'https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/';
-const SR_URL = 'https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061057';
-const CORS_PROXY = 'https://corsproxy.io/?url=';
 const GEMINI_KEY = 'AIzaSyD6tfnMdM2_FdYjL6QQuXYjq7BVkfUvizg';
 
 // State
-let allMatches = [];        // Összes betöltött meccs
-let formData = [];          // Számított form adatok
-let currentSeason = 1;      // Szezon azonosító
-let lastPointsSum = 0;      // Utolsó összpontszám (szezonváltás detektáláshoz)
+let currentStandings = [];
+let previousStandings = []; // Az előző állapot a trendekhez
+let currentSeason = 1;
 
 // ─────────────────────────────────────────────────────────────
-// 1. MEccsek betöltése és parse-olása
+// 1. Standings betöltése az API-ból
 // ─────────────────────────────────────────────────────────────
-async function fetchMatches() {
-  // Próba 1: közvetlen fetch
-  try {
-    const r = await fetch(SR_URL, { headers: { 'Accept': 'text/html' } });
-    if (r.ok) {
-      const html = await r.text();
-      const matches = parseMatches(html);
-      if (matches.length > 0) return matches;
-    }
-  } catch(e) { /* CORS hiba -> proxy */ }
-
-  // Próba 2: corsproxy
-  const r2 = await fetch(CORS_PROXY + encodeURIComponent(SR_URL));
-  if (!r2.ok) throw new Error(`Proxy hiba: ${r2.status}`);
-  const html2 = await r2.text();
-  const matches = parseMatches(html2);
-  if (matches.length === 0) throw new Error('Nem található meccs');
-  return matches;
-}
-
-function parseMatches(html) {
-  const matches = [];
-  const parts = html.split(/<tr[^>]*cursor-pointer[^>]*>/);
+async function fetchStandings() {
+  const response = await fetch('/api/standings?liga=pl');
+  if (!response.ok) throw new Error(`API hiba: ${response.status}`);
   
-  for (let i = 1; i < parts.length; i++) {
-    const row = parts[i].split('</tr>')[0];
-    
-    // Forduló
-    const roundM = row.match(/>VLLM<\/div>\s*<div[^>]*>(\d+)<\/div>/);
-    if (!roundM) continue;
-    const round = parseInt(roundM[1]);
-    
-    // Csapatnevek
-    const names = [...row.matchAll(/class="hidden-xs-up visible-sm-up wrap">([^<]+)<\/div>/g)].map(m => m[1].trim());
-    if (names.length < 2) continue;
-    
-    // Logo ID-k
-    const logoIds = [];
-    for (const m of row.matchAll(/\/medium\/(\d{6})\.png/g)) {
-      if (!logoIds.includes(m[1])) logoIds.push(m[1]);
-    }
-    
-    // Időpont
-    const timeM = row.match(/<div class="text-center">\s*(\d{1,2}:\d{2})\s*<\/div>/);
-    
-    // Eredmény
-    const scoreM = row.match(/aria-label="Eredm\."([\s\S]*?)<\/div><\/div><\/div>/);
-    if (!scoreM) continue;
-    const sec = scoreM[1];
-    
-    const dashes = [...sec.matchAll(/<div class="inline-block[^"]*">\s*-\s*<sup>/g)];
-    const nums = [...sec.matchAll(/<div class="inline-block[^"]*">\s*(\d+)\s*<sup>/g)].map(m => parseInt(m[1]));
-    
-    // Csak lejátszott meccseket veszünk (ahol van eredmény)
-    if (dashes.length < 2 && nums.length >= 2) {
-      matches.push({
-        round,
-        home: names[0],
-        away: names[1],
-        hid: logoIds[0] || null,
-        aid: logoIds[1] || null,
-        hs: nums[0],
-        as: nums[1],
-        time: timeM ? timeM[1] : null,
-        timestamp: new Date().getTime() - (round * 3600000) // durva becslés
-      });
-    }
-  }
-  
-  return matches;
+  const data = await response.json();
+  return data.standings || [];
 }
 
 // ─────────────────────────────────────────────────────────────
-// 2. Forma számítás
+// 2. Trendek számítása (előző állapothoz képest)
 // ─────────────────────────────────────────────────────────────
-function calculateForm(matches, matchCount = 5) {
-  if (matches.length === 0) return [];
+function calculateTrends(current, previous) {
+  if (!previous || previous.length === 0) return current;
   
-  // Szezonváltás detektálás: ha az összpontszám hirtelen lecsökken
-  const totalPts = matches.reduce((sum, m) => {
-    return sum + (m.hs > m.as ? 3 : m.hs === m.as ? 1 : 0) + (m.as > m.hs ? 3 : m.as === m.hs ? 1 : 0);
-  }, 0);
+  const previousMap = new Map(previous.map(t => [t.team, t]));
   
-  if (lastPointsSum > 0 && totalPts < lastPointsSum * 0.3) {
-    // Új szezon! (pontok lenullázódtak)
+  return current.map(team => {
+    const prev = previousMap.get(team.team);
+    if (!prev) return { ...team, trend: 'same' };
+    
+    if (team.pos < prev.pos) return { ...team, trend: 'up' };
+    if (team.pos > prev.pos) return { ...team, trend: 'down' };
+    return { ...team, trend: 'same' };
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// 3. Szezonváltás detektálás
+// ─────────────────────────────────────────────────────────────
+function detectNewSeason(newStandings) {
+  if (!newStandings || newStandings.length === 0) return false;
+  
+  // Ha minden csapat pontja 0 vagy nagyon alacsony
+  const allZero = newStandings.every(team => team.pts === 0 || team.pts < 3);
+  const wasPositive = previousStandings.some(team => team.pts > 10);
+  
+  if (allZero && wasPositive) {
     currentSeason++;
     document.getElementById('seasonBadge').textContent = `🎯 Új szezon (${currentSeason})`;
     document.getElementById('seasonBadge').classList.add('new');
-  } else {
-    document.getElementById('seasonBadge').textContent = `Aktív szezon (${currentSeason})`;
-    document.getElementById('seasonBadge').classList.remove('new');
-  }
-  lastPointsSum = totalPts;
-  
-  // Csapatok összegyűjtése
-  const teams = new Map();
-  
-  matches.forEach(m => {
-    if (!teams.has(m.home)) {
-      teams.set(m.home, { name: m.home, logo: m.hid, matches: [], points: 0, gf: 0, ga: 0 });
-    }
-    if (!teams.has(m.away)) {
-      teams.set(m.away, { name: m.away, logo: m.aid, matches: [], points: 0, gf: 0, ga: 0 });
-    }
-    
-    // Hazai csapat
-    const homeTeam = teams.get(m.home);
-    homeTeam.matches.push({
-      opponent: m.away,
-      gf: m.hs,
-      ga: m.as,
-      result: m.hs > m.as ? 'W' : m.hs === m.as ? 'D' : 'L',
-      round: m.round
-    });
-    homeTeam.points += m.hs > m.as ? 3 : m.hs === m.as ? 1 : 0;
-    homeTeam.gf += m.hs;
-    homeTeam.ga += m.as;
-    
-    // Vendég csapat
-    const awayTeam = teams.get(m.away);
-    awayTeam.matches.push({
-      opponent: m.home,
-      gf: m.as,
-      ga: m.hs,
-      result: m.as > m.hs ? 'W' : m.as === m.hs ? 'D' : 'L',
-      round: m.round
-    });
-    awayTeam.points += m.as > m.hs ? 3 : m.as === m.hs ? 1 : 0;
-    awayTeam.gf += m.as;
-    awayTeam.ga += m.hs;
-  });
-  
-  // Forma számítás (utolsó N meccs)
-  const formResults = [];
-  
-  for (const [name, team] of teams) {
-    // Utolsó meccsek időrendben
-    const sortedMatches = team.matches.sort((a, b) => b.round - a.round);
-    const lastN = sortedMatches.slice(0, matchCount);
-    
-    if (lastN.length === 0) continue;
-    
-    // Forma string (W/D/L)
-    const formStr = lastN.map(m => m.result).join('');
-    
-    // Pontok az utolsó N meccsen
-    const pts = lastN.reduce((sum, m) => {
-      return sum + (m.result === 'W' ? 3 : m.result === 'D' ? 1 : 0);
-    }, 0);
-    
-    // Átlag pont/meccs
-    const avgPts = pts / lastN.length;
-    
-    // Trend számítás (utolsó 3 vs előtte 3)
-    let trend = 'same';
-    if (lastN.length >= 6) {
-      const last3 = lastN.slice(0, 3).filter(m => m).reduce((s, m) => s + (m.result === 'W' ? 3 : m.result === 'D' ? 1 : 0), 0);
-      const prev3 = lastN.slice(3, 6).filter(m => m).reduce((s, m) => s + (m.result === 'W' ? 3 : m.result === 'D' ? 1 : 0), 0);
-      if (last3 > prev3) trend = 'up';
-      else if (last3 < prev3) trend = 'down';
-    }
-    
-    formResults.push({
-      pos: 0, // majd rendezés után
-      team: name,
-      logo: team.logo ? `${LOGO_BASE}${team.logo}.png` : null,
-      form: formStr,
-      pts: pts,
-      avgPts: avgPts,
-      matchesCount: lastN.length,
-      trend: trend,
-      totalPts: team.points,
-      gd: team.gf - team.ga
-    });
+    return true;
   }
   
-  // Rendezés átlag pont/meccs szerint
-  const sorted = formResults.sort((a, b) => {
-    if (b.avgPts !== a.avgPts) return b.avgPts - a.avgPts;
-    return b.gd - a.gd; // gólkülönbség másodlagos
-  });
-  
-  // Pozíciók beállítása
-  sorted.forEach((team, idx) => { team.pos = idx + 1; });
-  
-  return sorted;
+  document.getElementById('seasonBadge').textContent = `Premier Liga (${currentSeason}. szezon)`;
+  document.getElementById('seasonBadge').classList.remove('new');
+  return false;
 }
 
 // ─────────────────────────────────────────────────────────────
-// 3. UI frissítés
+// 4. UI frissítés
 // ─────────────────────────────────────────────────────────────
-function renderFormTable(data) {
+function renderTable(standings) {
   const table = document.getElementById('formTable');
   const meta = document.getElementById('formMeta');
   const updateTime = document.getElementById('updateTime');
   
-  if (data.length === 0) {
-    table.innerHTML = '<div style="padding:20px;text-align:center;color:#555">Nincs elegendő adat</div>';
-    meta.className = 'lb-meta error';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Nincs adat';
-    updateTime.textContent = new Date().toLocaleTimeString('hu-HU');
+  if (!standings || standings.length === 0) {
+    table.innerHTML = '<div style="padding:20px;text-align:center;color:#555">Nincs adat</div>';
     return;
   }
   
-  const html = data.map(team => {
+  const html = standings.map(team => {
     const rowClass = team.pos <= 3 ? 'lb-row top3' : 
-                     team.pos >= data.length - 2 ? 'lb-row bottom3' : 'lb-row';
+                     team.pos >= standings.length - 2 ? 'lb-row bottom3' : 'lb-row';
+    
+    const gd = (team.goalsFor || 0) - (team.goalsAgainst || 0);
+    const gdClass = gd > 0 ? 'col-gd' : gd < 0 ? 'col-gd' : 'col-gd';
+    const gdColor = gd > 0 ? '#4caf50' : gd < 0 ? '#e53935' : '#666';
     
     const trendIcon = team.trend === 'up' ? '<span class="trend-up">▲</span>' :
-                      team.trend === 'down' ? '<span class="trend-down">▼</span>' :
-                      '<span class="trend-same">—</span>';
-    
-    const formDisplay = team.form
-      .replace(/W/g, '<span style="color:#4caf50">W</span>')
-      .replace(/D/g, '<span style="color:#f59e0b">D</span>')
-      .replace(/L/g, '<span style="color:#e53935">L</span>');
+                      team.trend === 'down' ? '<span class="trend-down">▼</span>' : '';
     
     return `
       <div class="${rowClass}">
         <span class="col-pos">${team.pos}</span>
         <span class="col-team">
-          ${team.logo ? `<img class="team-logo" src="${team.logo}" onerror="this.style.display='none'">` : '<span class="team-logo-placeholder"></span>'}
+          ${team.logo ? `<img class="team-logo" src="${team.logo}" onerror="this.style.display='none'">` : ''}
           <span class="team-name">${team.team}</span>
           ${trendIcon}
         </span>
-        <span class="col-form">${formDisplay}</span>
-        <span class="col-avg">${team.avgPts.toFixed(2)}</span>
-        <span class="col-pts">${team.pts}</span>
+        <span class="col-gf">${team.goalsFor || 0}</span>
+        <span class="col-ga">${team.goalsAgainst || 0}</span>
+        <span class="col-gd" style="color:${gdColor}">${gd > 0 ? '+' + gd : gd}</span>
+        <span class="col-pts">${team.pts || 0}</span>
       </div>
     `;
   }).join('');
   
   table.innerHTML = html;
   meta.className = 'lb-meta';
-  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Forma alapú rangsor';
+  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Élő teljesítmény';
   updateTime.textContent = new Date().toLocaleTimeString('hu-HU');
   
-  // Statisztikák frissítése
-  if (data.length > 0) {
-    document.getElementById('bestTeamStat').textContent = data[0].team;
+  // Statisztikák
+  if (standings.length > 0) {
+    document.getElementById('bestTeamStat').textContent = standings[0].team;
     
-    const top5Avg = data.slice(0, 5).reduce((sum, t) => sum + t.avgPts, 0) / Math.min(5, data.length);
-    document.getElementById('avgPtsStat').innerHTML = `${top5Avg.toFixed(2)} <small>(top5)</small>`;
+    const bestGD = standings.reduce((best, team) => {
+      const gd = (team.goalsFor || 0) - (team.goalsAgainst || 0);
+      return gd > best.gd ? { team: team.team, gd } : best;
+    }, { team: '-', gd: -999 });
     
-    document.getElementById('matchesCountStat').textContent = allMatches.length;
+    document.getElementById('bestGDStat').innerHTML = `${bestGD.team} <span style="font-size:.7rem">(${bestGD.gd > 0 ? '+' + bestGD.gd : bestGD.gd})</span>`;
+    document.getElementById('teamsCountStat').textContent = standings.length;
   }
 }
 
 // ─────────────────────────────────────────────────────────────
-// 4. AI elemzés
+// 5. AI elemzés
 // ─────────────────────────────────────────────────────────────
-async function generateAnalysis(formData, matchCount) {
+async function generateAnalysis(standings) {
   const body = document.getElementById('aiBody');
   const panel = document.getElementById('aiPanel');
   const errorBox = document.getElementById('errorBox');
   
   panel.classList.add('show');
   errorBox.classList.remove('show');
-  body.className = 'aibody typing';
   body.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
   
-  // Prompt összeállítása
-  const top3 = formData.slice(0, 3);
-  const bottom3 = formData.slice(-3);
+  const top3 = standings.slice(0, 3);
+  const bottom3 = standings.slice(-3);
   
-  let prompt = `Te egy Virtuális Labdarúgás Liga (VLLM) szakértő elemzője vagy. 
-Elemezd a csapatok aktuális formáját az utolsó ${matchCount} meccs alapján!
+  const top3Text = top3.map(t => {
+    const gd = (t.goalsFor || 0) - (t.goalsAgainst || 0);
+    return `  • ${t.pos}. **${t.team}** – ${t.pts} pont (${t.goalsFor || 0}:${t.goalsAgainst || 0}, ${gd > 0 ? '+' + gd : gd})`;
+  }).join('\n');
+  
+  const bottom3Text = bottom3.map(t => {
+    const gd = (t.goalsFor || 0) - (t.goalsAgainst || 0);
+    return `  • ${t.pos}. **${t.team}** – ${t.pts} pont (${t.goalsFor || 0}:${t.goalsAgainst || 0}, ${gd})`;
+  }).join('\n');
+  
+  // Trendek kiszámolása
+  const upTeams = standings.filter(t => t.trend === 'up').slice(0, 2);
+  const downTeams = standings.filter(t => t.trend === 'down').slice(0, 2);
+  
+  const prompt = `Te egy Virtuális Labdarúgás Liga (Premier Liga) szakértő elemzője vagy.
+Elemezd a teljesítménytábla alapján a csapatok aktuális állását!
 
-LEGJOBB FORMÁBAN (top 3):
-${top3.map(t => `  • ${t.team}: ${t.form} (${t.avgPts.toFixed(2)} pont/meccs, összesen ${t.pts} pont)`).join('\n')}
+AKTUÁLIS TABELLA (top 3):
+${top3Text}
 
-LEGGYENGÉBB FORMÁBAN (bottom 3):
-${bottom3.map(t => `  • ${t.team}: ${t.form} (${t.avgPts.toFixed(2)} pont/meccs, összesen ${t.pts} pont)`).join('\n')}
+UTOLSÓ 3 HELYEZETT:
+${bottom3Text}
 
-ÖSSZES MECCS: ${allMatches.length} lejátszott meccs
+${upTeams.length > 0 ? 'FELFELÉ MOZGÓK (javuló trend):\n' + upTeams.map(t => `  • **${t.team}** (${t.pos}. hely)`).join('\n') : ''}
+${downTeams.length > 0 ? 'LEFELÉ MOZGÓK (romló trend):\n' + downTeams.map(t => `  • **${t.team}** (${t.pos}. hely)`).join('\n') : ''}
 
-Kérlek adj egy rövid elemzést a következő struktúrában:
-1. 🔥 **Forma király** – ki a legjobb és miért?
-2. 📈 **Legnagyobb javulás** – melyik csapat ment fel a legtöbbet?
-3. 📉 **Zuhanó csillag** – ki vesztett a legtöbbet?
-4. ⚡ **Meglepetés** – egy váratlan eredmény vagy trend
-5. 🎯 **Tipp a következő körre** – egy konkrét javaslat
+Kérlek adj egy rövid elemzést:
+1. 🔥 **Ki a favorit?** – Ki tűnik bajnokesélyesnek?
+2. 📈 **Ki a meglepetés?** – Ki teljesít váratlanul jól?
+3. 📉 **Ki a csalódás?** – Ki van elmaradva a várakozásoktól?
+4. ⚡ **Küzdelmes középmezőny** – Mire figyeljünk?
+5. 🎯 **Tipp** – Egy rövid jóslat a következő körre
 
-Válaszolj MAGYARUL, tömören, max 250 szó.`;
+Válaszolj MAGYARUL, tömören, max 200 szó. Használj félkövér csapatneveket!`;
   
   try {
     const r = await fetch(
@@ -570,21 +423,17 @@ Válaszolj MAGYARUL, tömören, max 250 szó.`;
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           contents: [{parts: [{text: prompt}]}],
-          generationConfig: {temperature: 0.6, maxOutputTokens: 800}
+          generationConfig: {temperature: 0.6, maxOutputTokens: 600}
         })
       }
     );
     
-    if (!r.ok) {
-      const e = await r.json().catch(() => ({}));
-      throw new Error(e?.error?.message || `HTTP ${r.status}`);
-    }
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     
     const data = await r.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error('Üres válasz');
     
-    body.className = 'aibody';
     body.innerHTML = formatAnalysis(text);
     
   } catch(e) {
@@ -604,33 +453,37 @@ function formatAnalysis(text) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 5. Fő betöltő függvény
+// 6. Fő betöltő függvény
 // ─────────────────────────────────────────────────────────────
 async function loadData() {
   const meta = document.getElementById('formMeta');
-  const matchCount = parseInt(document.getElementById('matchCountSelect').value);
   
   meta.className = 'lb-meta loading';
   meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Betöltés...';
   
   try {
-    // Meccsek betöltése
-    allMatches = await fetchMatches();
+    const newStandings = await fetchStandings();
     
-    if (allMatches.length === 0) {
-      throw new Error('Nincs elérhető meccs');
+    if (newStandings.length === 0) {
+      throw new Error('Nincs adat');
     }
     
-    // Forma számítás
-    formData = calculateForm(allMatches, matchCount);
+    // Szezonváltás detektálás
+    detectNewSeason(newStandings);
+    
+    // Trendek számítása (előző állapothoz képest)
+    const standingsWithTrends = calculateTrends(newStandings, previousStandings);
     
     // Táblázat renderelés
-    renderFormTable(formData);
+    renderTable(standingsWithTrends);
     
-    // AI elemzés (ha van adat)
-    if (formData.length >= 3) {
-      generateAnalysis(formData, matchCount);
+    // AI elemzés (ha van legalább 5 csapat)
+    if (standingsWithTrends.length >= 5) {
+      generateAnalysis(standingsWithTrends);
     }
+    
+    // Elmentjük az előző állapotot a következő trend számításhoz
+    previousStandings = newStandings;
     
   } catch(e) {
     const errorBox = document.getElementById('errorBox');
@@ -643,23 +496,15 @@ async function loadData() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 6. Inicializálás és event listenerek
+// Inicializálás
 // ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadData();
   
+  document.getElementById('refreshBtn').addEventListener('click', loadData);
+  
   // Automatikus frissítés 30 másodpercenként
   setInterval(loadData, 30000);
-  
-  // Select változáskor újraszámolás
-  document.getElementById('matchCountSelect').addEventListener('change', () => {
-    const matchCount = parseInt(document.getElementById('matchCountSelect').value);
-    if (allMatches.length > 0) {
-      formData = calculateForm(allMatches, matchCount);
-      renderFormTable(formData);
-      generateAnalysis(formData, matchCount);
-    }
-  });
 });
 </script>
 
