@@ -334,10 +334,13 @@ async function generateAITable() {
     const updateTime = document.getElementById('aiUpdateTime');
     
     meta.className = 'lb-meta loading';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI generálás...';
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI generálás (5mp várakozás)...';
     aiTable.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
     aiPanel.style.display = 'none';
     errorBox.classList.remove('show');
+    
+    // ⏱️ VÁRAKOZÁS 5 MÁSODPERCET A RATE LIMIT ELKERÜLÉSÉRE
+    await new Promise(resolve => setTimeout(resolve, 5000));
     
     // Ha nincs valódi adat, töltsük be előbb
     if (realStandings.length === 0) {
@@ -434,6 +437,17 @@ FONTOS:
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             console.error('Gemini hiba:', errorData);
+            
+            // Ha 429-es hiba, várjunk tovább
+            if (response.status === 429) {
+                errorBox.textContent = `⚠️ Túl sok kérés. Várj 30 másodpercet és próbáld újra.`;
+                errorBox.classList.add('show');
+                meta.className = 'lb-meta error';
+                meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Rate limit';
+                aiTable.innerHTML = '<div style="padding:30px; text-align:center; color:#555">Túl sok kérés. Várj 30 másodpercet.</div>';
+                return;
+            }
+            
             throw new Error(`Gemini API hiba (${response.status})`);
         }
         
@@ -444,64 +458,48 @@ FONTOS:
         
         console.log('Gemini válasz:', text);
         
-        // 🔥 JAVÍTOTT JSON FELDOLGOZÁS
+        // JSON feldolgozás
         let aiStandings = [];
         
-        // 1. JSON blokk keresése
+        // JSON blokk keresése
         const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-        // 2. Kódblokk keresése
         const codeBlockMatch = text.match(/```\s*([\s\S]*?)\s*```/);
-        // 3. Tömb keresése
         const arrayMatch = text.match(/\[\s*\{[\s\S]*?\}\s*\]/);
         
         let jsonString = '';
         
         if (jsonBlockMatch && jsonBlockMatch[1]) {
             jsonString = jsonBlockMatch[1];
-            console.log('JSON blokk találat');
         } else if (codeBlockMatch && codeBlockMatch[1]) {
             jsonString = codeBlockMatch[1];
-            console.log('Kódblokk találat');
         } else if (arrayMatch && arrayMatch[0]) {
             jsonString = arrayMatch[0];
-            console.log('Tömb találat');
         } else {
-            // Ha egyik sem, próbáljuk meg a teljes szöveget
             jsonString = text;
         }
         
-        // Tisztítsuk meg a stringet
         jsonString = jsonString.trim();
         
-        // Próbáljuk meg parse-olni
         try {
             aiStandings = JSON.parse(jsonString);
         } catch (e) {
-            console.warn('JSON parse hiba, részleges JSON keresése');
+            console.warn('JSON parse hiba');
             
-            // Részleges JSON keresése - az első teljes objektumig
-            const partialMatch = jsonString.match(/\[\s*(\{[\s\S]*?\})\s*\]?/);
-            if (partialMatch && partialMatch[1]) {
-                // Megpróbálunk egyetlen objektumot parse-olni
-                const singleObj = JSON.parse(partialMatch[1]);
+            // Próbáljuk meg az első objektumot kinyerni
+            const firstObjMatch = jsonString.match(/\{[\s\S]*?\}/);
+            if (firstObjMatch) {
+                const singleObj = JSON.parse(firstObjMatch[0]);
                 aiStandings = [singleObj];
-                console.log('Egyetlen objektumot sikerült parse-olni:', singleObj);
             } else {
-                throw new Error('Nem található érvényes JSON a válaszban');
+                throw new Error('Nem található érvényes JSON');
             }
         }
         
-        // Ellenőrizzük, hogy van-e adat
         if (!aiStandings || aiStandings.length === 0) {
             throw new Error('Üres JSON tömb érkezett');
         }
         
-        console.log('Feldolgozott standings:', aiStandings);
-        
-        // AI tabella megjelenítése
         renderAITable(aiStandings);
-        
-        // Elemző szöveg generálása
         await generateAnalysis(aiStandings);
         
         meta.className = 'lb-meta';
@@ -510,7 +508,6 @@ FONTOS:
         
     } catch(e) {
         console.error('Generálási hiba:', e);
-        console.log('A problémas szöveg:', text); // Kiírjuk a teljes választ debug-hoz
         errorBox.textContent = `⚠️ ${e.message}`;
         errorBox.classList.add('show');
         meta.className = 'lb-meta error';
