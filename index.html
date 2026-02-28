@@ -6,444 +6,303 @@
   <title>VSPORT – Élő Közvetítések</title>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-    html, body {
-      background: #0a0a0a;
-      color: #fff;
-      font-family: 'Segoe UI', sans-serif;
-      min-height: 100vh;
-    }
+    html, body { background: #0a0a0a; color: #fff; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
 
     header {
-      background: #111;
-      border-bottom: 2px solid #222;
-      padding: 0 20px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      background: #111; border-bottom: 2px solid #222;
+      padding: 0 20px; height: 44px;
+      display: flex; align-items: center; gap: 10px;
     }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+    header h1 { font-size:.85rem; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#ddd; }
 
-    .dot {
-      width: 9px; height: 9px;
-      border-radius: 50%;
-      background: #fff;
-      animation: pulse 1.5s infinite;
-    }
+    .streams { display:flex; flex-wrap:wrap; gap:20px; padding:28px 20px; justify-content:center; }
+    .stream-card { display:flex; flex-direction:column; gap:10px; width:420px; }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.25; }
-    }
-
-    header h1 {
-      font-size: 0.85rem;
-      font-weight: 600;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: #ddd;
-    }
-
-    .streams {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      padding: 28px 20px;
-      justify-content: center;
-    }
-
-    .stream-card {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      width: 400px;
-    }
-
-    .stream-block {
-      background: #111;
-      border: 1px solid #2a2a2a;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
+    .stream-block { background:#111; border:1px solid #2a2a2a; border-radius:4px; overflow:hidden; }
     .stream-label {
-      background: #141414;
-      border-bottom: 1px solid #222;
-      padding: 0 14px;
-      font-size: 0.65rem;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: #888;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      height: 30px;
+      background:#141414; border-bottom:1px solid #222;
+      padding:0 14px; font-size:.65rem; letter-spacing:2px;
+      text-transform:uppercase; color:#888;
+      display:flex; align-items:center; gap:8px; height:30px;
     }
+    .badge { background:#fff; color:#000; font-size:.55rem; font-weight:800; padding:2px 6px; border-radius:2px; letter-spacing:1px; }
 
-    .badge {
-      background: #fff;
-      color: #000;
-      font-size: 0.55rem;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 2px;
-      letter-spacing: 1px;
-    }
+    .iframe-wrapper { width:100%; height:225px; overflow:hidden; background:#000; }
+    .iframe-wrapper iframe { width:100%; height:100%; border:none; display:block; }
 
-    .badge.maintenance { background: #f59e0b; }
-
-    .iframe-wrapper {
-      width: 100%;
-      height: 225px;
-      overflow: hidden;
-      background: #000;
-    }
-
-    .iframe-wrapper iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      display: block;
-    }
-
-    /* ── Custom Leaderboard ── */
-    .leaderboard-block {
-      background: #111;
-      border: 1px solid #2a2a2a;
-      border-radius: 4px;
-      overflow: hidden;
-    }
+    /* ── Leaderboard ── */
+    .leaderboard-block { background:#111; border:1px solid #2a2a2a; border-radius:4px; overflow:hidden; }
 
     .leaderboard-header-bar {
-      background: #3d8b3d;
-      display: grid;
-      grid-template-columns: 36px 1fr 80px 44px;
-      align-items: center;
-      padding: 7px 12px;
-      gap: 4px;
+      background:#1e6b1e;
+      display:grid;
+      grid-template-columns: 28px 20px 1fr 56px 56px 44px;
+      align-items:center; padding:7px 10px; gap:4px;
     }
-
-    .leaderboard-header-bar span {
-      font-size: 0.7rem;
-      font-weight: 700;
-      color: #fff;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .leaderboard-header-bar .h-right { text-align: right; }
+    .leaderboard-header-bar span { font-size:.65rem; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:.5px; }
+    .leaderboard-header-bar .h-right { text-align:right; }
 
     .lb-meta {
-      background: #0f0f0f;
-      border-bottom: 1px solid #1e1e1e;
-      padding: 4px 12px;
-      font-size: 0.6rem;
-      color: #444;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      background:#0f0f0f; border-bottom:1px solid #1e1e1e;
+      padding:4px 10px; font-size:.6rem; color:#444;
+      display:flex; justify-content:space-between; align-items:center;
     }
+    .refresh-dot { width:5px; height:5px; border-radius:50%; background:#3d8b3d; display:inline-block; margin-right:4px; animation:pulse 2s infinite; }
+    .lb-meta.loading .refresh-dot { background:#f59e0b; }
+    .lb-meta.error   .refresh-dot { background:#e53935; }
 
-    .lb-meta .refresh-dot {
-      width: 5px; height: 5px;
-      border-radius: 50%;
-      background: #3d8b3d;
-      display: inline-block;
-      margin-right: 4px;
-      animation: pulse 2s infinite;
-    }
-
-    .lb-meta.loading .refresh-dot { background: #f59e0b; }
-    .lb-meta.error   .refresh-dot { background: #e53935; }
-
-    .leaderboard-body { background: #141414; }
+    .leaderboard-body { background:#141414; }
 
     .lb-row {
-      display: grid;
-      grid-template-columns: 36px 1fr 80px 44px;
-      align-items: center;
-      padding: 5px 12px;
-      gap: 4px;
-      border-bottom: 1px solid #1d1d1d;
-      transition: background 0.12s;
+      display:grid;
+      grid-template-columns: 28px 20px 1fr 56px 56px 44px;
+      align-items:center; padding:4px 10px; gap:4px;
+      border-bottom:1px solid #1d1d1d; transition:background .12s;
     }
+    .lb-row:last-child { border-bottom:none; }
+    .lb-row:hover { background:#1c1c1c; }
+    .lb-row.top3 { background:#162316; }
+    .lb-row.top3:hover { background:#1c2b1c; }
+    .lb-row.relegation { background:#1a1010; }
+    .lb-row.relegation:hover { background:#231414; }
 
-    .lb-row:last-child { border-bottom: none; }
-    .lb-row:hover { background: #1c1c1c; }
-    .lb-row.top { background: #162016; }
-    .lb-row.top:hover { background: #1c2a1c; }
+    .col-pos { font-size:.7rem; font-weight:700; color:#666; text-align:center; }
+    .lb-row.top3 .col-pos { color:#4caf50; }
+    .lb-row.relegation .col-pos { color:#e53935; }
 
-    .col-pos {
-      font-size: 0.72rem;
-      font-weight: 700;
-      color: #777;
-      text-align: center;
-    }
+    .col-trend { display:flex; align-items:center; justify-content:center; }
+    .trend-up   { color:#4caf50; font-size:.55rem; }
+    .trend-down { color:#e53935; font-size:.55rem; }
+    .trend-same { color:#333;    font-size:.55rem; }
 
-    .lb-row.top .col-pos { color: #4caf50; }
+    .col-team { display:flex; align-items:center; gap:6px; }
+    .team-logo { width:16px; height:16px; object-fit:contain; flex-shrink:0; }
+    .team-logo-placeholder { width:16px; height:16px; flex-shrink:0; }
+    .team-name { font-size:.76rem; font-weight:600; color:#ccc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-    .col-team {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: #ccc;
-    }
+    .col-goals { font-size:.68rem; color:#666; text-align:right; font-variant-numeric:tabular-nums; }
+    .col-gd { font-size:.65rem; color:#555; text-align:right; font-variant-numeric:tabular-nums; }
+    .col-pts { font-size:.8rem; font-weight:800; color:#fff; text-align:right; font-variant-numeric:tabular-nums; }
 
-    .trend { font-size: 0.6rem; flex-shrink: 0; }
-    .trend.up   { color: #4caf50; }
-    .trend.down { color: #e53935; }
-    .trend.same { color: #444; }
+    /* divider vonal top4 után */
+    .lb-row.divider-bottom { border-bottom:2px solid #1e6b1e44; }
 
-    .col-goals {
-      font-size: 0.72rem;
-      color: #777;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .col-pts {
-      font-size: 0.8rem;
-      font-weight: 800;
-      color: #fff;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* Skeleton loader */
-    .lb-skeleton {
-      padding: 8px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .skel-row {
-      height: 22px;
-      border-radius: 3px;
-      background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
-      background-size: 200% 100%;
-      animation: shimmer 1.2s infinite;
-    }
-
-    @keyframes shimmer {
-      0%   { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
+    /* Skeleton */
+    .lb-skeleton { padding:8px 10px; display:flex; flex-direction:column; gap:5px; }
+    .skel-row { height:20px; border-radius:3px; background:linear-gradient(90deg,#1a1a1a 25%,#222 50%,#1a1a1a 75%); background-size:200% 100%; animation:shimmer 1.2s infinite; }
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
     /* Maintenance */
-    .maintenance-notice {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 40px 20px;
-      text-align: center;
-      background: #0d0d0d;
-    }
+    .maintenance-notice { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:36px 20px; text-align:center; background:#0d0d0d; }
+    .maintenance-notice .icon { font-size:1.8rem; opacity:.4; }
+    .maintenance-notice p { max-width:260px; line-height:1.7; font-size:.78rem; color:#555; }
+    .maintenance-notice strong { color:#f59e0b; }
 
-    .maintenance-notice .icon { font-size: 2rem; opacity: 0.4; }
-    .maintenance-notice p { max-width: 260px; line-height: 1.7; font-size: 0.78rem; color: #555; }
-    .maintenance-notice strong { color: #f59e0b; }
+    /* Source badge */
+    .source-badge { font-size:.55rem; padding:1px 5px; border-radius:2px; background:#1a1a1a; color:#444; }
+    .source-badge.live { background:#0d2b0d; color:#3d8b3d; }
 
-    /* Schedule button */
+    /* Schedule btn */
     .schedule-btn {
-      display: block;
-      width: 100%;
-      padding: 11px 16px;
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 4px;
-      color: #ccc;
-      font-size: 0.8rem;
-      text-align: center;
-      text-decoration: none;
-      transition: background 0.2s, border-color 0.2s, color 0.2s;
+      display:block; width:100%; padding:10px 16px;
+      background:#1a1a1a; border:1px solid #333; border-radius:4px;
+      color:#ccc; font-size:.78rem; text-align:center; text-decoration:none;
+      transition:background .2s,border-color .2s,color .2s;
     }
+    .schedule-btn:hover { background:#242424; border-color:#555; color:#fff; }
+    .schedule-btn strong { color:#fff; }
 
-    .schedule-btn:hover { background: #242424; border-color: #555; color: #fff; }
-    .schedule-btn strong { color: #fff; }
-
-    @media (max-width: 520px) {
-      .streams { padding: 16px 12px; gap: 16px; }
-      .stream-card { width: 100%; }
+    @media (max-width:520px) {
+      .streams { padding:16px 12px; gap:16px; }
+      .stream-card { width:100%; }
     }
   </style>
 </head>
 <body>
 
-  <header>
-    <div class="dot"></div>
-    <h1>VSPORT &mdash; Élő</h1>
-  </header>
+<header>
+  <div class="dot"></div>
+  <h1>VSPORT &mdash; Élő</h1>
+</header>
 
-  <div class="streams">
+<div class="streams">
 
-    <!-- ══════════════════ PREMIER LIGA ══════════════════ -->
-    <div class="stream-card">
-      <div class="stream-block">
-        <div class="stream-label">
-          <span class="badge">LIVE</span>
-          Premier Liga
-        </div>
-        <div class="iframe-wrapper">
-          <iframe
-            src="https://vfscigaming.aitcloud.de/vflmshop/retail/index?clientid=4997&lang=zh&style=scigamingcdn&screen=betradar_vflm_one_screen&channel=0"
-            allowfullscreen allow="autoplay; fullscreen" scrolling="no">
-          </iframe>
-        </div>
+  <!-- ══════════════ PREMIER LIGA ══════════════ -->
+  <div class="stream-card">
+    <div class="stream-block">
+      <div class="stream-label">
+        <span class="badge">LIVE</span>
+        Premier Liga
       </div>
-
-      <div class="leaderboard-block">
-        <div class="leaderboard-header-bar">
-          <span>Poz</span>
-          <span>Csapat</span>
-          <span class="h-right">Gólok</span>
-          <span class="h-right">Pt.</span>
-        </div>
-        <div class="lb-meta loading" id="pl-meta">
-          <span><span class="refresh-dot"></span>Frissítés...</span>
-          <span id="pl-time">–</span>
-        </div>
-        <div class="leaderboard-body" id="pl-table">
-          <div class="lb-skeleton">
-            <div class="skel-row"></div><div class="skel-row"></div>
-            <div class="skel-row"></div><div class="skel-row"></div>
-            <div class="skel-row"></div><div class="skel-row"></div>
-            <div class="skel-row"></div><div class="skel-row"></div>
-          </div>
-        </div>
+      <div class="iframe-wrapper">
+        <iframe src="https://vfscigaming.aitcloud.de/vflmshop/retail/index?clientid=4997&lang=zh&style=scigamingcdn&screen=betradar_vflm_one_screen&channel=0"
+          allowfullscreen allow="autoplay; fullscreen" scrolling="no"></iframe>
       </div>
-
-      <a class="schedule-btn"
-         href="https://vfscigaming.aitcloud.de/vflmshop/retail/index?clientid=4997&lang=zh&style=scigamingcdn&screen=betradar_vflm_one_screen&channel=0"
-         target="_blank">
-        Kattints erre hogy lásd a <strong>Premier Liga</strong> meccseket
-      </a>
     </div>
 
-    <!-- ══════════════════ SPANYOL LIGA ══════════════════ -->
-    <div class="stream-card">
-      <div class="stream-block">
-        <div class="stream-label">
-          <span class="badge">LIVE</span>
-          Spanyol Liga
-        </div>
-        <div class="iframe-wrapper">
-          <iframe
-            src="https://vflive-vs001.akamaized.net/vflmshopsts/retail/index?clientid=5027&lang=zh&screen=scigaming_vflm_one_screen_sts_scout&style=scigamingcdn&channel=0"
-            allowfullscreen allow="autoplay; fullscreen" scrolling="no">
-          </iframe>
+    <div class="leaderboard-block">
+      <div class="leaderboard-header-bar">
+        <span>#</span>
+        <span></span>
+        <span>Csapat</span>
+        <span class="h-right">LG:KG</span>
+        <span class="h-right">GK</span>
+        <span class="h-right">Pt</span>
+      </div>
+      <div class="lb-meta loading" id="pl-meta">
+        <span><span class="refresh-dot"></span>Betöltés...</span>
+        <span id="pl-time">–</span>
+      </div>
+      <div class="leaderboard-body" id="pl-table">
+        <div class="lb-skeleton">
+          <div class="skel-row"></div><div class="skel-row"></div>
+          <div class="skel-row"></div><div class="skel-row"></div>
+          <div class="skel-row"></div><div class="skel-row"></div>
+          <div class="skel-row"></div><div class="skel-row"></div>
         </div>
       </div>
-
-      <div class="leaderboard-block">
-        <div class="leaderboard-header-bar">
-          <span>Poz</span>
-          <span>Csapat</span>
-          <span class="h-right">Gólok</span>
-          <span class="h-right">Pt.</span>
-        </div>
-        <div class="leaderboard-body">
-          <div class="maintenance-notice">
-            <div class="icon">🔧</div>
-            <p>
-              A <strong>Spanyol Liga eredménytáblája</strong> jelenleg
-              <strong>karbantartás alatt</strong> van.<br><br>
-              Hamarosan visszatér. Köszönjük a türelmedet!
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <a class="schedule-btn"
-         href="https://schedulerzrh.aitcloud.de/retail_scheduler/display/index/schedule:f94efd4aed2cae288d1ab3abaf828b38"
-         target="_blank">
-        Kattints erre hogy lásd a <strong>Spanyol Liga</strong> meccseket
-      </a>
     </div>
 
+    <a class="schedule-btn"
+       href="https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061001"
+       target="_blank">
+      Teljes táblázat &amp; menetrend – <strong>Premier Liga</strong> →
+    </a>
   </div>
 
-  <script>
-    const REFRESH_MS = 60_000; // 60 másodpercenként frissít
+  <!-- ══════════════ SPANYOL LIGA ══════════════ -->
+  <div class="stream-card">
+    <div class="stream-block">
+      <div class="stream-label">
+        <span class="badge">LIVE</span>
+        Spanyol Liga
+      </div>
+      <div class="iframe-wrapper">
+        <iframe src="https://vflive-vs001.akamaized.net/vflmshopsts/retail/index?clientid=5027&lang=zh&screen=scigaming_vflm_one_screen_sts_scout&style=scigamingcdn&channel=0"
+          allowfullscreen allow="autoplay; fullscreen" scrolling="no"></iframe>
+      </div>
+    </div>
 
-    const trendIcon = t =>
-      t === 'up'   ? '<span class="trend up">▲</span>'   :
-      t === 'down' ? '<span class="trend down">▼</span>' :
-                     '<span class="trend same">–</span>';
-
-    function renderRows(data) {
-      return data.map((r, i) => `
-        <div class="lb-row ${i < 4 ? 'top' : ''}">
-          <span class="col-pos">${r.pos}</span>
-          <span class="col-team">${trendIcon(r.trend ?? 'same')} ${r.team}</span>
-          <span class="col-goals">${r.goalsFor ?? '–'}:${r.goalsAgainst ?? '–'}</span>
-          <span class="col-pts">${r.pts}</span>
+    <div class="leaderboard-block">
+      <div class="leaderboard-header-bar">
+        <span>#</span>
+        <span></span>
+        <span>Csapat</span>
+        <span class="h-right">LG:KG</span>
+        <span class="h-right">GK</span>
+        <span class="h-right">Pt</span>
+      </div>
+      <div class="leaderboard-body">
+        <div class="maintenance-notice">
+          <div class="icon">🔧</div>
+          <p>A <strong>Spanyol Liga eredménytáblája</strong> jelenleg <strong>karbantartás alatt</strong> van.<br><br>Hamarosan visszatér!</p>
         </div>
-      `).join('');
-    }
+      </div>
+    </div>
 
-    function skeleton() {
-      return `<div class="lb-skeleton">${Array(8).fill('<div class="skel-row"></div>').join('')}</div>`;
-    }
+    <a class="schedule-btn"
+       href="https://schedulerzrh.aitcloud.de/retail_scheduler/display/index/schedule:f94efd4aed2cae288d1ab3abaf828b38"
+       target="_blank">
+      Menetrend – <strong>Spanyol Liga</strong> →
+    </a>
+  </div>
 
-    function nowStr() {
-      return new Date().toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    }
+</div>
 
-    // Debug: ?debug=1 URL paraméterrel nyers API választ logol
-    const isDebug = new URLSearchParams(location.search).has('debug');
+<script>
+  const REFRESH_MS = 10_000;
+  const isDebug = new URLSearchParams(location.search).has('debug');
 
-    async function loadStandings(liga) {
-      const tableEl = document.getElementById(`${liga}-table`);
-      const metaEl  = document.getElementById(`${liga}-meta`);
-      const timeEl  = document.getElementById(`${liga}-time`);
+  function gd(gf, ga) {
+    const diff = (gf || 0) - (ga || 0);
+    if (diff > 0) return `<span style="color:#4caf50">+${diff}</span>`;
+    if (diff < 0) return `<span style="color:#e53935">${diff}</span>`;
+    return `<span style="color:#555">0</span>`;
+  }
 
-      metaEl.className = 'lb-meta loading';
-      metaEl.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Frissítés...';
+  function trendHtml(t) {
+    if (t === 'up')   return '<span class="trend-up">▲</span>';
+    if (t === 'down') return '<span class="trend-down">▼</span>';
+    return '<span class="trend-same">—</span>';
+  }
 
-      try {
-        const url = `/api/standings?liga=${liga}${isDebug ? '&debug=1' : ''}`;
-        const res = await fetch(url);
-        const json = await res.json();
+  function logoHtml(logo) {
+    if (!logo) return '<span class="team-logo-placeholder"></span>';
+    return `<img class="team-logo" src="${logo}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+  }
 
-        if (isDebug) console.log(`[VSPORT debug] ${liga}:`, JSON.stringify(json, null, 2));
+  function rowClass(pos, total) {
+    if (pos <= 3) return 'lb-row top3' + (pos === 4 ? '' : pos === 3 ? ' divider-bottom' : '');
+    if (total && pos > total - 3) return 'lb-row relegation';
+    return 'lb-row';
+  }
 
-        if (json.error === 'maintenance' || !json.standings || json.standings.length === 0) {
-          const errMsg = json.error ? `API hiba: ${json.error}` : 'Üres válasz érkezett';
-          tableEl.innerHTML = `
-            <div class="maintenance-notice" style="padding:24px 20px">
-              <div class="icon" style="font-size:1.4rem">📭</div>
-              <p style="color:#444">${errMsg}<br>Újrapróbálkozás ${REFRESH_MS/1000}mp múlva.</p>
-              ${isDebug ? `<p style="font-size:0.65rem;color:#333;margin-top:8px">Nyisd meg a konzolt a részletekért</p>` : ''}
-            </div>`;
-          metaEl.className = 'lb-meta error';
-          metaEl.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Sikertelen';
-        } else {
-          tableEl.innerHTML = renderRows(json.standings);
-          metaEl.className = 'lb-meta';
-          metaEl.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Élő';
-        }
+  function renderRows(data) {
+    const total = data.length;
+    return data.map(r => {
+      const cls = r.pos <= 3
+        ? 'lb-row top3' + (r.pos === 3 ? ' divider-bottom' : '')
+        : r.pos >= total - 2 ? 'lb-row relegation'
+        : 'lb-row';
 
-        if (timeEl) timeEl.textContent = nowStr();
-      } catch (err) {
-        if (isDebug) console.error(`[VSPORT debug] fetch error:`, err);
-        tableEl.innerHTML = `<div style="padding:16px 12px;font-size:0.72rem;color:#555">Hálózati hiba: ${err.message}</div>`;
+      return `
+        <div class="${cls}">
+          <span class="col-pos">${r.pos}</span>
+          <span class="col-trend">${trendHtml(r.trend ?? 'same')}</span>
+          <span class="col-team">${logoHtml(r.logo)}<span class="team-name">${r.team}</span></span>
+          <span class="col-goals">${r.goalsFor ?? '–'}:${r.goalsAgainst ?? '–'}</span>
+          <span class="col-gd">${gd(r.goalsFor, r.goalsAgainst)}</span>
+          <span class="col-pts">${r.pts}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function nowStr() {
+    return new Date().toLocaleTimeString('hu-HU', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+
+  async function loadStandings(liga) {
+    const tableEl = document.getElementById(`${liga}-table`);
+    const metaEl  = document.getElementById(`${liga}-meta`);
+    const timeEl  = document.getElementById(`${liga}-time`);
+
+    metaEl.className = 'lb-meta loading';
+    metaEl.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Frissítés...';
+
+    try {
+      const url = `/api/standings?liga=${liga}${isDebug ? '&debug=1' : ''}`;
+      const res  = await fetch(url);
+      const json = await res.json();
+
+      if (isDebug) console.log(`[VSPORT] ${liga}:`, json);
+
+      if (json.standings && json.standings.length > 0) {
+        tableEl.innerHTML = renderRows(json.standings);
+        const isLive = json.source === 'scrape';
+        metaEl.className = 'lb-meta' + (isLive ? '' : ' loading');
+        metaEl.querySelector('span:first-child').innerHTML =
+          `<span class="refresh-dot"></span>${isLive ? 'Élő' : 'Offline adat'}`;
+      } else {
+        tableEl.innerHTML = `<div class="maintenance-notice" style="padding:20px"><div class="icon" style="font-size:1.2rem">📭</div><p style="color:#444">Nincs adat. Újrapróbálkozás ${REFRESH_MS/1000}mp múlva.</p></div>`;
         metaEl.className = 'lb-meta error';
-        metaEl.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
-        if (timeEl) timeEl.textContent = nowStr();
+        metaEl.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Sikertelen';
       }
+
+      if (timeEl) timeEl.textContent = nowStr();
+    } catch (err) {
+      if (isDebug) console.error(`[VSPORT] fetch error:`, err);
+      tableEl.innerHTML = `<div style="padding:14px 10px;font-size:.72rem;color:#555">Hálózati hiba: ${err.message}</div>`;
+      metaEl.className = 'lb-meta error';
+      metaEl.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
+      if (timeEl) timeEl.textContent = nowStr();
     }
+  }
 
-    // Kezdeti betöltés
-    loadStandings('pl');
-
-    // Automatikus frissítés
-    setInterval(() => loadStandings('pl'), REFRESH_MS);
-  </script>
+  loadStandings('pl');
+  setInterval(() => loadStandings('pl'), REFRESH_MS);
+</script>
 
 </body>
 </html>
