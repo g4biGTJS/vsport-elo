@@ -2,7 +2,7 @@
   "redirects": [
     {
       "source": "/",
-      "destination": "/vsport.html",
+      "destination": "/VSPORT.html",
       "permanent": false
     }
   ]
