@@ -1,100 +1,99 @@
-// api/standings.js  – Vercel Serverless Function
-// Lekéri a Sportradar virtual league oldalát és visszaadja az állást JSON-ban.
+// api/standings.js – Vercel Edge Function
+// Sportradar gismo API-t hívja közvetlenül (nem scrape-el HTML-t)
 
 export const config = { runtime: 'edge' };
 
-const LEAGUES = {
-  premier: 'https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061001',
-  spanyol: null, // karbantartás alatt
+// A widget URL-ből kinyert season ID
+const SEASON_ID = '3061001';
+
+// Sportradar belső gismo API endpointok (ezeket használja a widget maga is)
+const ENDPOINTS = [
+  `https://ls.sir.sportradar.com/scigamingvirtuals/hu/Europe:London/gismo/config/season_standings/${SEASON_ID}`,
+  `https://ls.sir.sportradar.com/scigamingvirtuals/hu/gismo/config/season_standings/${SEASON_ID}`,
+  `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/config/season_standings/${SEASON_ID}`,
+];
+
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'hu-HU,hu;q=0.9',
+  'Referer': 'https://s5.sir.sportradar.com/',
+  'Origin': 'https://s5.sir.sportradar.com',
 };
 
-// Sportradar az adatokat egy beágyazott JSON-ban adja vissza az oldalon belül.
-// Próbáljuk kinyerni a __NEXT_DATA__ vagy a window.__STATE__ objektumból.
-async function fetchStandings(url) {
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'hu-HU,hu;q=0.9,en;q=0.8',
-    },
-  });
+async function tryEndpoint(url) {
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
+  const data = await res.json();
+  return data;
+}
 
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const html = await res.text();
-
-  // Próbáljuk megtalálni a standings adatokat a HTML-ben
-  // A Sportradar widget általában __NEXT_DATA__ vagy embedded JSON formában tárolja
-  let standings = [];
-
-  // 1. próba: __NEXT_DATA__
-  const nextDataMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
-  if (nextDataMatch) {
-    try {
-      const data = JSON.parse(nextDataMatch[1]);
-      standings = extractFromNextData(data);
-      if (standings.length > 0) return standings;
-    } catch (e) { /* folytatás */ }
+function parseGismoStandings(data) {
+  // Gismo API tipikus struktúra: doc[0].data.standing[0].rows[]
+  const standings = [];
+  
+  try {
+    const doc = data?.doc?.[0]?.data;
+    
+    // Próbáljuk meg különböző helyeken megtalálni a standings adatot
+    const standingGroups = doc?.standing || doc?.standings || doc?.table || [];
+    
+    for (const group of (Array.isArray(standingGroups) ? standingGroups : [standingGroups])) {
+      const rows = group?.rows || group?.items || [];
+      if (rows.length > 0) {
+        rows.forEach((row, i) => {
+          standings.push({
+            pos: row.rank ?? row.pos ?? (i + 1),
+            team: row.team?.abbr || row.team?.name?.short || row.abbreviation || row.name?.short || '???',
+            goalsFor: row.goalsfor ?? row.goals_for ?? row.gf ?? 0,
+            goalsAgainst: row.goalsagainst ?? row.goals_against ?? row.ga ?? 0,
+            pts: row.pts ?? row.points ?? 0,
+            trend: parseTrend(row.trend ?? row.form),
+          });
+        });
+        if (standings.length > 0) return standings;
+      }
+    }
+  } catch (e) {
+    // fallthrough
   }
 
-  // 2. próba: window.__INITIAL_STATE__ vagy hasonló
-  const stateMatch = html.match(/window\.__(?:INITIAL_STATE|STATE|DATA)__\s*=\s*({[\s\S]*?});/);
-  if (stateMatch) {
-    try {
-      const data = JSON.parse(stateMatch[1]);
-      standings = extractFromState(data);
-      if (standings.length > 0) return standings;
-    } catch (e) { /* folytatás */ }
+  // Rekurzív keresés ha a fenti nem működött
+  return findStandingsRecursive(data);
+}
+
+function parseTrend(val) {
+  if (!val) return 'same';
+  if (typeof val === 'number') return val > 0 ? 'up' : val < 0 ? 'down' : 'same';
+  if (typeof val === 'string') {
+    const v = val.toLowerCase();
+    if (v === 'up' || v === '+' || v === 'increase') return 'up';
+    if (v === 'down' || v === '-' || v === 'decrease') return 'down';
   }
-
-  // 3. próba: inline JSON tömb keresés standings/table kulcsra
-  const tableMatch = html.match(/"standings"\s*:\s*(\[[\s\S]*?\])/);
-  if (tableMatch) {
-    try {
-      const data = JSON.parse(tableMatch[1]);
-      standings = extractFromStandingsArray(data);
-      if (standings.length > 0) return standings;
-    } catch (e) { /* folytatás */ }
-  }
-
-  return []; // nem sikerült parse-olni
+  return 'same';
 }
 
-function extractFromNextData(data) {
-  // Rekurzívan keresünk standings/table tömböt
-  return findStandings(data);
-}
-
-function extractFromState(data) {
-  return findStandings(data);
-}
-
-function extractFromStandingsArray(arr) {
-  if (!Array.isArray(arr)) return [];
-  return arr.map((item, i) => ({
-    pos: i + 1,
-    team: item.team?.name?.short || item.name?.short || item.abbreviation || '???',
-    goalsFor: item.goalsFor ?? item.scored ?? 0,
-    goalsAgainst: item.goalsAgainst ?? item.conceded ?? 0,
-    pts: item.points ?? item.pts ?? 0,
-    trend: 'same',
-  })).filter(r => r.team !== '???');
-}
-
-function findStandings(obj, depth = 0) {
-  if (depth > 12 || !obj || typeof obj !== 'object') return [];
-
-  // Keresünk standings tömböt
-  for (const key of ['rows', 'standings', 'table', 'items', 'teams']) {
-    if (Array.isArray(obj[key]) && obj[key].length > 3) {
-      const mapped = extractFromStandingsArray(obj[key]);
-      if (mapped.length > 3) return mapped;
+function findStandingsRecursive(obj, depth = 0) {
+  if (depth > 15 || !obj || typeof obj !== 'object') return [];
+  
+  for (const key of ['rows', 'items', 'standings', 'table', 'teams']) {
+    if (Array.isArray(obj[key]) && obj[key].length >= 3) {
+      const mapped = obj[key].map((item, i) => ({
+        pos: item.rank ?? item.pos ?? (i + 1),
+        team: item.team?.abbr || item.team?.name?.short || item.abbreviation || item.short || item.name?.short || item.name || '???',
+        goalsFor: item.goalsfor ?? item.goals_for ?? item.gf ?? item.goalsFor ?? 0,
+        goalsAgainst: item.goalsagainst ?? item.goals_against ?? item.ga ?? item.goalsAgainst ?? 0,
+        pts: item.pts ?? item.points ?? 0,
+        trend: parseTrend(item.trend ?? item.form),
+      })).filter(r => r.team !== '???' && r.pts > 0);
+      if (mapped.length >= 3) return mapped;
     }
   }
 
   for (const val of Object.values(obj)) {
-    if (typeof val === 'object') {
-      const result = findStandings(val, depth + 1);
-      if (result.length > 3) return result;
+    if (typeof val === 'object' && val !== null) {
+      const result = findStandingsRecursive(val, depth + 1);
+      if (result.length >= 3) return result;
     }
   }
 
@@ -102,39 +101,43 @@ function findStandings(obj, depth = 0) {
 }
 
 export default async function handler(req) {
+  const corsHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Cache-Control': 's-maxage=55, stale-while-revalidate=110',
+  };
+
+  // Próbáljuk végig az endpointokat
+  let lastError = null;
+  let rawData = null;
+
+  for (const endpoint of ENDPOINTS) {
+    try {
+      rawData = await tryEndpoint(endpoint);
+      break; // ha sikerült, kilépünk
+    } catch (e) {
+      lastError = e;
+    }
+  }
+
+  if (!rawData) {
+    return new Response(
+      JSON.stringify({ error: lastError?.message || 'All endpoints failed', standings: [], raw: null }),
+      { status: 200, headers: corsHeaders }
+    );
+  }
+
+  const standings = parseGismoStandings(rawData);
+
+  // Ha debug kell: visszaadjuk a raw-t is (fejlesztéshez)
   const { searchParams } = new URL(req.url);
-  const liga = searchParams.get('liga') || 'premier';
+  const debug = searchParams.get('debug') === '1';
 
-  const url = LEAGUES[liga];
-
-  if (!url) {
-    return new Response(JSON.stringify({ error: 'maintenance', standings: [] }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 's-maxage=60, stale-while-revalidate=120',
-      },
-    });
-  }
-
-  try {
-    const standings = await fetchStandings(url);
-    return new Response(JSON.stringify({ standings }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 's-maxage=60, stale-while-revalidate=120',
-      },
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message, standings: [] }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
-  }
+  return new Response(
+    JSON.stringify({
+      standings,
+      ...(debug ? { raw: rawData } : {}),
+    }),
+    { status: 200, headers: corsHeaders }
+  );
 }

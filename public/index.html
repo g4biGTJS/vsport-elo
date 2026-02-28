@@ -394,6 +394,9 @@
       return new Date().toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
+    // Debug: ?debug=1 URL paraméterrel nyers API választ logol
+    const isDebug = new URLSearchParams(location.search).has('debug');
+
     async function loadStandings(liga) {
       const tableEl = document.getElementById(`${liga}-table`);
       const metaEl  = document.getElementById(`${liga}-meta`);
@@ -403,15 +406,19 @@
       metaEl.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Frissítés...';
 
       try {
-        const res = await fetch(`/api/standings?liga=${liga}`);
+        const url = `/api/standings?liga=${liga}${isDebug ? '&debug=1' : ''}`;
+        const res = await fetch(url);
         const json = await res.json();
 
+        if (isDebug) console.log(`[VSPORT debug] ${liga}:`, JSON.stringify(json, null, 2));
+
         if (json.error === 'maintenance' || !json.standings || json.standings.length === 0) {
-          // Ha üres az adat, mutassunk placeholder-t
+          const errMsg = json.error ? `API hiba: ${json.error}` : 'Üres válasz érkezett';
           tableEl.innerHTML = `
             <div class="maintenance-notice" style="padding:24px 20px">
               <div class="icon" style="font-size:1.4rem">📭</div>
-              <p style="color:#444">Nem sikerült adatot betölteni.<br>Újrapróbálkozás ${REFRESH_MS/1000}mp múlva.</p>
+              <p style="color:#444">${errMsg}<br>Újrapróbálkozás ${REFRESH_MS/1000}mp múlva.</p>
+              ${isDebug ? `<p style="font-size:0.65rem;color:#333;margin-top:8px">Nyisd meg a konzolt a részletekért</p>` : ''}
             </div>`;
           metaEl.className = 'lb-meta error';
           metaEl.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Sikertelen';
@@ -423,7 +430,8 @@
 
         if (timeEl) timeEl.textContent = nowStr();
       } catch (err) {
-        tableEl.innerHTML = `<div style="padding:16px 12px;font-size:0.72rem;color:#555">Hiba: ${err.message}</div>`;
+        if (isDebug) console.error(`[VSPORT debug] fetch error:`, err);
+        tableEl.innerHTML = `<div style="padding:16px 12px;font-size:0.72rem;color:#555">Hálózati hiba: ${err.message}</div>`;
         metaEl.className = 'lb-meta error';
         metaEl.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
         if (timeEl) timeEl.textContent = nowStr();
