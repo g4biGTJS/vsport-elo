@@ -296,10 +296,13 @@ async function init() {
     const data = await r.json();
 
     if (data.error && (!data.recentResults || data.recentResults.length === 0)) {
-      showError(`Scrape hiba: ${data.error}<br><br>
-        <small style="color:var(--muted)">Ellenőrzéshez: 
-        <a href="/api/matches?debug=1" target="_blank" style="color:var(--accent)">debug oldal</a></small><br><br>
-        <button onclick="init()" style="margin-top:10px;background:var(--card);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:.78rem">↺ Újrapróbálás</button>`);
+      const details = data.details ? data.details.slice(0,5).join('<br>') : data.error;
+      showError(`⚠️ Meccsadatok nem elérhetők<br><br>
+        <div style="font-size:.68rem;color:var(--muted);background:#0a0c10;border:1px solid var(--border);border-radius:4px;padding:10px 14px;text-align:left;max-width:440px;margin:0 auto;word-break:break-all">
+          ${details}
+        </div><br>
+        <a href="/api/matches?debug=1" target="_blank" style="color:var(--accent);font-size:.72rem">🔍 Debug részletek →</a><br><br>
+        <button onclick="init()" style="margin-top:8px;background:var(--card);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:.78rem">↺ Újrapróbálás</button>`);
       return;
     }
 
