@@ -6,8 +6,16 @@ export const config = { runtime: 'edge' };
 
 const SOURCES = {
   pl: 'https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061001',
+  // SL: try multiple endpoints - the main page embeds the livetable widget
   sl: 'https://schedulerzrh.aitcloud.de/retail_scheduler/display/index/schedule:f94efd4aed2cae288d1ab3abaf828b38',
 };
+
+// Extra SL endpoints to try if main doesn't contain vsm rows
+const SL_EXTRA_ENDPOINTS = [
+  'https://schedulerzrh.aitcloud.de/retail_scheduler/widget/livetable/schedule:f94efd4aed2cae288d1ab3abaf828b38',
+  'https://schedulerzrh.aitcloud.de/retail_scheduler/display/livetable/schedule:f94efd4aed2cae288d1ab3abaf828b38',
+  'https://schedulerzrh.aitcloud.de/retail_scheduler/livetable/f94efd4aed2cae288d1ab3abaf828b38',
+];
 
 const FETCH_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -192,34 +200,50 @@ export default async function handler(req) {
     return new Response(JSON.stringify({ standings: fallback, source: 'fallback' }), { status: 200, headers: corsHeaders });
   }
 
-  try {
-    const res = await fetch(srcUrl, {
-      headers: { ...FETCH_HEADERS, 'Referer': 'https://vfscigaming.aitcloud.de/' },
-      signal: AbortSignal.timeout(8000),
-    });
+  // Build list of URLs to try
+  const urlsToTry = [srcUrl];
+  if (liga === 'sl') urlsToTry.push(...SL_EXTRA_ENDPOINTS);
 
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  let lastErr = null;
+  for (const tryUrl of urlsToTry) {
+    try {
+      const res = await fetch(tryUrl, {
+        headers: { ...FETCH_HEADERS, 'Referer': 'https://schedulerzrh.aitcloud.de/' },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) { lastErr = `HTTP ${res.status} from ${tryUrl}`; continue; }
 
-    const html = await res.text();
-    const standings = parser(html);
+      const html = await res.text();
 
-    if (debug) {
-      return new Response(
-        JSON.stringify({ standings, source: standings.length >= 2 ? 'scrape' : 'parse_fail', rowCount: standings.length, htmlSnippet: html.slice(0, 6000) }),
-        { status: 200, headers: corsHeaders }
-      );
+      // Quick check: does this page contain our rows?
+      if (liga === 'sl' && !html.includes('vsm-vflm-livetable-row-')) {
+        lastErr = `No vsm rows in ${tryUrl} (html len=${html.length})`;
+        if (debug) console.log(`[SL debug] No rows at ${tryUrl}, snippet:`, html.slice(0, 500));
+        continue;
+      }
+
+      const standings = parser(html);
+
+      if (debug) {
+        return new Response(
+          JSON.stringify({ standings, source: standings.length >= 2 ? 'scrape' : 'parse_fail', usedUrl: tryUrl, rowCount: standings.length, htmlSnippet: html.slice(0, 8000) }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
+      if (standings.length >= 2) {
+        return new Response(JSON.stringify({ standings, source: 'scrape', usedUrl: tryUrl }), { status: 200, headers: corsHeaders });
+      }
+
+      lastErr = `Parsed 0 rows from ${tryUrl}`;
+    } catch (err) {
+      lastErr = err.message;
     }
-
-    if (standings.length >= 2) {
-      return new Response(JSON.stringify({ standings, source: 'scrape' }), { status: 200, headers: corsHeaders });
-    }
-
-    return new Response(JSON.stringify({ standings: fallback, source: 'fallback' }), { status: 200, headers: corsHeaders });
-
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ standings: fallback, source: 'fallback', error: err.message }),
-      { status: 200, headers: corsHeaders }
-    );
   }
+
+  // All endpoints failed
+  return new Response(
+    JSON.stringify({ standings: fallback, source: 'fallback', error: lastErr }),
+    { status: 200, headers: corsHeaders }
+  );
 }
