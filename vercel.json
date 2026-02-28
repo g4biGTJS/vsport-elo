@@ -1,5 +1,9 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/vsport.html" }
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/vsport.html",
+      "permanent": false
+    }
   ]
 }
