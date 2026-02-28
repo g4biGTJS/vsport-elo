@@ -417,7 +417,7 @@ FONTOS:
     
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=AIzaSyBqMXTttW2v0-0f5u8nekTA4Ojk2mQbV68`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyBqMXTttW2v0-0f5u8nekTA4Ojk2mQbV68`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -444,37 +444,52 @@ FONTOS:
         
         console.log('Gemini válasz:', text);
         
-        // 🔥 JSON kinyerése a szövegből - több formátumot is kezel
-        let jsonText = text;
+        // 🔥 JAVÍTOTT JSON FELDOLGOZÁS
+        let aiStandings = [];
         
-        // 1. Eset: ```json ... ``` blokk
+        // 1. JSON blokk keresése
         const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
-        if (jsonBlockMatch) {
-            jsonText = jsonBlockMatch[1];
-            console.log('JSON blokk találat (json)');
-        }
-        
-        // 2. Eset: ``` ... ``` blokk (json szó nélkül)
+        // 2. Kódblokk keresése
         const codeBlockMatch = text.match(/```\s*([\s\S]*?)\s*```/);
-        if (!jsonBlockMatch && codeBlockMatch) {
-            jsonText = codeBlockMatch[1];
+        // 3. Tömb keresése
+        const arrayMatch = text.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+        
+        let jsonString = '';
+        
+        if (jsonBlockMatch && jsonBlockMatch[1]) {
+            jsonString = jsonBlockMatch[1];
+            console.log('JSON blokk találat');
+        } else if (codeBlockMatch && codeBlockMatch[1]) {
+            jsonString = codeBlockMatch[1];
             console.log('Kódblokk találat');
+        } else if (arrayMatch && arrayMatch[0]) {
+            jsonString = arrayMatch[0];
+            console.log('Tömb találat');
+        } else {
+            // Ha egyik sem, próbáljuk meg a teljes szöveget
+            jsonString = text;
         }
         
-        // 3. Eset: Tömb keresése a szövegben
-        const jsonMatch = jsonText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-        if (!jsonMatch) {
-            // Próbáljuk meg a teljes szöveget JSON-ként értelmezni
-            try {
-                JSON.parse(jsonText);
-                jsonMatch = [jsonText]; // Ha sikerül, használjuk az egészet
-            } catch {
+        // Tisztítsuk meg a stringet
+        jsonString = jsonString.trim();
+        
+        // Próbáljuk meg parse-olni
+        try {
+            aiStandings = JSON.parse(jsonString);
+        } catch (e) {
+            console.warn('JSON parse hiba, részleges JSON keresése');
+            
+            // Részleges JSON keresése - az első teljes objektumig
+            const partialMatch = jsonString.match(/\[\s*(\{[\s\S]*?\})\s*\]?/);
+            if (partialMatch && partialMatch[1]) {
+                // Megpróbálunk egyetlen objektumot parse-olni
+                const singleObj = JSON.parse(partialMatch[1]);
+                aiStandings = [singleObj];
+                console.log('Egyetlen objektumot sikerült parse-olni:', singleObj);
+            } else {
                 throw new Error('Nem található érvényes JSON a válaszban');
             }
         }
-        
-        const jsonString = jsonMatch[0] || jsonMatch;
-        const aiStandings = JSON.parse(jsonString);
         
         // Ellenőrizzük, hogy van-e adat
         if (!aiStandings || aiStandings.length === 0) {
@@ -495,6 +510,7 @@ FONTOS:
         
     } catch(e) {
         console.error('Generálási hiba:', e);
+        console.log('A problémas szöveg:', text); // Kiírjuk a teljes választ debug-hoz
         errorBox.textContent = `⚠️ ${e.message}`;
         errorBox.classList.add('show');
         meta.className = 'lb-meta error';
