@@ -1,16 +1,26 @@
 // api/standings.js – Vercel Edge Function
-// Sportradar gismo API-t hívja közvetlenül (nem scrape-el HTML-t)
-
 export const config = { runtime: 'edge' };
 
-// A widget URL-ből kinyert season ID
 const SEASON_ID = '3061001';
 
-// Sportradar belső gismo API endpointok (ezeket használja a widget maga is)
-const ENDPOINTS = [
-  `https://ls.sir.sportradar.com/scigamingvirtuals/hu/Europe:London/gismo/config/season_standings/${SEASON_ID}`,
-  `https://ls.sir.sportradar.com/scigamingvirtuals/hu/gismo/config/season_standings/${SEASON_ID}`,
-  `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/config/season_standings/${SEASON_ID}`,
+// Fallback data from screenshot (frissítsd manuálisan ha szükséges)
+const FALLBACK_STANDINGS = [
+  { pos: 1,  team: 'Manchester Kék', goalsFor: 34, goalsAgainst: 20, pts: 38, trend: 'same' },
+  { pos: 2,  team: 'Liverpool',       goalsFor: 30, goalsAgainst: 15, pts: 30, trend: 'up' },
+  { pos: 3,  team: 'Vörös Ördögök',   goalsFor: 38, goalsAgainst: 24, pts: 29, trend: 'down' },
+  { pos: 4,  team: 'Fulham',          goalsFor: 25, goalsAgainst: 20, pts: 28, trend: 'up' },
+  { pos: 5,  team: 'Everton',         goalsFor: 27, goalsAgainst: 14, pts: 27, trend: 'down' },
+  { pos: 6,  team: 'Chelsea',         goalsFor: 24, goalsAgainst: 17, pts: 26, trend: 'up' },
+  { pos: 7,  team: 'London Ágyúk',    goalsFor: 21, goalsAgainst: 19, pts: 26, trend: 'up' },
+  { pos: 8,  team: 'Wolverhampton',   goalsFor: 28, goalsAgainst: 26, pts: 25, trend: 'down' },
+  { pos: 9,  team: 'Newcastle',       goalsFor: 23, goalsAgainst: 24, pts: 23, trend: 'up' },
+  { pos: 10, team: 'Tottenham',       goalsFor: 20, goalsAgainst: 26, pts: 23, trend: 'down' },
+  { pos: 11, team: 'Brentford',       goalsFor: 14, goalsAgainst: 15, pts: 21, trend: 'up' },
+  { pos: 12, team: 'West Ham',        goalsFor: 21, goalsAgainst: 26, pts: 20, trend: 'down' },
+  { pos: 13, team: 'Nottingham',      goalsFor: 18, goalsAgainst: 29, pts: 18, trend: 'up' },
+  { pos: 14, team: 'Aston Oroszlán',  goalsFor: 15, goalsAgainst: 29, pts: 16, trend: 'down' },
+  { pos: 15, team: 'Brighton',        goalsFor: 13, goalsAgainst: 35, pts: 12, trend: 'same' },
+  { pos: 16, team: 'Crystal Palace',  goalsFor: 12, goalsAgainst: 24, pts: 10, trend: 'same' },
 ];
 
 const HEADERS = {
@@ -21,61 +31,27 @@ const HEADERS = {
   'Origin': 'https://s5.sir.sportradar.com',
 };
 
-async function tryEndpoint(url) {
-  const res = await fetch(url, { headers: HEADERS });
-  if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
-  const data = await res.json();
-  return data;
-}
-
-function parseGismoStandings(data) {
-  // Gismo API tipikus struktúra: doc[0].data.standing[0].rows[]
-  const standings = [];
-  
-  try {
-    const doc = data?.doc?.[0]?.data;
-    
-    // Próbáljuk meg különböző helyeken megtalálni a standings adatot
-    const standingGroups = doc?.standing || doc?.standings || doc?.table || [];
-    
-    for (const group of (Array.isArray(standingGroups) ? standingGroups : [standingGroups])) {
-      const rows = group?.rows || group?.items || [];
-      if (rows.length > 0) {
-        rows.forEach((row, i) => {
-          standings.push({
-            pos: row.rank ?? row.pos ?? (i + 1),
-            team: row.team?.abbr || row.team?.name?.short || row.abbreviation || row.name?.short || '???',
-            goalsFor: row.goalsfor ?? row.goals_for ?? row.gf ?? 0,
-            goalsAgainst: row.goalsagainst ?? row.goals_against ?? row.ga ?? 0,
-            pts: row.pts ?? row.points ?? 0,
-            trend: parseTrend(row.trend ?? row.form),
-          });
-        });
-        if (standings.length > 0) return standings;
-      }
-    }
-  } catch (e) {
-    // fallthrough
-  }
-
-  // Rekurzív keresés ha a fenti nem működött
-  return findStandingsRecursive(data);
-}
+// Sportradar widget API endpoint-ok – ezeket próbáljuk
+const ENDPOINTS = [
+  `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/config_season_standings/${SEASON_ID}`,
+  `https://ls.sir.sportradar.com/scigamingvirtuals/hu/gismo/config_season_standings/${SEASON_ID}`,
+  `https://ls.sir.sportradar.com/scigamingvirtuals/hu/Europe:London/gismo/config_season_standings/${SEASON_ID}`,
+  `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/config/season_standings/${SEASON_ID}`,
+  `https://ls.sir.sportradar.com/scigamingvirtuals/hu/gismo/config/season_standings/${SEASON_ID}`,
+];
 
 function parseTrend(val) {
   if (!val) return 'same';
   if (typeof val === 'number') return val > 0 ? 'up' : val < 0 ? 'down' : 'same';
-  if (typeof val === 'string') {
-    const v = val.toLowerCase();
-    if (v === 'up' || v === '+' || v === 'increase') return 'up';
-    if (v === 'down' || v === '-' || v === 'decrease') return 'down';
-  }
+  const v = String(val).toLowerCase();
+  if (v === 'up' || v === '+' || v === 'increase') return 'up';
+  if (v === 'down' || v === '-' || v === 'decrease') return 'down';
   return 'same';
 }
 
 function findStandingsRecursive(obj, depth = 0) {
   if (depth > 15 || !obj || typeof obj !== 'object') return [];
-  
+
   for (const key of ['rows', 'items', 'standings', 'table', 'teams']) {
     if (Array.isArray(obj[key]) && obj[key].length >= 3) {
       const mapped = obj[key].map((item, i) => ({
@@ -85,7 +61,7 @@ function findStandingsRecursive(obj, depth = 0) {
         goalsAgainst: item.goalsagainst ?? item.goals_against ?? item.ga ?? item.goalsAgainst ?? 0,
         pts: item.pts ?? item.points ?? 0,
         trend: parseTrend(item.trend ?? item.form),
-      })).filter(r => r.team !== '???' && r.pts > 0);
+      })).filter(r => r.team !== '???');
       if (mapped.length >= 3) return mapped;
     }
   }
@@ -100,6 +76,21 @@ function findStandingsRecursive(obj, depth = 0) {
   return [];
 }
 
+async function tryFetchStandings() {
+  for (const url of ENDPOINTS) {
+    try {
+      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(5000) });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const standings = findStandingsRecursive(data);
+      if (standings.length >= 3) return { standings, source: 'api' };
+    } catch (_) {
+      // try next
+    }
+  }
+  return null;
+}
+
 export default async function handler(req) {
   const corsHeaders = {
     'Content-Type': 'application/json',
@@ -107,37 +98,22 @@ export default async function handler(req) {
     'Cache-Control': 's-maxage=55, stale-while-revalidate=110',
   };
 
-  // Próbáljuk végig az endpointokat
-  let lastError = null;
-  let rawData = null;
+  const { searchParams } = new URL(req.url);
+  const debug = searchParams.get('debug') === '1';
 
-  for (const endpoint of ENDPOINTS) {
-    try {
-      rawData = await tryEndpoint(endpoint);
-      break; // ha sikerült, kilépünk
-    } catch (e) {
-      lastError = e;
-    }
-  }
+  // Próbáljuk az API-t
+  const apiResult = await tryFetchStandings();
 
-  if (!rawData) {
+  if (apiResult && apiResult.standings.length >= 3) {
     return new Response(
-      JSON.stringify({ error: lastError?.message || 'All endpoints failed', standings: [], raw: null }),
+      JSON.stringify({ standings: apiResult.standings, source: 'api', ...(debug ? { apiResult } : {}) }),
       { status: 200, headers: corsHeaders }
     );
   }
 
-  const standings = parseGismoStandings(rawData);
-
-  // Ha debug kell: visszaadjuk a raw-t is (fejlesztéshez)
-  const { searchParams } = new URL(req.url);
-  const debug = searchParams.get('debug') === '1';
-
+  // Fallback: hardcoded data
   return new Response(
-    JSON.stringify({
-      standings,
-      ...(debug ? { raw: rawData } : {}),
-    }),
+    JSON.stringify({ standings: FALLBACK_STANDINGS, source: 'fallback' }),
     { status: 200, headers: corsHeaders }
   );
 }
