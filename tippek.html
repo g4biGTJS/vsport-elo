@@ -290,7 +290,7 @@ function extractJSONArray(text) {
   s = s.slice(start);
 
   // 3. Teljes parse próba
-  try { return JSON.parse(s); } catch (_) {}
+  try { return JSON.parse(s).map(normalizeTeam); } catch (_) {}
 
   // 4. Ha csonkított: zárjuk le az utolsó érvényes objektumot
   // Keressük az utolsó teljes, jól lezárt objektumot
@@ -320,10 +320,22 @@ function extractJSONArray(text) {
 
   if (objects.length > 0) {
     console.warn(`Csonkított válasz – csak ${objects.length} objektum nyerhető ki`);
-    return objects;
+    return objects.map(normalizeTeam);
   }
 
   throw new Error('Nem sikerült érvényes adatokat kinyerni a válaszból');
+}
+
+// Normalizálja az AI válaszát – "points" -> "pts", stb.
+function normalizeTeam(r) {
+  return {
+    pos: r.pos,
+    team: r.team,
+    goalsFor: r.goalsFor ?? r.goals_for ?? 0,
+    goalsAgainst: r.goalsAgainst ?? r.goals_against ?? 0,
+    pts: r.pts ?? r.points ?? r.point ?? 0,
+    trend: r.trend ?? 'same'
+  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -354,7 +366,7 @@ function renderRealTable(standings) {
       <span class="col-team">${logoHtml(r.logo)}<span class="team-name">${r.team}</span></span>
       <span class="col-goals">${r.goalsFor ?? '–'}:${r.goalsAgainst ?? '–'}</span>
       <span class="col-gd">${gd(r.goalsFor, r.goalsAgainst)}</span>
-      <span class="col-pts">${r.pts}</span>
+      <span class="col-pts">${r.pts ?? r.points ?? '–'}</span>
     </div>
   `).join('');
 
@@ -472,7 +484,7 @@ function renderAITable(standings) {
       </span>
       <span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span>
       <span class="col-gd">${gd(r.goalsFor, r.goalsAgainst)}</span>
-      <span class="col-pts">${r.pts}</span>
+      <span class="col-pts">${r.pts ?? r.points ?? '–'}</span>
     </div>
   `).join('');
 }
