@@ -3,676 +3,665 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VSPORT – AI Tippek</title>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <title>VSPORT – Forma & Teljesítmény</title>
   <style>
-    :root {
-      --bg:       #07080a;
-      --surface:  #0d0f12;
-      --card:     #101318;
-      --border:   #1c2028;
-      --border2:  #252a33;
-      --accent:   #00d4ff;
-      --purple:   #8b5cf6;
-      --green:    #22c55e;
-      --red:      #f43f5e;
-      --amber:    #f59e0b;
-      --text:     #dde3ed;
-      --muted:    #4b5566;
-      --muted2:   #6b7585;
-    }
-    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-    html, body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; min-height:100vh; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { background: #0a0a0a; color: #fff; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
 
+    /* ── HEADER (pont ugyanaz, mint index.html) ── */
     header {
-      position:sticky; top:0; z-index:100;
-      background:rgba(7,8,10,.94); backdrop-filter:blur(12px);
-      border-bottom:1px solid var(--border);
-      padding:0 20px; height:48px;
-      display:flex; align-items:center; gap:12px;
+      background: #111; border-bottom: 2px solid #222;
+      padding: 0 20px; height: 44px;
+      display: flex; align-items: center; gap: 10px;
+      position: sticky; top: 0; z-index: 100;
     }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+    header h1 { font-size:.85rem; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:#ddd; }
     .back-btn {
-      display:flex; align-items:center; gap:5px;
-      color:var(--muted2); font-size:.75rem; text-decoration:none;
-      padding:5px 10px; border:1px solid var(--border); border-radius:4px;
-      transition:all .15s;
+      display: flex; align-items: center; gap: 5px;
+      color: #888; font-size: .75rem; text-decoration: none;
+      padding: 5px 10px; border: 1px solid #222; border-radius: 4px;
+      transition: all .15s;
     }
-    .back-btn:hover { color:var(--text); border-color:var(--border2); }
-    .hdr-logo { font-family:'Bebas Neue',sans-serif; font-size:1.2rem; letter-spacing:4px; color:var(--accent); }
-    .hdr-sep { width:1px; height:18px; background:var(--border); }
-    .hdr-sub { font-size:.7rem; color:var(--muted2); letter-spacing:1.5px; text-transform:uppercase; }
-    .api-btn {
-      margin-left:auto; display:flex; align-items:center; gap:6px;
-      background:none; border:1px solid var(--border); color:var(--muted2);
-      font-family:'DM Sans',sans-serif; font-size:.72rem; padding:5px 12px;
-      border-radius:4px; cursor:pointer; transition:all .15s;
-    }
-    .api-btn:hover { color:var(--text); border-color:var(--border2); }
-    .api-btn.set { border-color:#22c55e33; color:var(--green); }
+    .back-btn:hover { color: #fff; border-color: #444; }
+    .header-sep { width: 1px; height: 18px; background: #222; margin: 0 5px; }
 
-    /* MODAL */
-    .overlay {
-      display:none; position:fixed; inset:0; z-index:300;
-      background:rgba(0,0,0,.75); backdrop-filter:blur(6px);
-      align-items:center; justify-content:center;
-    }
-    .overlay.open { display:flex; }
-    .modal {
-      background:#0c1016; border:1px solid var(--border2);
-      border-radius:10px; padding:28px 26px; width:min(440px,92vw);
-      box-shadow:0 32px 80px rgba(0,0,0,.7);
-    }
-    .modal h2 { font-size:.95rem; font-weight:600; margin-bottom:8px; }
-    .modal p { font-size:.78rem; color:var(--muted2); line-height:1.65; margin-bottom:20px; }
-    .modal p a { color:var(--accent); text-decoration:none; }
-    .modal p a:hover { text-decoration:underline; }
-    .modal input {
-      width:100%; background:#070a0e; border:1px solid var(--border2);
-      color:var(--text); font-family:'DM Mono',monospace; font-size:.78rem;
-      padding:10px 14px; border-radius:6px; outline:none; margin-bottom:14px;
-      transition:border-color .15s;
-    }
-    .modal input:focus { border-color:var(--accent); }
-    .modal-btns { display:flex; gap:8px; justify-content:flex-end; }
-    .btn-cancel {
-      background:none; border:1px solid var(--border); color:var(--muted2);
-      font-family:'DM Sans',sans-serif; font-size:.78rem; padding:8px 16px;
-      border-radius:5px; cursor:pointer; transition:all .15s;
-    }
-    .btn-cancel:hover { border-color:var(--border2); color:var(--text); }
-    .btn-save {
-      background:var(--purple); border:none; color:#fff;
-      font-family:'DM Sans',sans-serif; font-size:.78rem; font-weight:600;
-      padding:8px 22px; border-radius:5px; cursor:pointer; transition:opacity .15s;
-    }
-    .btn-save:hover { opacity:.85; }
+    /* ── FORM TABLE (ugyanaz a design, mint a leaderboard) ── */
+    .page { max-width: 900px; margin: 0 auto; padding: 20px 16px 40px; }
 
-    /* PAGE */
-    .page { max-width:900px; margin:0 auto; padding:22px 16px 60px; }
+    .form-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 15px; flex-wrap: wrap; gap: 10px;
+    }
+    .title-section {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .title-section h2 {
+      font-size: 1rem; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase; color: #ddd;
+    }
+    .season-badge {
+      background: #1e6b1e; color: #fff; font-size: .6rem;
+      padding: 3px 8px; border-radius: 3px; font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .season-badge.new { background: #f59e0b; animation: pulse 2s infinite; }
 
-    /* TABS */
-    .round-tabs { display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap; }
-    .rtab {
-      background:var(--card); border:1px solid var(--border);
-      color:var(--muted2); font-family:'DM Sans',sans-serif;
-      font-size:.74rem; font-weight:500; padding:6px 16px;
-      border-radius:20px; cursor:pointer; transition:all .14s;
+    .controls {
+      display: flex; gap: 8px; align-items: center;
     }
-    .rtab:hover { border-color:var(--border2); color:var(--text); }
-    .rtab.active { background:rgba(0,212,255,.07); border-color:var(--accent); color:var(--accent); }
+    .matches-select {
+      background: #111; border: 1px solid #2a2a2a; color: #fff;
+      font-size: .7rem; padding: 5px 8px; border-radius: 4px;
+      font-family: inherit; cursor: pointer;
+    }
+    .matches-select:hover { border-color: #444; }
+    .refresh-btn {
+      background: #1a1a1a; border: 1px solid #333; color: #aaa;
+      font-size: .7rem; padding: 5px 12px; border-radius: 4px;
+      cursor: pointer; transition: all .15s;
+    }
+    .refresh-btn:hover { background: #242424; border-color: #555; color: #fff; }
 
-    /* SECTION LABEL */
-    .slabel {
-      font-size:.62rem; font-weight:600; letter-spacing:2px; text-transform:uppercase;
-      color:var(--muted); margin-bottom:12px;
-      display:flex; align-items:center; gap:10px;
+    /* Leaderboard táblázat (pont ugyanaz, mint index.html) */
+    .leaderboard-block { background:#111; border:1px solid #2a2a2a; border-radius:4px; overflow:hidden; margin-bottom: 20px; }
+    .leaderboard-header-bar {
+      background:#1e6b1e;
+      display:grid;
+      grid-template-columns: 26px 1fr 60px 70px 60px;
+      align-items:center; padding:7px 10px; gap:4px;
     }
-    .slabel::after { content:''; flex:1; height:1px; background:var(--border); }
+    .leaderboard-header-bar span { font-size:.58rem; font-weight:700; color:#fff; text-transform:uppercase; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .leaderboard-header-bar .h-right { text-align:right; }
 
-    /* MATCHES */
-    .matches-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-bottom:20px; }
-    @media(max-width:560px) { .matches-grid { grid-template-columns:1fr; } }
+    .lb-meta {
+      background:#0f0f0f; border-bottom:1px solid #1e1e1e;
+      padding:4px 10px; font-size:.6rem; color:#444;
+      display:flex; justify-content:space-between; align-items:center;
+    }
+    .refresh-dot { width:5px; height:5px; border-radius:50%; background:#3d8b3d; display:inline-block; margin-right:4px; animation:pulse 2s infinite; }
+    .lb-meta.loading .refresh-dot { background:#f59e0b; }
+    .lb-meta.error   .refresh-dot { background:#e53935; }
 
-    .mcard {
-      background:var(--card); border:1px solid var(--border);
-      border-radius:7px; padding:11px 13px 9px;
-      cursor:pointer; transition:all .14s; position:relative; user-select:none;
-    }
-    .mcard:hover { border-color:var(--border2); background:#12161c; }
-    .mcard.sel {
-      border-color:rgba(0,212,255,.45);
-      background:rgba(0,212,255,.035);
-    }
-    .mcard .chk {
-      position:absolute; top:9px; right:10px;
-      width:15px; height:15px; border-radius:50%;
-      border:1px solid var(--border2);
-      display:flex; align-items:center; justify-content:center;
-      font-size:.6rem; font-weight:800; transition:all .14s;
-    }
-    .mcard.sel .chk { background:var(--accent); border-color:var(--accent); color:#000; }
+    .leaderboard-body { background:#141414; }
 
-    .mround { font-size:.58rem; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:7px; }
-    .mteams { display:flex; align-items:center; gap:5px; }
-    .mside { flex:1; display:flex; align-items:center; gap:5px; }
-    .mside.h { flex-direction:row-reverse; justify-content:flex-end; }
-    .mside.a { justify-content:flex-start; }
-    .crest { width:20px; height:20px; object-fit:contain; flex-shrink:0; }
-    .tnm { font-size:.72rem; line-height:1.25; max-width:85px; word-break:break-word; }
-    .mside.h .tnm { text-align:right; }
-    .mside.a .tnm { text-align:left; }
-    .mscore {
-      background:#0a0c10; border:1px solid var(--border);
-      border-radius:5px; padding:4px 9px;
-      font-family:'DM Mono',monospace; font-size:.88rem; font-weight:500;
-      white-space:nowrap; text-align:center; flex-shrink:0; min-width:50px;
+    .lb-row {
+      display:grid;
+      grid-template-columns: 26px 1fr 60px 70px 60px;
+      align-items:center; padding:4px 10px; gap:4px;
+      border-bottom:1px solid #1d1d1d; transition:background .12s;
     }
-    .sw { color:var(--green); font-weight:700; }
-    .ss { color:var(--border2); margin:0 1px; }
-    .mverdict {
-      font-size:.6rem; text-align:center; margin-top:5px; letter-spacing:.3px;
-    }
-    .mverdict.hw,.mverdict.aw { color:#22c55e77; }
-    .mverdict.dr { color:#f59e0b77; }
+    .lb-row:last-child { border-bottom:none; }
+    .lb-row:hover { background:#1c1c1c; }
+    .lb-row.top3 { background:#162316; }
+    .lb-row.top3:hover { background:#1c2b1c; }
+    .lb-row.bottom3 { background:#1a1010; }
+    .lb-row.bottom3:hover { background:#231414; }
 
-    /* ACTION BAR */
-    .abar { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
-    .abar-left { display:flex; align-items:center; gap:10px; }
-    .btn-selall {
-      background:none; border:1px solid var(--border); color:var(--muted2);
-      font-family:'DM Sans',sans-serif; font-size:.73rem; padding:7px 14px;
-      border-radius:5px; cursor:pointer; transition:all .15s;
-    }
-    .btn-selall:hover { border-color:var(--border2); color:var(--text); }
-    .scnt { font-size:.73rem; color:var(--muted); }
-    .scnt b { color:var(--accent); }
-    .btn-ai {
-      display:flex; align-items:center; gap:8px;
-      background:linear-gradient(135deg,#7c3aed,#a855f7);
-      border:none; color:#fff; font-family:'DM Sans',sans-serif;
-      font-size:.82rem; font-weight:600; padding:9px 22px; border-radius:6px;
-      cursor:pointer; transition:all .16s; letter-spacing:.3px;
-      box-shadow:0 4px 20px rgba(124,58,237,.3);
-    }
-    .btn-ai:hover { transform:translateY(-1px); box-shadow:0 7px 28px rgba(124,58,237,.45); }
-    .btn-ai:active { transform:none; }
-    .btn-ai:disabled { opacity:.3; cursor:not-allowed; transform:none; box-shadow:none; }
+    .col-pos { font-size:.7rem; font-weight:700; color:#666; text-align:center; }
+    .lb-row.top3 .col-pos { color:#4caf50; }
+    .lb-row.bottom3 .col-pos { color:#e53935; }
 
-    /* ERROR */
-    .errbox {
-      display:none; background:rgba(244,63,94,.07); border:1px solid rgba(244,63,94,.2);
-      border-radius:6px; padding:12px 16px; font-size:.78rem; color:#fda4af;
-      margin-bottom:16px; line-height:1.65;
-    }
-    .errbox.show { display:block; }
+    .col-team { display:flex; align-items:center; gap:6px; }
+    .team-logo { width:16px; height:16px; object-fit:contain; flex-shrink:0; }
+    .team-logo-placeholder { width:16px; height:16px; flex-shrink:0; }
+    .team-name { font-size:.76rem; font-weight:600; color:#ccc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-    /* AI PANEL */
-    .aipanel { display:none; background:var(--card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
-    .aipanel.show { display:block; }
+    .col-form { font-size:.68rem; color:#aaa; text-align:center; font-family: monospace; letter-spacing: 1px; }
+    .col-avg { font-size:.65rem; color:#4caf50; text-align:right; font-weight: 600; }
+    .col-pts { font-size:.8rem; font-weight:800; color:#fff; text-align:right; font-variant-numeric:tabular-nums; }
+
+    .trend-indicator { display: inline-block; margin-left: 3px; font-size: .6rem; }
+    .trend-up { color: #4caf50; }
+    .trend-down { color: #e53935; }
+    .trend-same { color: #666; }
+
+    /* Statisztika kártyák */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: #111; border: 1px solid #2a2a2a; border-radius: 4px;
+      padding: 12px 10px; text-align: center;
+    }
+    .stat-label {
+      font-size: .6rem; text-transform: uppercase; color: #666;
+      letter-spacing: 1px; margin-bottom: 5px;
+    }
+    .stat-value {
+      font-size: 1.2rem; font-weight: 700; color: #fff;
+    }
+    .stat-value small { font-size: .7rem; color: #4caf50; margin-left: 4px; }
+
+    /* AI Elemzés panel (stílusban illeszkedik) */
+    .aipanel {
+      background: #111; border: 1px solid #2a2a2a; border-radius: 4px;
+      overflow: hidden; margin-top: 20px;
+    }
+    .aipanel.show { display: block; }
     .aipanel-hdr {
-      background:linear-gradient(135deg,#0c0b1a,#0f0c20);
-      border-bottom:1px solid var(--border);
-      padding:12px 18px; display:flex; align-items:center; gap:10px;
+      background: #1a1a1a; border-bottom: 1px solid #2a2a2a;
+      padding: 10px 16px; display: flex; align-items: center; gap: 10px;
     }
-    .orb {
-      width:9px; height:9px; border-radius:50%; background:var(--purple);
-      box-shadow:0 0 10px var(--purple); animation:orb 2s infinite;
+    .aipanel-title {
+      font-size: .8rem; font-weight: 600; letter-spacing: 1px;
+      text-transform: uppercase; color: #ddd;
     }
-    @keyframes orb { 0%,100%{opacity:1;box-shadow:0 0 10px var(--purple)} 50%{opacity:.4;box-shadow:0 0 3px var(--purple)} }
-    .aipanel-title { font-family:'Bebas Neue',sans-serif; font-size:.95rem; letter-spacing:2px; }
-    .aitag { margin-left:auto; font-size:.58rem; color:var(--muted); background:rgba(255,255,255,.04); padding:2px 8px; border-radius:3px; font-family:'DM Mono',monospace; }
+    .ai-badge {
+      font-size: .55rem; background: #333; color: #aaa;
+      padding: 2px 6px; border-radius: 3px; letter-spacing: 1px;
+    }
     .aibody {
-      padding:20px 22px; font-size:.84rem; line-height:1.8; color:#c0cad8; min-height:60px;
+      padding: 16px 20px; font-size: .82rem; line-height: 1.7;
+      color: #ccc; min-height: 80px;
     }
-    .aibody.typing::after { content:'▋'; color:var(--accent); animation:cur .6s infinite; }
+    .aibody.typing::after { content: '▋'; color: #4caf50; animation: cur .6s infinite; }
     @keyframes cur { 0%,100%{opacity:1} 50%{opacity:0} }
-    .dots { display:flex; gap:5px; padding:10px 0; }
-    .dots span { width:7px; height:7px; border-radius:50%; background:var(--purple); opacity:.4; animation:d 1s infinite; }
-    .dots span:nth-child(2){ animation-delay:.18s; }
-    .dots span:nth-child(3){ animation-delay:.36s; }
-    @keyframes d { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
 
-    /* AI content styling */
-    .aibody h3 {
-      font-family:'Bebas Neue',sans-serif; font-size:.95rem; letter-spacing:1.5px;
-      color:var(--accent); margin:18px 0 9px; padding-bottom:5px;
-      border-bottom:1px solid var(--border);
+    .dots { display: flex; gap: 5px; padding: 10px 0; }
+    .dots span {
+      width: 6px; height: 6px; border-radius: 50%; background: #4caf50;
+      opacity: .4; animation: d 1s infinite;
     }
-    .aibody h3:first-child { margin-top:0; }
-    .aibody strong { color:var(--text); font-weight:600; }
-    .aibody p { margin-bottom:10px; }
-    .aibody p:last-child { margin-bottom:0; }
-    .tiprow {
-      display:flex; align-items:flex-start; gap:9px;
-      padding:9px 0; border-bottom:1px solid var(--border);
+    .dots span:nth-child(2){ animation-delay:.2s; }
+    .dots span:nth-child(3){ animation-delay:.4s; }
+    @keyframes d { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+    .error-box {
+      background: rgba(229, 57, 53, 0.1); border: 1px solid rgba(229, 57, 53, 0.2);
+      border-radius: 4px; padding: 12px 16px; font-size: .78rem;
+      color: #ff8a80; margin-bottom: 16px; display: none;
     }
-    .tiprow:last-child { border-bottom:none; }
-    .tiptag {
-      flex-shrink:0; font-size:.58rem; font-weight:700;
-      padding:2px 7px; border-radius:3px; text-transform:uppercase;
-      letter-spacing:.5px; margin-top:2px;
+    .error-box.show { display: block; }
+
+    @media (max-width:560px) {
+      .stats-grid { grid-template-columns: 1fr; }
+      .leaderboard-header-bar { grid-template-columns: 26px 1fr 50px 60px 50px; }
     }
-    .tiptag.t { background:rgba(139,92,246,.15); color:var(--purple); }
-    .tiptag.f { background:rgba(34,197,94,.1); color:var(--green); }
-    .tiptag.g { background:rgba(244,63,94,.1); color:var(--red); }
-    .tiptag.s { background:rgba(245,158,11,.12); color:var(--amber); }
-    .tiptag.i { background:rgba(0,212,255,.08); color:var(--accent); }
   </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <header>
   <a class="back-btn" href="/">← Vissza</a>
-  <div class="hdr-sep"></div>
-  <span class="hdr-logo">VSPORT</span>
-  <div class="hdr-sep"></div>
-  <span class="hdr-sub">AI Tippek</span>
-
+  <div class="header-sep"></div>
+  <div class="dot"></div>
+  <h1>VSPORT &mdash; Forma & Teljesítmény</h1>
 </header>
 
-<!-- PAGE -->
 <div class="page">
-  <div class="round-tabs" id="tabs"></div>
-  <div class="slabel" id="slabel">Eredmények</div>
-  <div class="matches-grid" id="grid"></div>
-  <div class="abar">
-    <div class="abar-left">
-      <button class="btn-selall" id="selAllBtn" onclick="toggleAll()">Összes kijelölése</button>
-      <span class="scnt">Kijelölve: <b id="scnt">0</b> meccs</span>
+  <!-- Fejléc + vezérlők -->
+  <div class="form-header">
+    <div class="title-section">
+      <h2>⚡ Legjobb formában lévő csapatok</h2>
+      <span class="season-badge" id="seasonBadge">Aktív szezon</span>
     </div>
-    <button class="btn-ai" id="aiBtn" onclick="analyze()" disabled>✦ &nbsp;AI Elemzés</button>
+    <div class="controls">
+      <select class="matches-select" id="matchCountSelect">
+        <option value="3">Utolsó 3 meccs</option>
+        <option value="5" selected>Utolsó 5 meccs</option>
+        <option value="8">Utolsó 8 meccs</option>
+        <option value="10">Utolsó 10 meccs</option>
+      </select>
+      <button class="refresh-btn" onclick="loadData()">🔄 Frissítés</button>
+    </div>
   </div>
-  <div class="errbox" id="errbox"></div>
-  <div class="aipanel" id="aipanel">
-    <div class="aipanel-hdr">
-      <div class="orb"></div>
-      <span class="aipanel-title">Gemini Analízis</span>
-      <span class="aitag">gemini-2.0-flash</span>
+
+  <!-- Gyors statisztikák -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <div class="stat-label">Legjobb forma</div>
+      <div class="stat-value" id="bestTeamStat">–</div>
     </div>
-    <div class="aibody" id="aibody">
+    <div class="stat-card">
+      <div class="stat-label">Átlag pont/meccs</div>
+      <div class="stat-value" id="avgPtsStat">– <small>(top 5)</small></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Lejátszott meccsek</div>
+      <div class="stat-value" id="matchesCountStat">–</div>
+    </div>
+  </div>
+
+  <!-- Forma táblázat (leaderboard stílusban) -->
+  <div class="leaderboard-block">
+    <div class="leaderboard-header-bar">
+      <span>#</span>
+      <span>Csapat</span>
+      <span class="h-right">Forma</span>
+      <span class="h-right">Pont/Meccs</span>
+      <span class="h-right">Pont</span>
+    </div>
+    <div class="lb-meta loading" id="formMeta">
+      <span><span class="refresh-dot"></span>Forma számítás...</span>
+      <span id="updateTime">–</span>
+    </div>
+    <div class="leaderboard-body" id="formTable">
+      <div class="lb-skeleton" style="padding:8px 10px">
+        <div style="height:20px; background:#1a1a1a; border-radius:3px; margin-bottom:5px;"></div>
+        <div style="height:20px; background:#1a1a1a; border-radius:3px; margin-bottom:5px;"></div>
+        <div style="height:20px; background:#1a1a1a; border-radius:3px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Elemzés panel -->
+  <div class="aipanel" id="aiPanel">
+    <div class="aipanel-hdr">
+      <span class="aipanel-title">📊 AI Forma Elemzés</span>
+      <span class="ai-badge">gemini-2.0</span>
+    </div>
+    <div class="aibody" id="aiBody">
       <div class="dots"><span></span><span></span><span></span></div>
     </div>
   </div>
+
+  <!-- Hibaüzenet -->
+  <div class="error-box" id="errorBox"></div>
 </div>
 
 <script>
-const LOGO   = 'https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/';
-const GEMINI = 'AIzaSyD6tfnMdM2_FdYjL6QQuXYjq7BVkfUvizg';
-
-// ── STATE ──
-let RESULTS  = [];   // lejátszott meccsek (az /api/matches-ből)
-let UPCOMING = [];   // következő meccsek
-let NEXT_ROUND = null;
-let sel = new Set();
-let viewMode = 'results'; // 'results' | 'upcoming'
-
-// ── SPORTRADAR URL ──
+const LOGO_BASE = 'https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/';
 const SR_URL = 'https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061057';
 const CORS_PROXY = 'https://corsproxy.io/?url=';
+const GEMINI_KEY = 'AIzaSyD6tfnMdM2_FdYjL6QQuXYjq7BVkfUvizg';
 
-// ── HTML PARSER (böngészőben fut) ──
-function parseHTML(html) {
-  const results = [], upcoming = [];
-  // Robusztus split: bármilyen cursor-pointer TR
-  const parts = html.split(/<tr[^>]*cursor-pointer[^>]*>/);
-  for (let i = 1; i < parts.length; i++) {
-    const row = parts[i].split('</tr>')[0];
+// State
+let allMatches = [];        // Összes betöltött meccs
+let formData = [];          // Számított form adatok
+let currentSeason = 1;      // Szezon azonosító
+let lastPointsSum = 0;      // Utolsó összpontszám (szezonváltás detektáláshoz)
 
-    const roundM = row.match(/>VLLM<\/div>\s*<div[^>]*>(\d+)<\/div>/);
-    if (!roundM) continue;
-    const round = parseInt(roundM[1]);
-    if (isNaN(round) || round < 1 || round > 99) continue;
-
-    const names = [...row.matchAll(/class="hidden-xs-up visible-sm-up wrap">([^<]+)<\/div>/g)].map(m => m[1].trim());
-    if (names.length < 2) continue;
-
-    const logoIds = [];
-    for (const m of row.matchAll(/\/medium\/(\d{6})\.png/g)) {
-      if (!logoIds.includes(m[1])) logoIds.push(m[1]);
-    }
-
-    const timeM = row.match(/<div class="text-center">\s*(\d{1,2}:\d{2})\s*<\/div>/);
-    const scoreM = row.match(/aria-label="Eredm\."([\s\S]*?)<\/div><\/div><\/div>/);
-    if (!scoreM) continue;
-    const sec = scoreM[1];
-
-    const dashes = [...sec.matchAll(/<div class="inline-block[^"]*">\s*-\s*<sup>/g)];
-    const nums   = [...sec.matchAll(/<div class="inline-block[^"]*">\s*(\d+)\s*<sup>/g)].map(m => parseInt(m[1]));
-
-    const base = { round, home: names[0], away: names[1],
-      hid: logoIds[0]||null, aid: logoIds[1]||null,
-      time: timeM ? timeM[1] : null };
-
-    if (dashes.length >= 2) upcoming.push({ ...base, upcoming: true });
-    else if (nums.length >= 2) results.push({ ...base, upcoming: false, hs: nums[0], as: nums[1] });
-  }
-  return { results, upcoming };
-}
-
-// ── FETCH HTML ──
+// ─────────────────────────────────────────────────────────────
+// 1. MEccsek betöltése és parse-olása
+// ─────────────────────────────────────────────────────────────
 async function fetchMatches() {
-  // 1. Próba: közvetlen fetch (ha CORS engedélyezett)
+  // Próba 1: közvetlen fetch
   try {
     const r = await fetch(SR_URL, { headers: { 'Accept': 'text/html' } });
     if (r.ok) {
       const html = await r.text();
-      const { results, upcoming } = parseHTML(html);
-      if (results.length > 0 || upcoming.length > 0) return { results, upcoming };
+      const matches = parseMatches(html);
+      if (matches.length > 0) return matches;
     }
-  } catch(e) { /* CORS hiba -> folytatás */ }
+  } catch(e) { /* CORS hiba -> proxy */ }
 
-  // 2. Próba: corsproxy.io-n keresztül
+  // Próba 2: corsproxy
   const r2 = await fetch(CORS_PROXY + encodeURIComponent(SR_URL));
-  if (!r2.ok) throw new Error(`proxy HTTP ${r2.status}`);
+  if (!r2.ok) throw new Error(`Proxy hiba: ${r2.status}`);
   const html2 = await r2.text();
-  const { results, upcoming } = parseHTML(html2);
-  if (results.length > 0 || upcoming.length > 0) return { results, upcoming };
-
-  throw new Error('0 meccs parse-olva (mindkét forrásból)');
+  const matches = parseMatches(html2);
+  if (matches.length === 0) throw new Error('Nem található meccs');
+  return matches;
 }
 
-// ── INIT ──
-async function init() {
-  showLoading();
-  try {
-    const { results, upcoming } = await fetchMatches();
-
-    const rounds = [...new Set(results.map(m => m.round))].sort((a,b) => b-a);
-    RESULTS    = results.filter(m => rounds.slice(0,3).includes(m.round));
-    UPCOMING   = upcoming;
-    NEXT_ROUND = upcoming.length ? [...new Set(upcoming.map(m=>m.round))].sort((a,b)=>a-b)[0] : null;
-
-    buildUI();
-  } catch(e) {
-    showError(`⚠️ Betöltési hiba: ${e.message}<br><br>
-      <button onclick="init()" style="margin-top:10px;background:var(--card);border:1px solid var(--border2);color:var(--text);padding:8px 18px;border-radius:5px;cursor:pointer;font-family:inherit;font-size:.78rem">↺ Újrapróbálás</button>`);
+function parseMatches(html) {
+  const matches = [];
+  const parts = html.split(/<tr[^>]*cursor-pointer[^>]*>/);
+  
+  for (let i = 1; i < parts.length; i++) {
+    const row = parts[i].split('</tr>')[0];
+    
+    // Forduló
+    const roundM = row.match(/>VLLM<\/div>\s*<div[^>]*>(\d+)<\/div>/);
+    if (!roundM) continue;
+    const round = parseInt(roundM[1]);
+    
+    // Csapatnevek
+    const names = [...row.matchAll(/class="hidden-xs-up visible-sm-up wrap">([^<]+)<\/div>/g)].map(m => m[1].trim());
+    if (names.length < 2) continue;
+    
+    // Logo ID-k
+    const logoIds = [];
+    for (const m of row.matchAll(/\/medium\/(\d{6})\.png/g)) {
+      if (!logoIds.includes(m[1])) logoIds.push(m[1]);
+    }
+    
+    // Időpont
+    const timeM = row.match(/<div class="text-center">\s*(\d{1,2}:\d{2})\s*<\/div>/);
+    
+    // Eredmény
+    const scoreM = row.match(/aria-label="Eredm\."([\s\S]*?)<\/div><\/div><\/div>/);
+    if (!scoreM) continue;
+    const sec = scoreM[1];
+    
+    const dashes = [...sec.matchAll(/<div class="inline-block[^"]*">\s*-\s*<sup>/g)];
+    const nums = [...sec.matchAll(/<div class="inline-block[^"]*">\s*(\d+)\s*<sup>/g)].map(m => parseInt(m[1]));
+    
+    // Csak lejátszott meccseket veszünk (ahol van eredmény)
+    if (dashes.length < 2 && nums.length >= 2) {
+      matches.push({
+        round,
+        home: names[0],
+        away: names[1],
+        hid: logoIds[0] || null,
+        aid: logoIds[1] || null,
+        hs: nums[0],
+        as: nums[1],
+        time: timeM ? timeM[1] : null,
+        timestamp: new Date().getTime() - (round * 3600000) // durva becslés
+      });
+    }
   }
+  
+  return matches;
 }
 
-function showLoading() {
-  document.getElementById('tabs').innerHTML = '';
-  document.getElementById('grid').innerHTML = `
-    <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--muted)">
-      <div class="dots"><span></span><span></span><span></span></div>
-      <div style="margin-top:12px;font-size:.78rem">Meccsek betöltése...</div>
-    </div>`;
-  document.getElementById('aiBtn').disabled = true;
-}
-
-function showError(msg) {
-  document.getElementById('grid').innerHTML = `
-    <div style="grid-column:1/-1;padding:30px;text-align:center;color:var(--muted2);font-size:.78rem;line-height:1.8">${msg}</div>`;
-}
-
-function buildUI() {
-  // Tabs: "Legutóbbi" + fordulók + "Következő"
-  const rounds = [...new Set(RESULTS.map(m => m.round))].sort((a,b) => b-a);
-  let tabsHtml = '';
-
-  if (UPCOMING.length > 0) {
-    tabsHtml += `<button class="rtab upcoming-tab" data-mode="upcoming" onclick="setMode('upcoming')">
-      ⚡ Következő (${NEXT_ROUND}. kör)
-    </button>`;
-  }
-
-  rounds.forEach((r, i) => {
-    tabsHtml += `<button class="rtab${i===0?' active':''}" data-r="${r}" onclick="setRound(${r})">${r}. forduló</button>`;
-  });
-
-  document.getElementById('tabs').innerHTML = tabsHtml;
-
-  // Default: show latest completed round
-  if (rounds.length > 0) {
-    setRound(rounds[0]);
-  }
-}
-
-function setMode(mode) {
-  viewMode = mode;
-  sel.clear();
-  document.querySelectorAll('.rtab').forEach(t => {
-    t.classList.toggle('active', t.dataset.mode === mode);
-  });
-  renderUpcoming();
-}
-
-function setRound(r) {
-  viewMode = 'results';
-  sel.clear();
-  document.querySelectorAll('.rtab').forEach(t => {
-    t.classList.toggle('active', String(t.dataset.r) === String(r) && !t.dataset.mode);
-  });
-  renderResults(r);
-}
-
-function renderResults(round) {
-  const list = RESULTS.filter(m => m.round === round);
-  document.getElementById('slabel').textContent = `${round}. forduló – Eredmények`;
-
-  document.getElementById('grid').innerHTML = list.map((m, i) => {
-    const idx = RESULTS.indexOf(m);
-    const hw = m.hs > m.as, aw = m.as > m.hs, dr = m.hs === m.as;
-    const vt = dr ? 'Döntetlen' : hw ? `${m.home} győzött` : `${m.away} győzött`;
-    const vc = dr ? 'dr' : hw ? 'hw' : 'aw';
-    const hs = hw ? `<span class="sw">${m.hs}</span>` : `<span>${m.hs}</span>`;
-    const as_ = aw ? `<span class="sw">${m.as}</span>` : `<span>${m.as}</span>`;
-    return `
-    <div class="mcard" id="mc${idx}" onclick="toggle(${idx})">
-      <div class="chk">${sel.has(idx) ? '✓' : ''}</div>
-      <div class="mround">${m.round}. forduló</div>
-      <div class="mteams">
-        <div class="mside h">
-          ${m.hid ? `<img class="crest" src="${LOGO}${m.hid}.png" onerror="this.style.display='none'">` : ''}
-          <span class="tnm" style="font-weight:${hw?600:400};color:${hw?'var(--text)':'var(--muted2)'}">${m.home}</span>
-        </div>
-        <div class="mscore">${hs}<span class="ss">:</span>${as_}</div>
-        <div class="mside a">
-          <span class="tnm" style="font-weight:${aw?600:400};color:${aw?'var(--text)':'var(--muted2)'}">${m.away}</span>
-          ${m.aid ? `<img class="crest" src="${LOGO}${m.aid}.png" onerror="this.style.display='none'">` : ''}
-        </div>
-      </div>
-      <div class="mverdict ${vc}">${vt}</div>
-    </div>`;
-  }).join('');
-  updateUI();
-}
-
-function renderUpcoming() {
-  document.getElementById('slabel').textContent = `${NEXT_ROUND}. forduló – Következő meccsek`;
-  document.getElementById('grid').innerHTML = UPCOMING.map((m, idx) => {
-    const uidx = 10000 + idx; // unique index offset for upcoming
-    return `
-    <div class="mcard upcoming" id="mc${uidx}" onclick="toggleU(${idx})">
-      <div class="chk">${sel.has(uidx) ? '✓' : ''}</div>
-      <div class="mround" style="color:var(--accent)">⚡ ${m.round}. forduló · ${m.time || 'Hamarosan'}</div>
-      <div class="mteams">
-        <div class="mside h">
-          ${m.hid ? `<img class="crest" src="${LOGO}${m.hid}.png" onerror="this.style.display='none'">` : ''}
-          <span class="tnm">${m.home}</span>
-        </div>
-        <div class="mscore" style="color:var(--muted);font-size:.7rem;letter-spacing:1px">VS</div>
-        <div class="mside a">
-          <span class="tnm">${m.away}</span>
-          ${m.aid ? `<img class="crest" src="${LOGO}${m.aid}.png" onerror="this.style.display='none'">` : ''}
-        </div>
-      </div>
-      <div class="mverdict" style="color:var(--muted)">Kijelölés → AI tipp</div>
-    </div>`;
-  }).join('');
-  updateUI();
-}
-
-function toggle(idx) {
-  sel.has(idx) ? sel.delete(idx) : sel.add(idx);
-  const card = document.getElementById(`mc${idx}`);
-  if (card) {
-    card.classList.toggle('sel', sel.has(idx));
-    card.querySelector('.chk').textContent = sel.has(idx) ? '✓' : '';
-  }
-  updateUI();
-}
-
-function toggleU(idx) {
-  const uidx = 10000 + idx;
-  sel.has(uidx) ? sel.delete(uidx) : sel.add(uidx);
-  const card = document.getElementById(`mc${uidx}`);
-  if (card) {
-    card.classList.toggle('sel', sel.has(uidx));
-    card.querySelector('.chk').textContent = sel.has(uidx) ? '✓' : '';
-  }
-  updateUI();
-}
-
-function toggleAll() {
-  if (viewMode === 'upcoming') {
-    const idxs = UPCOMING.map((_, i) => 10000 + i);
-    const allS = idxs.every(i => sel.has(i));
-    idxs.forEach(i => {
-      allS ? sel.delete(i) : sel.add(i);
-      const c = document.getElementById(`mc${i}`);
-      if (c) { c.classList.toggle('sel', !allS); c.querySelector('.chk').textContent = allS ? '' : '✓'; }
-    });
-    document.getElementById('selAllBtn').textContent = allS ? 'Összes kijelölése' : 'Kijelölés törlése';
+// ─────────────────────────────────────────────────────────────
+// 2. Forma számítás
+// ─────────────────────────────────────────────────────────────
+function calculateForm(matches, matchCount = 5) {
+  if (matches.length === 0) return [];
+  
+  // Szezonváltás detektálás: ha az összpontszám hirtelen lecsökken
+  const totalPts = matches.reduce((sum, m) => {
+    return sum + (m.hs > m.as ? 3 : m.hs === m.as ? 1 : 0) + (m.as > m.hs ? 3 : m.as === m.hs ? 1 : 0);
+  }, 0);
+  
+  if (lastPointsSum > 0 && totalPts < lastPointsSum * 0.3) {
+    // Új szezon! (pontok lenullázódtak)
+    currentSeason++;
+    document.getElementById('seasonBadge').textContent = `🎯 Új szezon (${currentSeason})`;
+    document.getElementById('seasonBadge').classList.add('new');
   } else {
-    // Get current visible results
-    const roundTab = document.querySelector('.rtab.active:not([data-mode])');
-    const curRound = roundTab ? parseInt(roundTab.dataset.r) : null;
-    const list = curRound ? RESULTS.filter(m => m.round === curRound) : RESULTS;
-    const idxs = list.map(m => RESULTS.indexOf(m));
-    const allS = idxs.every(i => sel.has(i));
-    idxs.forEach(i => {
-      allS ? sel.delete(i) : sel.add(i);
-      const c = document.getElementById(`mc${i}`);
-      if (c) { c.classList.toggle('sel', !allS); c.querySelector('.chk').textContent = allS ? '' : '✓'; }
-    });
-    document.getElementById('selAllBtn').textContent = allS ? 'Összes kijelölése' : 'Kijelölés törlése';
+    document.getElementById('seasonBadge').textContent = `Aktív szezon (${currentSeason})`;
+    document.getElementById('seasonBadge').classList.remove('new');
   }
-  updateUI();
+  lastPointsSum = totalPts;
+  
+  // Csapatok összegyűjtése
+  const teams = new Map();
+  
+  matches.forEach(m => {
+    if (!teams.has(m.home)) {
+      teams.set(m.home, { name: m.home, logo: m.hid, matches: [], points: 0, gf: 0, ga: 0 });
+    }
+    if (!teams.has(m.away)) {
+      teams.set(m.away, { name: m.away, logo: m.aid, matches: [], points: 0, gf: 0, ga: 0 });
+    }
+    
+    // Hazai csapat
+    const homeTeam = teams.get(m.home);
+    homeTeam.matches.push({
+      opponent: m.away,
+      gf: m.hs,
+      ga: m.as,
+      result: m.hs > m.as ? 'W' : m.hs === m.as ? 'D' : 'L',
+      round: m.round
+    });
+    homeTeam.points += m.hs > m.as ? 3 : m.hs === m.as ? 1 : 0;
+    homeTeam.gf += m.hs;
+    homeTeam.ga += m.as;
+    
+    // Vendég csapat
+    const awayTeam = teams.get(m.away);
+    awayTeam.matches.push({
+      opponent: m.home,
+      gf: m.as,
+      ga: m.hs,
+      result: m.as > m.hs ? 'W' : m.as === m.hs ? 'D' : 'L',
+      round: m.round
+    });
+    awayTeam.points += m.as > m.hs ? 3 : m.as === m.hs ? 1 : 0;
+    awayTeam.gf += m.as;
+    awayTeam.ga += m.hs;
+  });
+  
+  // Forma számítás (utolsó N meccs)
+  const formResults = [];
+  
+  for (const [name, team] of teams) {
+    // Utolsó meccsek időrendben
+    const sortedMatches = team.matches.sort((a, b) => b.round - a.round);
+    const lastN = sortedMatches.slice(0, matchCount);
+    
+    if (lastN.length === 0) continue;
+    
+    // Forma string (W/D/L)
+    const formStr = lastN.map(m => m.result).join('');
+    
+    // Pontok az utolsó N meccsen
+    const pts = lastN.reduce((sum, m) => {
+      return sum + (m.result === 'W' ? 3 : m.result === 'D' ? 1 : 0);
+    }, 0);
+    
+    // Átlag pont/meccs
+    const avgPts = pts / lastN.length;
+    
+    // Trend számítás (utolsó 3 vs előtte 3)
+    let trend = 'same';
+    if (lastN.length >= 6) {
+      const last3 = lastN.slice(0, 3).filter(m => m).reduce((s, m) => s + (m.result === 'W' ? 3 : m.result === 'D' ? 1 : 0), 0);
+      const prev3 = lastN.slice(3, 6).filter(m => m).reduce((s, m) => s + (m.result === 'W' ? 3 : m.result === 'D' ? 1 : 0), 0);
+      if (last3 > prev3) trend = 'up';
+      else if (last3 < prev3) trend = 'down';
+    }
+    
+    formResults.push({
+      pos: 0, // majd rendezés után
+      team: name,
+      logo: team.logo ? `${LOGO_BASE}${team.logo}.png` : null,
+      form: formStr,
+      pts: pts,
+      avgPts: avgPts,
+      matchesCount: lastN.length,
+      trend: trend,
+      totalPts: team.points,
+      gd: team.gf - team.ga
+    });
+  }
+  
+  // Rendezés átlag pont/meccs szerint
+  const sorted = formResults.sort((a, b) => {
+    if (b.avgPts !== a.avgPts) return b.avgPts - a.avgPts;
+    return b.gd - a.gd; // gólkülönbség másodlagos
+  });
+  
+  // Pozíciók beállítása
+  sorted.forEach((team, idx) => { team.pos = idx + 1; });
+  
+  return sorted;
 }
 
-function updateUI() {
-  document.getElementById('scnt').textContent = sel.size;
-  document.getElementById('aiBtn').disabled = sel.size === 0;
+// ─────────────────────────────────────────────────────────────
+// 3. UI frissítés
+// ─────────────────────────────────────────────────────────────
+function renderFormTable(data) {
+  const table = document.getElementById('formTable');
+  const meta = document.getElementById('formMeta');
+  const updateTime = document.getElementById('updateTime');
+  
+  if (data.length === 0) {
+    table.innerHTML = '<div style="padding:20px;text-align:center;color:#555">Nincs elegendő adat</div>';
+    meta.className = 'lb-meta error';
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Nincs adat';
+    updateTime.textContent = new Date().toLocaleTimeString('hu-HU');
+    return;
+  }
+  
+  const html = data.map(team => {
+    const rowClass = team.pos <= 3 ? 'lb-row top3' : 
+                     team.pos >= data.length - 2 ? 'lb-row bottom3' : 'lb-row';
+    
+    const trendIcon = team.trend === 'up' ? '<span class="trend-up">▲</span>' :
+                      team.trend === 'down' ? '<span class="trend-down">▼</span>' :
+                      '<span class="trend-same">—</span>';
+    
+    const formDisplay = team.form
+      .replace(/W/g, '<span style="color:#4caf50">W</span>')
+      .replace(/D/g, '<span style="color:#f59e0b">D</span>')
+      .replace(/L/g, '<span style="color:#e53935">L</span>');
+    
+    return `
+      <div class="${rowClass}">
+        <span class="col-pos">${team.pos}</span>
+        <span class="col-team">
+          ${team.logo ? `<img class="team-logo" src="${team.logo}" onerror="this.style.display='none'">` : '<span class="team-logo-placeholder"></span>'}
+          <span class="team-name">${team.team}</span>
+          ${trendIcon}
+        </span>
+        <span class="col-form">${formDisplay}</span>
+        <span class="col-avg">${team.avgPts.toFixed(2)}</span>
+        <span class="col-pts">${team.pts}</span>
+      </div>
+    `;
+  }).join('');
+  
+  table.innerHTML = html;
+  meta.className = 'lb-meta';
+  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Forma alapú rangsor';
+  updateTime.textContent = new Date().toLocaleTimeString('hu-HU');
+  
+  // Statisztikák frissítése
+  if (data.length > 0) {
+    document.getElementById('bestTeamStat').textContent = data[0].team;
+    
+    const top5Avg = data.slice(0, 5).reduce((sum, t) => sum + t.avgPts, 0) / Math.min(5, data.length);
+    document.getElementById('avgPtsStat').innerHTML = `${top5Avg.toFixed(2)} <small>(top5)</small>`;
+    
+    document.getElementById('matchesCountStat').textContent = allMatches.length;
+  }
 }
 
-// ── ANALYZE ──
-async function analyze() {
-  if (sel.size === 0) return;
-
-  const panel = document.getElementById('aipanel');
-  const body  = document.getElementById('aibody');
-  const err   = document.getElementById('errbox');
-  const btn   = document.getElementById('aiBtn');
-
+// ─────────────────────────────────────────────────────────────
+// 4. AI elemzés
+// ─────────────────────────────────────────────────────────────
+async function generateAnalysis(formData, matchCount) {
+  const body = document.getElementById('aiBody');
+  const panel = document.getElementById('aiPanel');
+  const errorBox = document.getElementById('errorBox');
+  
   panel.classList.add('show');
-  err.classList.remove('show');
-  btn.disabled = true;
-  body.className = 'aibody';
+  errorBox.classList.remove('show');
+  body.className = 'aibody typing';
   body.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
-  setTimeout(() => panel.scrollIntoView({behavior:'smooth', block:'nearest'}), 120);
-
-  // Szétválasztjuk a kiválasztott meccseket: lejátszott vs következő
-  const selectedResults  = [...sel].filter(i => i < 10000).map(i => RESULTS[i]);
-  const selectedUpcoming = [...sel].filter(i => i >= 10000).map(i => UPCOMING[i - 10000]);
-
-  // Form kalkuláció az összes lejátszott meccsből
-  const form = {};
-  RESULTS.forEach(m => {
-    if (!form[m.home]) form[m.home] = [];
-    if (!form[m.away]) form[m.away] = [];
-    if (m.hs > m.as) { form[m.home].push('W'); form[m.away].push('V'); }
-    else if (m.as > m.hs) { form[m.away].push('W'); form[m.home].push('V'); }
-    else { form[m.home].push('D'); form[m.away].push('D'); }
-  });
-  const formStr = Object.entries(form)
-    .map(([t, f]) => `${t}: ${f.join('')} (${f.filter(x=>x==='W').length}W ${f.filter(x=>x==='D').length}D ${f.filter(x=>x==='V').length}V)`)
-    .join('\n');
-
+  
   // Prompt összeállítása
-  let prompt = `Te egy Betradar Virtuális Labdarúgás Liga (VLLM Premier Liga) szakértő elemzője vagy.\n\n`;
+  const top3 = formData.slice(0, 3);
+  const bottom3 = formData.slice(-3);
+  
+  let prompt = `Te egy Virtuális Labdarúgás Liga (VLLM) szakértő elemzője vagy. 
+Elemezd a csapatok aktuális formáját az utolsó ${matchCount} meccs alapján!
 
-  if (selectedResults.length > 0) {
-    const matchLines = selectedResults.map(m => {
-      const r = m.hs > m.as ? `${m.home} nyert` : m.as > m.hs ? `${m.away} nyert` : 'Döntetlen';
-      return `  • ${m.round}. forduló: ${m.home} ${m.hs}–${m.as} ${m.away} → ${r}`;
-    }).join('\n');
-    prompt += `KIVÁLASZTOTT LEJÁTSZOTT MECCSEK:\n${matchLines}\n\n`;
-  }
+LEGJOBB FORMÁBAN (top 3):
+${top3.map(t => `  • ${t.team}: ${t.form} (${t.avgPts.toFixed(2)} pont/meccs, összesen ${t.pts} pont)`).join('\n')}
 
-  if (selectedUpcoming.length > 0) {
-    const upLines = selectedUpcoming.map(m =>
-      `  • ${m.round}. forduló: ${m.home} vs ${m.away} (${m.time || 'hamarosan'})`
-    ).join('\n');
-    prompt += `KÖVETKEZŐ MECCSEK (amikre tippet kérek):\n${upLines}\n\n`;
-  }
+LEGGYENGÉBB FORMÁBAN (bottom 3):
+${bottom3.map(t => `  • ${t.team}: ${t.form} (${t.avgPts.toFixed(2)} pont/meccs, összesen ${t.pts} pont)`).join('\n')}
 
-  prompt += `CSAPAT FORMÁK (utolsó fordulók alapján, W=győzelem D=döntetlen V=vereség):\n${formStr}\n\n`;
+ÖSSZES MECCS: ${allMatches.length} lejátszott meccs
 
-  if (selectedUpcoming.length > 0) {
-    prompt += `Kérlek elemezd a formát és adj KONKRÉT tippeket a következő meccsekre!
+Kérlek adj egy rövid elemzést a következő struktúrában:
+1. 🔥 **Forma király** – ki a legjobb és miért?
+2. 📈 **Legnagyobb javulás** – melyik csapat ment fel a legtöbbet?
+3. 📉 **Zuhanó csillag** – ki vesztett a legtöbbet?
+4. ⚡ **Meglepetés** – egy váratlan eredmény vagy trend
+5. 🎯 **Tipp a következő körre** – egy konkrét javaslat
 
-Kért szekciók:
-1. 🔥 Forma elemzés – melyik csapatok vannak legjobb/legrosszabb formában
-2. ⚽ Tippek – minden kiválasztott következő meccsre konkrét javaslat (pl. "hazai győzelem", "vendég győzelem", "döntetlen")
-3. ⭐ Legjobb fogadás – egyetlen legbiztosabb tipp részletes indoklással
-
-Fontos: Válaszolj MAGYARUL. Félkövérrel **csapatneveket**. Tömör, konkrét. Max 300 szó.`;
-  } else {
-    prompt += `Kérlek elemezd ki a fenti meccseket és adj tippeket a következő körre!
-
-Kért szekciók:
-1. 🔥 Forma elemzés – melyik 2-3 csapat van legjobb/legrosszabb formában
-2. 📊 Érdekesség – egy meglepő eredmény vagy trend
-3. ⚽ Tippek a következő fordulóra – 3-5 konkrét javaslat
-4. ⭐ Legjobb fogadás – egyetlen legbiztosabb tipp indoklással
-
-Fontos: Válaszolj MAGYARUL. Félkövérrel **csapatneveket**. Tömör, konkrét. Max 300 szó.`;
-  }
-
+Válaszolj MAGYARUL, tömören, max 250 szó.`;
+  
   try {
     const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           contents: [{parts: [{text: prompt}]}],
-          generationConfig: {temperature: 0.7, maxOutputTokens: 1000}
+          generationConfig: {temperature: 0.6, maxOutputTokens: 800}
         })
       }
     );
-
+    
     if (!r.ok) {
       const e = await r.json().catch(() => ({}));
-      const msg = e?.error?.message || `HTTP ${r.status}`;
-      if (r.status === 429) throw new Error('Túl sok kérés – várj 1 percet és próbáld újra.');
-      throw new Error(msg);
+      throw new Error(e?.error?.message || `HTTP ${r.status}`);
     }
-
+    
     const data = await r.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Az AI üres választ küldött.');
-
+    if (!text) throw new Error('Üres válasz');
+    
     body.className = 'aibody';
-    body.innerHTML = fmt(text);
-
+    body.innerHTML = formatAnalysis(text);
+    
   } catch(e) {
-    panel.classList.remove('show');
-    err.textContent = '⚠️ ' + e.message;
-    err.classList.add('show');
-  } finally {
-    btn.disabled = sel.size === 0;
+    errorBox.textContent = `⚠️ AI hiba: ${e.message}`;
+    errorBox.classList.add('show');
+    body.innerHTML = '<div style="color:#666">Elemzés nem elérhető</div>';
   }
 }
 
-function fmt(txt) {
-  let h = txt
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
-    .replace(/^#{1,3}\s*([🔥📊⚽⭐✅🏆🎯➡️])\s*(.+)$/gm,(_,e,t)=>`<h3>${e} ${t}</h3>`)
-    .replace(/^#{1,3}\s+(.+)$/gm,(_,t)=>`<h3>${t}</h3>`)
-    .replace(/^[-•*]\s+(.+)$/gm,(_,c)=>{
-      let cls='i',lbl='→';
-      if(/győz|nyerhet|esélyes|hazai|vendég/i.test(c)){cls='t';lbl='TIPP';}
-      else if(/legjobb|biztos|⭐|top tipp/i.test(c)){cls='s';lbl='⭐ TOP';}
-      else if(/jó form|erős|sorozat|vezet/i.test(c)){cls='f';lbl='FORMA';}
-      else if(/gyenge|vereség|nehézség|problém/i.test(c)){cls='g';lbl='GYENGE';}
-      return `<div class="tiprow"><span class="tiptag ${cls}">${lbl}</span><span>${c}</span></div>`;
-    })
-    .replace(/\n\n+/g,'</p><p>')
-    .replace(/\n/g,'<br>');
-  return `<p>${h}</p>`.replace(/<p>(<h3>)/g,'$1').replace(/(<\/h3>)<\/p>/g,'$1').replace(/<p><\/p>/g,'');
+function formatAnalysis(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^#{1,3}\s*(.+)$/gm, '<h3 style="margin:12px 0 6px;color:#4caf50;font-size:.85rem">$1</h3>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>')
+    .replace(/^<br>|<br>$/g, '');
 }
 
-// ── UPCOMING CARD STÍLUS ──
-const style = document.createElement('style');
-style.textContent = `.mcard.upcoming { border-color: rgba(0,212,255,.1); }
-.mcard.upcoming:hover { border-color: rgba(0,212,255,.25); }
-.rtab.upcoming-tab { background:rgba(0,212,255,.06); border-color:rgba(0,212,255,.2); color:var(--accent); }
-.rtab.upcoming-tab.active { background:rgba(0,212,255,.12); border-color:var(--accent); }`;
-document.head.appendChild(style);
+// ─────────────────────────────────────────────────────────────
+// 5. Fő betöltő függvény
+// ─────────────────────────────────────────────────────────────
+async function loadData() {
+  const meta = document.getElementById('formMeta');
+  const matchCount = parseInt(document.getElementById('matchCountSelect').value);
+  
+  meta.className = 'lb-meta loading';
+  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Betöltés...';
+  
+  try {
+    // Meccsek betöltése
+    allMatches = await fetchMatches();
+    
+    if (allMatches.length === 0) {
+      throw new Error('Nincs elérhető meccs');
+    }
+    
+    // Forma számítás
+    formData = calculateForm(allMatches, matchCount);
+    
+    // Táblázat renderelés
+    renderFormTable(formData);
+    
+    // AI elemzés (ha van adat)
+    if (formData.length >= 3) {
+      generateAnalysis(formData, matchCount);
+    }
+    
+  } catch(e) {
+    const errorBox = document.getElementById('errorBox');
+    errorBox.textContent = `❌ ${e.message}`;
+    errorBox.classList.add('show');
+    
+    meta.className = 'lb-meta error';
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
+  }
+}
 
-init();
+// ─────────────────────────────────────────────────────────────
+// 6. Inicializálás és event listenerek
+// ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadData();
+  
+  // Automatikus frissítés 30 másodpercenként
+  setInterval(loadData, 30000);
+  
+  // Select változáskor újraszámolás
+  document.getElementById('matchCountSelect').addEventListener('change', () => {
+    const matchCount = parseInt(document.getElementById('matchCountSelect').value);
+    if (allMatches.length > 0) {
+      formData = calculateForm(allMatches, matchCount);
+      renderFormTable(formData);
+      generateAnalysis(formData, matchCount);
+    }
+  });
+});
 </script>
+
 </body>
 </html>
