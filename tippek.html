@@ -392,13 +392,21 @@ async function generateAITable() {
     `${t.pos}. ${t.team}: ${t.pts}pt ${t.goalsFor||0}:${t.goalsAgainst||0}`
   ).join('\n');
 
-  // Compact prompt – minden sor egy csapat, minimális token felhasználás
-  const prompt = `Virtuális futball liga elemző vagy. Valós tabella:
+  // Erős elemzési prompt – az AI-t valódi saját előrejelzésre kényszerít
+  const prompt = `Te egy virtuális futball liga profí elemzője vagy. A jelenlegi tabella alapján készíts SAJÁT, FÜGGETLEN előrejelzést a szezon végére!
+
+JELENLEGI TABELLA:
 ${allTeamsData}
 
-Adj vissza egy JSON tömböt ${teamCount} csapattal (1-${teamCount}). CSAK kompakt egysoros JSON-t írj, semmi mást!
-Formátum (minden mező kötelező): [{"pos":1,"team":"Név","goalsFor":35,"goalsAgainst":18,"pts":42,"trend":"up"},...]
-trend: "up"/"down"/"same". Csak a fenti csapatneveket használd!`;
+SZABÁLYOK – KÖTELEZŐ BETARTANI:
+1. A sorrend VÁLTOZZON JELENTŐSEN – legalább 5 csapat kerüljön más helyre mint jelenleg!
+2. A pontok és gólok KÜLÖNBÖZZENEK – becsld meg a szezon végére való értékeket!
+3. Néhány meglepő: egy jelenlegi középcsapat kerüljön fel, egy top csapat essen vissza!
+4. trend: "up" ha feljebb kerül a jelenleginél, "down" ha lejjebb, "same" ha marad
+5. TILOS a valós tabella egyszerű lemásolása!
+
+Válaszolj KIZÁRÓLAG kompakt JSON tömbbel (egy sorban), semmi más szöveg:
+[{"pos":1,"team":"Cs.Név","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},{"pos":2,...}]`;
 
   try {
     const response = await fetch(GEMINI_URL, {
@@ -407,7 +415,7 @@ trend: "up"/"down"/"same". Csak a fenti csapatneveket használd!`;
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.3,
+          temperature: 0.9,
           maxOutputTokens: 8192,
           responseMimeType: 'application/json'
         }
