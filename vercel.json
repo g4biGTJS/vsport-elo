@@ -1,9 +1,9 @@
 {
-  "redirects": [
+  "cleanUrls": true,
+  "rewrites": [
     {
       "source": "/",
-      "destination": "/VSPORT.html",
-      "permanent": false
+      "destination": "/VSPORT"
     }
   ]
 }
