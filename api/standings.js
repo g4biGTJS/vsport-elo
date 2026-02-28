@@ -25,41 +25,70 @@ const FETCH_HEADERS = {
 
 // ─────────────────────────────────────────────
 // PREMIER LIGA parser (s5.sir.sportradar.com)
-// Struktúra: <div class="margin-left-medium...">16</div>
-//            title="Előrébb lépett" / "Hátrább lépett"
-//            <div class="hidden-xs-up visible-sm-up wrap">Crystal Palace</div>
-//            TD-k sorrendben: M G D V LG KG Gólk PTK
+// Oszlopok: Poz | trend | Csapat | M | G | D | V | LG* | KG* | Gólk | PTK | Forma
+// *LG, KG: "hidden-xs-up visible-sm-up" – néha hiányzik a szerver válaszából!
+// FIX: TD-ket class alapján azonosítjuk, nem pozíció szerint
 // ─────────────────────────────────────────────
 function parsePL(html) {
   const standings = [];
-  const trRegex = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
-  let trMatch;
 
-  while ((trMatch = trRegex.exec(html)) !== null) {
-    const row = trMatch[1];
+  // TR-eket split-tel szétvágjuk (megbízhatóbb mint greedy regex)
+  const parts = html.split(/<tr[^>]*>/);
 
+  for (let i = 1; i < parts.length; i++) {
+    const row = parts[i].split('</tr>')[0];
+
+    // ── Pozíció ──
     const posMatch = row.match(/class="margin-left-medium[^"]*"[^>]*>\s*(\d+)\s*<\/div>/);
     if (!posMatch) continue;
     const pos = parseInt(posMatch[1]);
     if (isNaN(pos) || pos < 1 || pos > 30) continue;
 
+    // ── Trend ──
     let trend = 'same';
-    if (/title="Előrébb lépett"/.test(row))  trend = 'up';
-    if (/title="Hátrább lépett"/.test(row)) trend = 'down';
+    if (row.includes('title="Előrébb lépett"'))  trend = 'up';
+    if (row.includes('title="Hátrább lépett"')) trend = 'down';
 
+    // ── Csapatnév ──
     const nameMatch = row.match(/class="hidden-xs-up visible-sm-up wrap">([^<]+)<\/div>/);
     if (!nameMatch) continue;
     const team = nameMatch[1].trim();
 
+    // ── Logo ──
     const logoMatch = row.match(/src="(https:\/\/vgls\.betradar\.com\/ls\/s5_crest\/scigamingvirtuals\/medium\/\d+\.png)"/);
     const logo = logoMatch ? logoMatch[1] : null;
 
-    const allTdNums = [...row.matchAll(/<td[^>]*>\s*(-?\d+)\s*<\/td>/g)].map(m => parseInt(m[1]));
-    if (allTdNums.length < 7) continue;
+    // ── Statisztikák ──
+    // Minden TD kinyerése osztályával + értékével
+    const tdRe = /<td([^>]*)>\s*(-?\d+)\s*<\/td>/g;
+    const tdList = [];
+    let tm;
+    while ((tm = tdRe.exec(row)) !== null) {
+      tdList.push({ cls: tm[1], val: parseInt(tm[2]) });
+    }
+    if (tdList.length < 6) continue;
 
-    const goalsFor     = allTdNums[4] ?? 0;
-    const goalsAgainst = allTdNums[5] ?? 0;
-    const pts          = allTdNums[7] ?? allTdNums[allTdNums.length - 1] ?? 0;
+    // LG és KG a "hidden-xs-up visible-sm-up" osztályú TD-kben van
+    const hiddenTds  = tdList.filter(t => t.cls.includes('hidden-xs-up'));
+    const visibleTds = tdList.filter(t => !t.cls.includes('hidden-xs-up'));
+
+    let goalsFor, goalsAgainst, pts;
+
+    if (hiddenTds.length >= 2) {
+      // Teljes nézet: LG=hiddenTds[0], KG=hiddenTds[1]
+      // PTK = utolsó visible plain TD (a Forma előtt)
+      goalsFor     = hiddenTds[0].val;
+      goalsAgainst = hiddenTds[1].val;
+      pts          = visibleTds[visibleTds.length - 1]?.val ?? 0;
+    } else {
+      // Szűkített nézet, index alapján:
+      // 0=M 1=G 2=D 3=V 4=LG 5=KG 6=Gólk 7=PTK
+      goalsFor     = tdList[4]?.val ?? 0;
+      goalsAgainst = tdList[5]?.val ?? 0;
+      pts          = tdList[7]?.val ?? tdList[tdList.length - 1]?.val ?? 0;
+    }
+
+    if (goalsFor < 0 || goalsAgainst < 0 || pts < 0) continue;
 
     standings.push({ pos, team, logo, goalsFor, goalsAgainst, pts, trend });
   }
@@ -69,7 +98,6 @@ function parsePL(html) {
     .filter(r => { if (seen.has(r.pos)) return false; seen.add(r.pos); return true; })
     .sort((a, b) => a.pos - b.pos);
 }
-
 // ─────────────────────────────────────────────
 // SPANYOL LIGA parser (schedulerzrh VSM widget)
 // Valós struktúra:
