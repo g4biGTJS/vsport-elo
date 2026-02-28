@@ -237,7 +237,7 @@
   <div class="aipanel" id="aiPanel">
     <div class="aipanel-hdr">
       <span class="aipanel-title">📊 AI Teljesítmény Elemzés</span>
-      <span class="ai-badge">gemini-2.0</span>
+      <span class="ai-badge">gemini-2.5</span>
     </div>
     <div class="aibody" id="aiBody">
       <div class="dots"><span></span><span></span><span></span></div>
@@ -417,7 +417,7 @@ Válaszolj MAGYARUL, tömören, max 200 szó. Használj félkövér csapatneveke
   
   try {
     const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`,
       {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
