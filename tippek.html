@@ -894,6 +894,21 @@ async function generateAllTips() {
 
 const GENBTN_HTML = `<svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> AI Tippek Generálása`;
 
+function calcBestTip(btts, o15, o25, o35) {
+  // Pick whichever has highest "edge" from 50% (most decisive)
+  const vals = [
+    {k:'btts',  v: Math.abs(btts-50),  p: btts},
+    {k:'over15',v: Math.abs(o15-50),   p: o15},
+    {k:'over25',v: Math.abs(o25-50),   p: o25},
+    {k:'over35',v: Math.abs(o35-50),   p: o35},
+  ];
+  // prefer the one with highest probability that's above 50
+  const above50 = vals.filter(x=>x.p>50).sort((a,b)=>b.v-a.v);
+  if (above50.length) return above50[0].k;
+  // fallback: highest confidence even if below 50
+  return vals.sort((a,b)=>b.v-a.v)[0].k;
+}
+
 async function generateOneTip(home, away, num, standingsCtx, played) {
   const homeStats = getTeamStats(home);
   const awayStats = getTeamStats(away);
@@ -934,7 +949,7 @@ A Poisson modell eredményei ALAPJÁN (ne ellentmondj nekik!):
 4. Az elemzés hivatkozzon a konkrét tabella-számokra, gól-átlagokra, és a Poisson modell eredményére
 
 Válaszolj CSAK valid JSON-nal, pontosan ebben a struktúrában:
-{"btts":{"pick":"Igen","confidence":${Math.round(bttsProb)},"stat":"${probs.btts}%"},"over15":{"pick":${o15Prob>50},"confidence":${Math.round(o15Prob)},"stat":"${probs.over15}%"},"over25":{"pick":${o25Prob>50},"confidence":${Math.round(o25Prob)},"stat":"${probs.over25}%"},"over35":{"pick":${o35Prob>50},"confidence":${Math.round(o35Prob)},"stat":"${probs.over35}%"},"best_tip":"${['btts','over15','over25','over35'][([bttsProb,o15Prob,o25Prob,o35Prob].indexOf(Math.max(...([bttsProb,o15Prob,o25Prob,o35Prob].filter((_,i)=>[bttsProb,o15Prob,o25Prob,o35Prob][i]>50))))]}","expected_home":${probs.lambdaHome},"expected_away":${probs.lambdaAway},"analysis":"3 mondatos MAGYAR elemzés: 1) mindkét csapat góltermeléséről és védelméről konkrét számokkal (gól-átlag/mérkőzés), 2) a Poisson modell mit mutat, 3) melyik a legbiztosabb fogadási opció és miért"}`;
+{"btts":{"pick":"${bttsProb>50?'Igen':'Nem'}","confidence":${Math.round(bttsProb)}},"over15":{"pick":${o15Prob>50},"confidence":${Math.round(o15Prob)}},"over25":{"pick":${o25Prob>50},"confidence":${Math.round(o25Prob)}},"over35":{"pick":${o35Prob>50},"confidence":${Math.round(o35Prob)}},"best_tip":"${calcBestTip(bttsProb,o15Prob,o25Prob,o35Prob)}","expected_home":${probs.lambdaHome},"expected_away":${probs.lambdaAway},"analysis":"3 mondatos MAGYAR elemzés konkrét számokkal: góltermelés/mérkőzés, mit mutat a Poisson modell, melyik a legjobb tipp"}`;
 
   let data;
   try {
