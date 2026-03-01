@@ -713,10 +713,84 @@ function clearHistoryConfirm() {
 }
 
 /* ═══ AI ═══ */
-async function callAI(prompt,temp=0.7){
-  const res=await fetch(LLM7_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${LLM7_KEY}`},body:JSON.stringify({model:'default',messages:[{role:'user',content:prompt}],temperature:temp,max_tokens:2048})});
-  if(!res.ok)throw new Error(`LLM7 hiba: ${res.status}`);
-  const d=await res.json();return d.choices?.[0]?.message?.content||'';
+
+/** Alap AI hívás – visszafelé kompatibilis */
+async function callAI(prompt, temp=0.7){
+  return callAIWithMessages([{role:'user', content:prompt}], temp);
+}
+
+/** Teljes conversation history támogatással */
+async function callAIWithMessages(messages, temp=0.7){
+  const res = await fetch(LLM7_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':`Bearer ${LLM7_KEY}`},
+    body: JSON.stringify({model:'default', messages, temperature:temp, max_tokens:2048})
+  });
+  if(!res.ok) throw new Error(`LLM7 hiba: ${res.status}`);
+  const d = await res.json();
+  return d.choices?.[0]?.message?.content || '';
+}
+
+/**
+ * Szezon tudatossági kontextus az AI számára.
+ * Tartalmazza: szezon státusz, szezonváltás, legutóbbi csapat forma.
+ */
+function buildSeasonAwarenessContext(){
+  const h = loadHistory();
+  const snaps = h.snapshots;
+  const standings = realStandings;
+
+  // ── Szezon státusz
+  const totalPts = standings.reduce((s,t) => s+(t.pts||0), 0);
+  const matchesEst = standings.length > 0
+    ? Math.round(totalPts / standings.length / 2.3)
+    : 0;
+  const isNewSeason = totalPts < 50 || matchesEst < 4;
+
+  let seasonLine;
+  if(isNewSeason){
+    seasonLine = '⚠️ ÚJ SZEZON / SZEZON ELEJE – mindössze ~'+matchesEst+' forduló játszva. '
+      +'A Poisson-modell megbízhatósága korlátozott, legyél óvatos az elemzéssel!';
+  } else {
+    seasonLine = '✅ Folyamatban lévő szezon – kb. '+matchesEst+'. forduló (~'+snaps.length+' mentett snapshot).';
+  }
+
+  // ── Szezonváltás figyelmeztetés (ha az UI mutatja)
+  const seasonNoticeEl = document.getElementById('seasonNotice');
+  const seasonChanged = seasonNoticeEl && seasonNoticeEl.style.display !== 'none';
+  const changeLine = seasonChanged
+    ? '\n🔄 SZEZONVÁLTÁS ÉRZÉKELVE! Az előző szezon adatai törlésre kerültek – az aktuális tabella az ÚJ szezon állása.'
+    : '';
+
+  // ── Forma trend az utolsó snapshotokból
+  let formSection = '';
+  if(snaps.length >= 3){
+    const recent = snaps.slice(-6); // max 6 snapshot
+    const teams = [...new Set(recent.flatMap(s => s.standings.map(t => t.team)))];
+    const formLines = teams.map(team => {
+      const ptsSeries = recent
+        .map(s => s.standings.find(t => t.team === team)?.pts ?? null)
+        .filter(v => v !== null);
+      if(ptsSeries.length < 2) return null;
+      const gained = ptsSeries[ptsSeries.length-1] - ptsSeries[0];
+      const posSeries = recent
+        .map(s => s.standings.find(t => t.team === team)?.pos ?? null)
+        .filter(v => v !== null);
+      const posChange = posSeries.length >= 2 ? posSeries[0] - posSeries[posSeries.length-1] : 0;
+      const formTag = gained > 7 ? '🔥HOT' : gained > 4 ? '📈UP' : gained < -2 ? '📉DOWN' : '➡STABLE';
+      const posTag = posChange > 1 ? `↑${posChange}hely` : posChange < -1 ? `↓${Math.abs(posChange)}hely` : '';
+      return `${team}: +${gained}pt ${posTag} ${formTag}`;
+    }).filter(Boolean);
+
+    if(formLines.length){
+      formSection = '\n\n━━━ LEGUTÓBBI FORMA TREND (' + recent.length + ' snapshot alapján) ━━━\n'
+        + formLines.join('\n');
+    }
+  } else if(snaps.length > 0){
+    formSection = '\n\n[Forma trend: még nem elég snapshot a számításhoz]';
+  }
+
+  return seasonLine + changeLine + formSection;
 }
 
 async function fetchRealStandings(){
@@ -974,16 +1048,60 @@ async function generateAllTips(){
     catch(e){showError('Tabella betöltés sikertelen.');btn.disabled=false;btn.innerHTML=GENBTN_HTML;return;}
   }
   btn.innerHTML='<div class="dots"><span></span><span></span><span></span></div>';
-  const standingData=buildStandingsContext();const standingsCtx=standingData?.ctx||'Tabella nem elérhető.';const played=standingData?.played||20;const usingAIData=standingData?.isAI||false;
+  const standingData=buildStandingsContext();
+  const standingsCtx=standingData?.ctx||'Tabella nem elérhető.';
+  const played=standingData?.played||20;
+  const usingAIData=standingData?.isAI||false;
+
   const srcBadge=document.getElementById('tipDataSourceBadge');
   if(srcBadge){srcBadge.textContent=usingAIData?'🤖 AI előrejelzés alapján':'📊 Valós tabella alapján';srcBadge.style.color=usingAIData?'var(--green)':'var(--cyan)';srcBadge.style.display='block';}
-  const promises=matches.map((m,i)=>generateOneTip(m.home,m.away,i+1,standingsCtx,played));
-  const results=await Promise.allSettled(promises);
-  results.forEach((res,i)=>{
-    const block=document.createElement('div');block.style.animation=`rowSlide .4s ease ${i*.1}s both`;
-    if(res.status==='fulfilled'){block.className='tip-result-block';block.innerHTML=res.value;resultsList.appendChild(block);setTimeout(()=>{block.querySelectorAll('.conf-ring-fill').forEach(ring=>{const v=parseFloat(ring.dataset.conf||0);const circ=2*Math.PI*20;ring.style.strokeDashoffset=circ-(circ*v/100);});},150+i*100);}
-    else{block.className='tip-result-block';block.style.padding='16px 20px';block.innerHTML=`<span style="color:var(--red);font-family:'JetBrains Mono',monospace;font-size:.65rem">⚠ Mérkőzés #${i+1} hiba: ${res.reason?.message||'ismeretlen hiba'}</span>`;resultsList.appendChild(block);}
-  });
+
+  // ── Szezon tudatossági kontextus ──
+  const seasonCtx = buildSeasonAwarenessContext();
+
+  // ── Rendszer-üzenet: mindent tud az AI ──
+  const systemMessage = {
+    role: 'system',
+    content:
+      'Te egy profi Premier Liga sportfogadási quant-elemző vagy.\n' +
+      'Poisson-modellt és statisztikai elemzést használsz.\n' +
+      'Több mérkőzést fogsz egymás után elemezni – minden elemzésnél vedd figyelembe a korábbi tippjeidet is!\n' +
+      'Legyél konzisztens: ha egy csapat jó formában van, az minden mérkőzésnél tükröződjön.\n\n' +
+      '━━━ SZEZON KONTEXTUS ━━━\n' + seasonCtx + '\n\n' +
+      standingsCtx
+  };
+
+  // ── Conversation history: szekvenciálisan növekszik ──
+  const conversationHistory = [systemMessage];
+
+  // ── Szekvenciális feldolgozás ──
+  for(let i=0; i<matches.length; i++){
+    const m = matches[i];
+    // Betöltő placeholder
+    const placeholder = document.createElement('div');
+    placeholder.className='tip-result-block';
+    placeholder.style.animation=`rowSlide .4s ease 0s both`;
+    placeholder.innerHTML=`<div class="dots" style="padding:24px 0"><span></span><span></span><span></span></div>`;
+    resultsList.appendChild(placeholder);
+
+    try{
+      const result = await generateOneTip(m.home, m.away, i+1, standingsCtx, played, conversationHistory);
+      // Conversation history bővítése
+      conversationHistory.push({role:'user', content: result.userPrompt});
+      conversationHistory.push({role:'assistant', content: result.rawResponse});
+      // Eredmény renderelése
+      placeholder.innerHTML = result.html;
+      setTimeout(()=>{
+        placeholder.querySelectorAll('.conf-ring-fill').forEach(ring=>{
+          const v=parseFloat(ring.dataset.conf||0);const circ=2*Math.PI*20;
+          ring.style.strokeDashoffset=circ-(circ*v/100);
+        });
+      }, 150);
+    } catch(e){
+      placeholder.style.padding='16px 20px';
+      placeholder.innerHTML=`<span style="color:var(--red);font-family:'JetBrains Mono',monospace;font-size:.65rem">⚠ Mérkőzés #${i+1} hiba: ${e?.message||'ismeretlen hiba'}</span>`;
+    }
+  }
   btn.disabled=false;btn.innerHTML=GENBTN_HTML;
 }
 
@@ -991,15 +1109,61 @@ const GENBTN_HTML=`<svg viewBox="0 0 24 24" fill="none" style="width:15px;height
 
 function calcBestTip(btts,o15,o25,o35){const vals=[{k:'btts',v:Math.abs(btts-50),p:btts},{k:'over15',v:Math.abs(o15-50),p:o15},{k:'over25',v:Math.abs(o25-50),p:o25},{k:'over35',v:Math.abs(o35-50),p:o35}];const above50=vals.filter(x=>x.p>50).sort((a,b)=>b.v-a.v);if(above50.length)return above50[0].k;return vals.sort((a,b)=>b.v-a.v)[0].k;}
 
-async function generateOneTip(home,away,num,standingsCtx,played){
+/**
+ * Egy mérkőzés elemzése – conversation history figyelembevételével.
+ * @param {string} home
+ * @param {string} away
+ * @param {number} num
+ * @param {string} standingsCtx
+ * @param {number} played
+ * @param {Array}  conversationHistory – systemMessage + előző párok
+ * @returns {{ html: string, userPrompt: string, rawResponse: string }}
+ */
+async function generateOneTip(home,away,num,standingsCtx,played,conversationHistory=[]){
   const homeStats=getTeamStats(home),awayStats=getTeamStats(away);
   const probs=calcMatchProbs(homeStats,awayStats,played);
   const bttsProb=parseFloat(probs.btts),o15Prob=parseFloat(probs.over15),o25Prob=parseFloat(probs.over25),o35Prob=parseFloat(probs.over35);
   const homeRank=homeStats?.pos||'?',awayRank=awayStats?.pos||'?',homeForm=homeStats?.trend||'same',awayForm=awayStats?.trend||'same';
-  const prompt=`Te egy profi sportfogadási quant-elemző vagy, aki Premier Liga adatokból Poisson-modellel számol valószínűségeket.\n\n${standingsCtx}\n\n━━━ ELEMZENDŐ MÉRKŐZÉS ━━━\n${home} (hazai, ${homeRank}. hely, trend: ${homeForm}) vs ${away} (vendég, ${awayRank}. hely, trend: ${awayForm})\n\n━━━ POISSON xG MODELL EREDMÉNY ━━━\n- ${home} várható gólok (λ): ${probs.lambdaHome}\n- ${away} várható gólok (λ): ${probs.lambdaAway}\n- Várható összes gól: ${probs.expectedTotal}\n- BTTS valószínűség: ${probs.btts}%\n- Over 1.5 valószínűség: ${probs.over15}%\n- Over 2.5 valószínűség: ${probs.over25}%\n- Over 3.5 valószínűség: ${probs.over35}%\n\nVálaszolj CSAK valid JSON-nal:\n{"btts":{"pick":"${bttsProb>50?'Igen':'Nem'}","confidence":${Math.round(bttsProb)}},"over15":{"pick":${o15Prob>50},"confidence":${Math.round(o15Prob)}},"over25":{"pick":${o25Prob>50},"confidence":${Math.round(o25Prob)}},"over35":{"pick":${o35Prob>50},"confidence":${Math.round(o35Prob)}},"best_tip":"${calcBestTip(bttsProb,o15Prob,o25Prob,o35Prob)}","expected_home":${probs.lambdaHome},"expected_away":${probs.lambdaAway},"analysis":"3 mondatos MAGYAR elemzés konkrét számokkal"}`;
+
+  // Context summary az előző tippekről (ha van)
+  const prevTips = conversationHistory
+    .filter(m => m.role === 'user' && m.content.includes('ELEMZENDŐ MÉRKŐZÉS'))
+    .length;
+  const prevNote = prevTips > 0
+    ? `\n\n[Eddig ${prevTips} mérkőzést elemeztél ebben a sessionben – legyél konzisztens az előző tippjeiddel!]`
+    : '';
+
+  const userPrompt =
+    `━━━ ELEMZENDŐ MÉRKŐZÉS #${num} ━━━\n`+
+    `${home} (hazai, ${homeRank}. hely, trend: ${homeForm}) vs ${away} (vendég, ${awayRank}. hely, trend: ${awayForm})\n\n`+
+    `━━━ POISSON xG MODELL ━━━\n`+
+    `- ${home} λ: ${probs.lambdaHome}\n`+
+    `- ${away} λ: ${probs.lambdaAway}\n`+
+    `- Várható összes gól: ${probs.expectedTotal}\n`+
+    `- BTTS: ${probs.btts}%\n`+
+    `- Over 1.5: ${probs.over15}%\n`+
+    `- Over 2.5: ${probs.over25}%\n`+
+    `- Over 3.5: ${probs.over35}%`+
+    prevNote +
+    `\n\nVálaszolj CSAK valid JSON-nal:\n`+
+    `{"btts":{"pick":"${bttsProb>50?'Igen':'Nem'}","confidence":${Math.round(bttsProb)}},"over15":{"pick":${o15Prob>50},"confidence":${Math.round(o15Prob)}},"over25":{"pick":${o25Prob>50},"confidence":${Math.round(o25Prob)}},"over35":{"pick":${o35Prob>50},"confidence":${Math.round(o35Prob)}},"best_tip":"${calcBestTip(bttsProb,o15Prob,o25Prob,o35Prob)}","expected_home":${probs.lambdaHome},"expected_away":${probs.lambdaAway},"analysis":"3 mondatos MAGYAR elemzés konkrét számokkal, figyelembe véve a szezon kontextust"}`;
+
+  // ── Hívás a teljes history-val ──
+  const messages = [...conversationHistory, {role:'user', content: userPrompt}];
+
+  let rawResponse = '';
   let data;
-  try{const text=await callAI(prompt,0.3);const clean=text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();const start=clean.indexOf('{');if(start===-1)throw new Error('JSON parse hiba');data=JSON.parse(clean.slice(start));}
-  catch(e){data={btts:{pick:bttsProb>50?'Igen':'Nem',confidence:Math.round(bttsProb)},over15:{pick:o15Prob>50,confidence:Math.round(o15Prob)},over25:{pick:o25Prob>50,confidence:Math.round(o25Prob)},over35:{pick:o35Prob>50,confidence:Math.round(o35Prob)},best_tip:calcBestTip(bttsProb,o15Prob,o25Prob,o35Prob),expected_home:probs.lambdaHome,expected_away:probs.lambdaAway,analysis:`A Poisson-modell alapján: ${home} várható ${probs.lambdaHome} gól, ${away} ${probs.lambdaAway} gól.`};}
+  try{
+    rawResponse = await callAIWithMessages(messages, 0.3);
+    const clean=rawResponse.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    const start=clean.indexOf('{');
+    if(start===-1) throw new Error('JSON parse hiba');
+    data=JSON.parse(clean.slice(start));
+  } catch(e){
+    rawResponse = rawResponse || '{}';
+    data={btts:{pick:bttsProb>50?'Igen':'Nem',confidence:Math.round(bttsProb)},over15:{pick:o15Prob>50,confidence:Math.round(o15Prob)},over25:{pick:o25Prob>50,confidence:Math.round(o25Prob)},over35:{pick:o35Prob>50,confidence:Math.round(o35Prob)},best_tip:calcBestTip(bttsProb,o15Prob,o25Prob,o35Prob),expected_home:probs.lambdaHome,expected_away:probs.lambdaAway,analysis:`A Poisson-modell alapján: ${home} várható ${probs.lambdaHome} gól, ${away} ${probs.lambdaAway} gól.`};
+  }
+
   const safeConf=(aiConf,pv)=>{const diff=Math.abs(aiConf-pv);return diff>15?Math.round((aiConf+pv)/2):aiConf;};
   const bttsConf=safeConf(data.btts?.confidence||bttsProb,bttsProb);
   const o15Conf=safeConf(data.over15?.confidence||o15Prob,o15Prob);
@@ -1012,7 +1176,8 @@ async function generateOneTip(home,away,num,standingsCtx,played){
   const bestTip=data.best_tip||'over15';
   const xgH=data.expected_home||probs.lambdaHome,xgA=data.expected_away||probs.lambdaAway;
   const xgTot=(parseFloat(xgH)+parseFloat(xgA)).toFixed(2);
-  return `
+
+  const html = `
     <div class="tip-result-hdr">
       <span class="tip-match-idx">#${num}</span>
       <div class="tip-vs-label">
@@ -1051,6 +1216,8 @@ async function generateOneTip(home,away,num,standingsCtx,played){
     </div>
     ${data.analysis?`<div class="tip-analysis"><span class="tip-analysis-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" style="margin-right:4px"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="currentColor"/></svg>AI Elemzés</span><div class="tip-analysis-text">${data.analysis}</div></div>`:''}
   `;
+
+  return { html, userPrompt, rawResponse };
 }
 
 function buildCard2(code,name,val,conf,highlighted,poissonStat,delay){
