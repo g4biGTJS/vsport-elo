@@ -1,5 +1,5 @@
 // api/matches.js – Vercel Edge Function
-// Meccsek scrape-elése a sportradar season oldalról
+// Sportradar JSON API közvetlen lekérdezés (nem HTML scraping)
 
 export const config = { runtime: 'edge' };
 
@@ -7,11 +7,16 @@ const BASE_URL = 'https://s5.sir.sportradar.com/scigamingvirtuals/hu/1';
 const CATEGORY_URL = `${BASE_URL}/category/1111`;
 const LEAGUE_NAME = 'Virtuális Labdarúgás Liga Mód Retail';
 
+// Sportradar belső JSON API endpointok
+const FEED_BASE = 'https://s5.sir.sportradar.com/scigamingvirtuals/hu';
+const SEASON_FEED = (seasonId, feed) => `${FEED_BASE}/gismo/${feed}/${seasonId}`;
+
 const FETCH_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept': 'application/json, text/plain, */*',
   'Accept-Language': 'hu-HU,hu;q=0.9',
   'Referer': 'https://s5.sir.sportradar.com/',
+  'X-Requested-With': 'XMLHttpRequest',
 };
 
 const corsHeaders = {
@@ -21,7 +26,8 @@ const corsHeaders = {
 };
 
 // ─────────────────────────────────────────────────────────────
-// Season ID felderítés
+// Season ID felderítés – a page HTML-ből kinyerve
+// (a JSON-ban van: "currentseasonid":3061347)
 // ─────────────────────────────────────────────────────────────
 let currentSeasonId = '3061347';
 let lastCategoryCheck = 0;
@@ -31,14 +37,15 @@ async function findCurrentSeasonId() {
   const now = Date.now();
   if (now - lastCategoryCheck < CHECK_INTERVAL) return currentSeasonId;
   try {
-    const res = await fetch(CATEGORY_URL, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(8000) });
+    const res = await fetch(CATEGORY_URL, {
+      headers: { ...FETCH_HEADERS, Accept: 'text/html,*/*' },
+      signal: AbortSignal.timeout(8000),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
-    const linkRegex = new RegExp(
-      `<a\\s+class="list-group-item"\\s+href="[^"]*/season/(\\d+)"[^>]*>\\s*<span\\s+class="vertical-align-middle">\\s*${LEAGUE_NAME}\\s*<\\/span>`, 'i'
-    );
-    const match = html.match(linkRegex);
-    if (match?.[1]) currentSeasonId = match[1];
+    // A season ID a beágyazott JSON-ban van
+    const m = html.match(/"currentseasonid"\s*:\s*(\d+)/);
+    if (m?.[1]) currentSeasonId = m[1];
     lastCategoryCheck = now;
   } catch (e) {
     console.error('[SeasonCheck]', e.message);
@@ -48,164 +55,98 @@ async function findCurrentSeasonId() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// HTML Parser – confirmed against real sportradar HTML
-//
-// <tr class="cursor-pointer">
-//   <td><span>
-//     <div title="Virtuális...">VLLM</div>
-//     <div title="">8</div>   ← forduló
-//   </span></td>
-//   <td class="divide text-center">
-//     <div class="row flex-items-xs-middle">
-//       <div class="col-xs-4">   ← HAZAI csapat
-//         <div class="hidden-xs-up visible-sm-up wrap">Wolverhampton</div>
-//         <img src=".../medium/276514.png">
-//       </div>
-//       <div class="col-xs-4">   ← IDŐ + EREDMÉNY
-//         <div class="text-center">14:21</div>
-//         <div aria-label="Eredm.">
-//           upcoming:   >-<sup></sup>  :  >-<sup></sup>
-//           played:     >2<sup></sup>  :  >1<sup></sup>  (RJ)
-//         </div>
-//       </div>
-//       <div class="col-xs-4">   ← VENDÉG csapat
-//         <img src=".../medium/276501.png">
-//         <div class="hidden-xs-up visible-sm-up wrap">Everton</div>
-//       </div>
-//     </div>
-//   </td>
-// </tr>
+// JSON feed lekérése
 // ─────────────────────────────────────────────────────────────
-
-function parseMatches(html) {
-  const upcoming = [];
-  const results = [];
-  const seen = new Set();
-  function key(a, b) { return [a, b].sort().join('|||'); }
-
-  // Split a cursor-pointer TR-ekre
-  const parts = html.split('<tr class="cursor-pointer">');
-  console.log(`[parser] cursor-pointer TR parts: ${parts.length - 1}`);
-
-  for (let i = 1; i < parts.length; i++) {
-    const chunk = parts[i].split('</tr>')[0];
-    if (!chunk.includes('VLLM')) continue;
-
-    // ── Forduló szám ──
-    let round = null;
-    const r1 = chunk.match(/VLLM<\/div>\s*<div[^>]*>(\d+)<\/div>/);
-    if (r1) round = parseInt(r1[1]);
-    if (!round) {
-      const r2 = chunk.match(/VLLM[\s\S]{0,80}>(\d{1,3})<\/div>/);
-      if (r2) round = parseInt(r2[1]);
-    }
-    if (!round || round < 1 || round > 9999) continue;
-
-    // ── Csapatnevek (teljes név) ──
-    const nameMatches = [...chunk.matchAll(/class="hidden-xs-up visible-sm-up wrap">\s*([^<]{2,60})\s*<\/div>/g)];
-    if (nameMatches.length < 2) continue;
-    const home = nameMatches[0][1].trim();
-    const away = nameMatches[1][1].trim();
-    if (!home || !away || home === away) continue;
-
-    // ── Logo ID-k (első = hazai, második = vendég) ──
-    const allLogoMatches = [...chunk.matchAll(/\/medium\/(\d{4,7})\.png/g)];
-    const logoIds = [];
-    const seenIds = new Set();
-    for (const m of allLogoMatches) {
-      if (!seenIds.has(m[1])) { seenIds.add(m[1]); logoIds.push(m[1]); }
-    }
-
-    // ── Idő ──
-    const timeM = chunk.match(/<div class="text-center">(\d{1,2}:\d{2})<\/div>/);
-    const time = timeM ? timeM[1] : null;
-
-    // ── Upcoming vs Lejátszott ──
-    const eredmIdx = chunk.indexOf('aria-label="Eredm."');
-    let isUpcoming = true;
-    let hs = null, as = null;
-
-    if (eredmIdx >= 0) {
-      const scoreChunk = chunk.slice(eredmIdx, eredmIdx + 400);
-      const nums = [...scoreChunk.matchAll(/>(\d+)<sup/g)].map(m => parseInt(m[1]));
-      if (nums.length >= 2) {
-        hs = nums[0];
-        as = nums[1];
-        isUpcoming = false;
-      }
-    }
-
-    const k = key(home, away);
-    if (seen.has(k)) continue;
-    seen.add(k);
-
-    const entry = { round, home, away, hid: logoIds[0] || null, aid: logoIds[1] || null, time };
-    if (isUpcoming) {
-      upcoming.push({ ...entry, upcoming: true });
-    } else {
-      results.push({ ...entry, upcoming: false, hs, as });
-    }
-  }
-
-  // Fallback ha cursor-pointer split nem működött
-  if (upcoming.length === 0 && results.length === 0 && html.includes('VLLM')) {
-    console.log('[parser] cursor-pointer split yielded 0, trying generic <tr split');
-    return parseMatchesFallback(html);
-  }
-
-  return { upcoming, results };
+async function fetchFeed(seasonId, feedName) {
+  const url = SEASON_FEED(seasonId, feedName);
+  console.log(`[feed] GET ${url}`);
+  const res = await fetch(url, {
+    headers: FETCH_HEADERS,
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) throw new Error(`${feedName} HTTP ${res.status}`);
+  return res.json();
 }
 
-function parseMatchesFallback(html) {
-  const upcoming = [], results = [];
-  const seen = new Set();
-  function key(a, b) { return [a, b].sort().join('|||'); }
+// ─────────────────────────────────────────────────────────────
+// Alternatív: beágyazott JSON kinyerése a season page-ből
+// ─────────────────────────────────────────────────────────────
+async function extractEmbeddedData(seasonId) {
+  const url = `${BASE_URL}/season/${seasonId}`;
+  const res = await fetch(url, {
+    headers: { ...FETCH_HEADERS, Accept: 'text/html,*/*' },
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!res.ok) throw new Error(`Season page HTTP ${res.status}`);
+  const html = await res.text();
 
-  const parts = html.split(/<tr[\s>]/i);
-  for (let i = 1; i < parts.length; i++) {
-    const chunk = parts[i].split(/<\/tr>/i)[0];
-    if (!chunk.includes('VLLM')) continue;
+  // A fetchedData objektum a window.__INITIAL_STATE__ vagy hasonló változóban van
+  // Próbáljuk kinyerni a stats_season_fixtures és stats_season_results adatokat
+  const fixtures = extractFeedFromHtml(html, 'stats_season_fixtures');
+  const results  = extractFeedFromHtml(html, 'stats_season_results');
 
-    const r = chunk.match(/VLLM[\s\S]{0,100}>(\d{1,3})<\/div>/);
-    if (!r) continue;
-    const round = parseInt(r[1]);
-    if (!round || round < 1 || round > 9999) continue;
+  return { fixtures, results, htmlLength: html.length };
+}
 
-    const nameMatches = [...chunk.matchAll(/class="hidden-xs-up visible-sm-up wrap">\s*([^<]{2,60})\s*<\/div>/g)];
-    if (nameMatches.length < 2) continue;
-    const home = nameMatches[0][1].trim();
-    const away = nameMatches[1][1].trim();
-    if (!home || !away || home === away) continue;
-
-    const allLogoMatches = [...chunk.matchAll(/\/medium\/(\d{4,7})\.png/g)];
-    const logoIds = [];
-    const seenIds = new Set();
-    for (const m of allLogoMatches) {
-      if (!seenIds.has(m[1])) { seenIds.add(m[1]); logoIds.push(m[1]); }
+function extractFeedFromHtml(html, feedKey) {
+  // Keresés: "stats_season_fixtures/3061347":{"event":...,"data":{...}}
+  const idx = html.indexOf(`"${feedKey}/`);
+  if (idx < 0) return null;
+  // Találjuk meg a data: { ... } blokkot
+  const dataIdx = html.indexOf('"data":', idx);
+  if (dataIdx < 0) return null;
+  // Brace matching a JSON objektum kinyeréséhez
+  const start = html.indexOf('{', dataIdx + 7);
+  if (start < 0) return null;
+  let depth = 0;
+  let end = start;
+  for (let i = start; i < Math.min(start + 500000, html.length); i++) {
+    if (html[i] === '{') depth++;
+    else if (html[i] === '}') {
+      depth--;
+      if (depth === 0) { end = i; break; }
     }
-
-    const timeM = chunk.match(/<div class="text-center">(\d{1,2}:\d{2})<\/div>/);
-    const time = timeM ? timeM[1] : null;
-
-    const eredmIdx = chunk.indexOf('aria-label="Eredm."');
-    let isUpcoming = true;
-    let hs = null, as = null;
-    if (eredmIdx >= 0) {
-      const scoreChunk = chunk.slice(eredmIdx, eredmIdx + 400);
-      const nums = [...scoreChunk.matchAll(/>(\d+)<sup/g)].map(m => parseInt(m[1]));
-      if (nums.length >= 2) { hs = nums[0]; as = nums[1]; isUpcoming = false; }
-    }
-
-    const k = key(home, away);
-    if (seen.has(k)) continue;
-    seen.add(k);
-
-    const entry = { round, home, away, hid: logoIds[0]||null, aid: logoIds[1]||null, time };
-    if (isUpcoming) upcoming.push({ ...entry, upcoming: true });
-    else results.push({ ...entry, upcoming: false, hs, as });
   }
+  try {
+    return JSON.parse(html.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
 
-  return { upcoming, results };
+// ─────────────────────────────────────────────────────────────
+// Match parser – sportradar fixtures JSON struktúrából
+// ─────────────────────────────────────────────────────────────
+function parseFixtures(data) {
+  // data.fixtures vagy data.matches tömbben vannak a mérkőzések
+  const matches = data?.fixtures || data?.matches || data?.matchlist || [];
+  return matches.map(m => ({
+    round: m._round ?? m.round ?? null,
+    home: m.homeTeam?.name ?? m.hometeam?.name ?? m.home?.name ?? null,
+    away: m.awayTeam?.name ?? m.awayteam?.name ?? m.away?.name ?? null,
+    hid: String(m.homeTeam?.uid ?? m.hometeam?.uid ?? m.home?.uid ?? ''),
+    aid: String(m.awayTeam?.uid ?? m.awayteam?.uid ?? m.away?.uid ?? ''),
+    time: m.time?.time ?? m.matchtime ?? null,
+    upcoming: true,
+  })).filter(m => m.home && m.away);
+}
+
+function parseResults(data) {
+  const matches = data?.results || data?.matches || data?.matchlist || [];
+  return matches.map(m => {
+    const hs = m.result?.home ?? m.homeScore ?? m.hs ?? null;
+    const as = m.result?.away ?? m.awayScore ?? m.as ?? null;
+    return {
+      round: m._round ?? m.round ?? null,
+      home: m.homeTeam?.name ?? m.hometeam?.name ?? m.home?.name ?? null,
+      away: m.awayTeam?.name ?? m.awayteam?.name ?? m.away?.name ?? null,
+      hid: String(m.homeTeam?.uid ?? m.hometeam?.uid ?? m.home?.uid ?? ''),
+      aid: String(m.awayTeam?.uid ?? m.awayteam?.uid ?? m.away?.uid ?? ''),
+      time: m.time?.time ?? m.matchtime ?? null,
+      upcoming: false,
+      hs, as,
+    };
+  }).filter(m => m.home && m.away);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -225,39 +166,52 @@ export default async function handler(req) {
 
   try {
     const seasonId = await findCurrentSeasonId();
-    const seasonUrl = `${BASE_URL}/season/${seasonId}`;
-    console.log(`[matches] Fetching: ${seasonUrl}`);
+    console.log(`[matches] seasonId: ${seasonId}`);
 
-    const res = await fetch(seasonUrl, {
-      headers: FETCH_HEADERS,
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-    const html = await res.text();
-    const hasCursorPointer = html.includes('cursor-pointer');
-    const hasVLLM = html.includes('VLLM');
-    const trCount = (html.match(/<tr/gi) || []).length;
-    const cpCount = (html.match(/<tr class="cursor-pointer">/g) || []).length;
-
-    console.log(`[matches] HTML ${html.length}ch | VLLM:${hasVLLM} | cursor-pointer:${hasCursorPointer} (${cpCount}x) | TR:${trCount}`);
-
-    // ?raw=1 → nyers HTML snippet diagnózis
+    // ?raw=1 → debug: mutasd meg mit tartalmaz a beágyazott JSON
     if (raw) {
-      const vllmIdx = html.indexOf('VLLM');
-      const snippet = vllmIdx >= 0
-        ? html.slice(Math.max(0, vllmIdx - 300), vllmIdx + 5000)
-        : html.slice(0, 5000);
+      const embedded = await extractEmbeddedData(seasonId);
       return new Response(
-        JSON.stringify({ seasonId, htmlLength: html.length, hasVLLM, hasCursorPointer, cpCount, trCount, snippet }),
+        JSON.stringify({
+          seasonId,
+          htmlLength: embedded.htmlLength,
+          hasFixtures: !!embedded.fixtures,
+          hasResults: !!embedded.results,
+          fixturesSample: JSON.stringify(embedded.fixtures)?.slice(0, 2000),
+          resultsSample:  JSON.stringify(embedded.results)?.slice(0, 2000),
+        }),
         { status: 200, headers: corsHeaders }
       );
     }
 
-    if (!hasVLLM) throw new Error(`VLLM nem található a HTML-ben (${html.length} chars)`);
+    // Stratégia 1: Közvetlen gismo API hívás
+    let upcoming = [], results = [];
+    let strategy = 'unknown';
 
-    const { upcoming, results } = parseMatches(html);
-    console.log(`[matches] parsed: upcoming=${upcoming.length} results=${results.length}`);
+    try {
+      const [fixturesJson, resultsJson] = await Promise.all([
+        fetchFeed(seasonId, 'stats_season_fixtures'),
+        fetchFeed(seasonId, 'stats_season_results'),
+      ]);
+      upcoming = parseFixtures(fixturesJson?.data ?? fixturesJson);
+      results  = parseResults(resultsJson?.data ?? resultsJson);
+      strategy = 'gismo-api';
+      console.log(`[matches] gismo API: upcoming=${upcoming.length} results=${results.length}`);
+    } catch (apiErr) {
+      console.warn(`[matches] gismo API failed: ${apiErr.message}, trying embedded JSON`);
+
+      // Stratégia 2: Beágyazott JSON kinyerése a page-ből
+      try {
+        const embedded = await extractEmbeddedData(seasonId);
+        if (embedded.fixtures) upcoming = parseFixtures(embedded.fixtures);
+        if (embedded.results)  results  = parseResults(embedded.results);
+        strategy = 'embedded-json';
+        console.log(`[matches] embedded JSON: upcoming=${upcoming.length} results=${results.length}`);
+      } catch (embedErr) {
+        console.error(`[matches] embedded JSON failed: ${embedErr.message}`);
+        throw new Error(`Minden stratégia meghiúsult: ${apiErr.message} | ${embedErr.message}`);
+      }
+    }
 
     const upRounds = [...new Set(upcoming.map(m => m.round))].sort((a, b) => a - b);
     const nextRound = upRounds[0] ?? null;
@@ -273,7 +227,8 @@ export default async function handler(req) {
       recentResults,
       lastRound,
       seasonId,
-      source: 'sportradar-scrape',
+      strategy,
+      source: 'sportradar-json',
       totalUpcoming: upcoming.length,
       totalResults: results.length,
     };
@@ -281,17 +236,12 @@ export default async function handler(req) {
     if (debug) {
       payload.allUpcoming = upcoming;
       payload.allResults = results.slice(0, 30);
-      payload.htmlStats = { length: html.length, hasVLLM, hasCursorPointer, cpCount, trCount };
-      const vllmIdx = html.indexOf('VLLM');
-      if (vllmIdx >= 0) {
-        payload.vllmSnippet = html.slice(Math.max(0, vllmIdx - 200), vllmIdx + 4000);
-      }
     }
 
     return new Response(JSON.stringify(payload), { status: 200, headers: corsHeaders });
 
   } catch (error) {
-    console.error('[matches] Error:', error.message);
+    console.error('[matches] Fatal error:', error.message);
     return new Response(
       JSON.stringify({
         nextFixtures: [],
