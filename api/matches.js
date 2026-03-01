@@ -48,32 +48,35 @@ async function findCurrentSeasonId() {
 }
 
 // ─────────────────────────────────────────────────────────────
-// HTML Parser
-// A sportradar season oldal struktúrája (a user által megadott HTML alapján):
-//   <tr class="cursor-pointer">
-//     <td class="text-center">
-//       <span><div title="Virtuális...">VLLM</div><div title="">6</div></span>
-//     </td>
-//     <td class="divide text-center">
-//       <div class="row">
-//         <div class="col-xs-4"> ← HAZAI
-//           <div class="hidden-xs-up visible-sm-up wrap">Liverpool</div>
-//           <img src=".../medium/276507.png">
-//         </div>
-//         <div class="col-xs-4"> ← IDŐK/EREDMÉNY
-//           <div class="text-center">14:06</div>
-//           <div class="text-center"><div aria-label="Eredm.">
-//             <div class="inline-block">-<sup></sup></div> : <div class="inline-block">-<sup></sup></div>
-//           </div></div>
-//         </div>
-//         <div class="col-xs-4"> ← VENDÉG
-//           <img src=".../medium/276501.png">
-//           <div class="hidden-xs-up visible-sm-up wrap">Everton</div>
+// HTML Parser – confirmed against real sportradar HTML
+//
+// <tr class="cursor-pointer">
+//   <td><span>
+//     <div title="Virtuális...">VLLM</div>
+//     <div title="">8</div>   ← forduló
+//   </span></td>
+//   <td class="divide text-center">
+//     <div class="row flex-items-xs-middle">
+//       <div class="col-xs-4">   ← HAZAI csapat
+//         <div class="hidden-xs-up visible-sm-up wrap">Wolverhampton</div>
+//         <img src=".../medium/276514.png">
+//       </div>
+//       <div class="col-xs-4">   ← IDŐ + EREDMÉNY
+//         <div class="text-center">14:21</div>
+//         <div aria-label="Eredm.">
+//           upcoming:   >-<sup></sup>  :  >-<sup></sup>
+//           played:     >2<sup></sup>  :  >1<sup></sup>  (RJ)
 //         </div>
 //       </div>
-//     </td>
-//   </tr>
+//       <div class="col-xs-4">   ← VENDÉG csapat
+//         <img src=".../medium/276501.png">
+//         <div class="hidden-xs-up visible-sm-up wrap">Everton</div>
+//       </div>
+//     </div>
+//   </td>
+// </tr>
 // ─────────────────────────────────────────────────────────────
+
 function parseMatches(html) {
   const upcoming = [];
   const results = [];
@@ -81,75 +84,62 @@ function parseMatches(html) {
   function key(a, b) { return [a, b].sort().join('|||'); }
 
   // Split a cursor-pointer TR-ekre
-  // A split karakter: '<tr class="cursor-pointer">'
   const parts = html.split('<tr class="cursor-pointer">');
+  console.log(`[parser] cursor-pointer TR parts: ${parts.length - 1}`);
 
   for (let i = 1; i < parts.length; i++) {
     const chunk = parts[i].split('</tr>')[0];
     if (!chunk.includes('VLLM')) continue;
 
     // ── Forduló szám ──
-    // <div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">6</div>
     let round = null;
     const r1 = chunk.match(/VLLM<\/div>\s*<div[^>]*>(\d+)<\/div>/);
     if (r1) round = parseInt(r1[1]);
     if (!round) {
-      // Tágabb keresés
-      const r2 = chunk.match(/VLLM[\s\S]{0,50}<div[^>]*>(\d+)<\/div>/);
+      const r2 = chunk.match(/VLLM[\s\S]{0,80}>(\d{1,3})<\/div>/);
       if (r2) round = parseInt(r2[1]);
     }
     if (!round || round < 1 || round > 9999) continue;
 
-    // ── Csapatnevek ──
-    // "hidden-xs-up visible-sm-up wrap" div → teljes csapatnév
-    const nameMatches = [...chunk.matchAll(/class="hidden-xs-up visible-sm-up wrap">\s*([^<]{2,50})\s*<\/div>/g)];
+    // ── Csapatnevek (teljes név) ──
+    const nameMatches = [...chunk.matchAll(/class="hidden-xs-up visible-sm-up wrap">\s*([^<]{2,60})\s*<\/div>/g)];
     if (nameMatches.length < 2) continue;
     const home = nameMatches[0][1].trim();
     const away = nameMatches[1][1].trim();
-    if (!home || !away) continue;
+    if (!home || !away || home === away) continue;
 
-    // ── Logo ID-k ──
-    const logoIds = [...new Set([...chunk.matchAll(/\/medium\/(\d{5,7})\.png/g)].map(m => m[1]))];
+    // ── Logo ID-k (első = hazai, második = vendég) ──
+    const allLogoMatches = [...chunk.matchAll(/\/medium\/(\d{4,7})\.png/g)];
+    const logoIds = [];
+    const seenIds = new Set();
+    for (const m of allLogoMatches) {
+      if (!seenIds.has(m[1])) { seenIds.add(m[1]); logoIds.push(m[1]); }
+    }
 
     // ── Idő ──
     const timeM = chunk.match(/<div class="text-center">(\d{1,2}:\d{2})<\/div>/);
     const time = timeM ? timeM[1] : null;
 
     // ── Upcoming vs Lejátszott ──
-    // Upcoming: a score részben nincs szám, csak "-" jelek
-    // Lejátszott: konkrét számok vannak a score részben
-    //
-    // A score blokk: aria-label="Eredm." div
-    // Upcoming:   >-<sup></sup></div> ... >-<sup></sup>
-    // Lejátszott: >2<sup></sup></div> ... >1<sup></sup>
-    const scoreBlock = chunk.match(/aria-label="Eredm\."([\s\S]{0,600}?)(?=<\/div>\s*<\/div>\s*<\/div>)/);
-
-    let isUpcoming = false;
+    const eredmIdx = chunk.indexOf('aria-label="Eredm."');
+    let isUpcoming = true;
     let hs = null, as = null;
 
-    if (scoreBlock) {
-      const sb = scoreBlock[1];
-      // Számok keresése a sup-ok előtt
-      const nums = [...sb.matchAll(/>(\d+)<sup>/g)].map(m => parseInt(m[1]));
+    if (eredmIdx >= 0) {
+      const scoreChunk = chunk.slice(eredmIdx, eredmIdx + 400);
+      const nums = [...scoreChunk.matchAll(/>(\d+)<sup/g)].map(m => parseInt(m[1]));
       if (nums.length >= 2) {
         hs = nums[0];
         as = nums[1];
         isUpcoming = false;
-      } else {
-        // Nincs szám → upcoming
-        isUpcoming = true;
       }
-    } else {
-      // Ha nincs scoreBlock → upcoming
-      isUpcoming = true;
     }
 
     const k = key(home, away);
     if (seen.has(k)) continue;
     seen.add(k);
 
-    const entry = { round, home, away, hid: logoIds[0]||null, aid: logoIds[1]||null, time };
-
+    const entry = { round, home, away, hid: logoIds[0] || null, aid: logoIds[1] || null, time };
     if (isUpcoming) {
       upcoming.push({ ...entry, upcoming: true });
     } else {
@@ -157,9 +147,9 @@ function parseMatches(html) {
     }
   }
 
-  // ── Fallback: ha a cursor-pointer split nem működött ──
+  // Fallback ha cursor-pointer split nem működött
   if (upcoming.length === 0 && results.length === 0 && html.includes('VLLM')) {
-    console.log('[parser] cursor-pointer split yielded 0, trying generic TR split');
+    console.log('[parser] cursor-pointer split yielded 0, trying generic <tr split');
     return parseMatchesFallback(html);
   }
 
@@ -171,28 +161,40 @@ function parseMatchesFallback(html) {
   const seen = new Set();
   function key(a, b) { return [a, b].sort().join('|||'); }
 
-  // Minden TR-t megpróbálunk, nem csak cursor-pointer
   const parts = html.split(/<tr[\s>]/i);
   for (let i = 1; i < parts.length; i++) {
     const chunk = parts[i].split(/<\/tr>/i)[0];
     if (!chunk.includes('VLLM')) continue;
 
-    const r = chunk.match(/VLLM[\s\S]{0,100}>(\d+)<\/div>/);
+    const r = chunk.match(/VLLM[\s\S]{0,100}>(\d{1,3})<\/div>/);
     if (!r) continue;
     const round = parseInt(r[1]);
     if (!round || round < 1 || round > 9999) continue;
 
-    const nameMatches = [...chunk.matchAll(/class="hidden-xs-up visible-sm-up wrap">\s*([^<]{2,50})\s*<\/div>/g)];
+    const nameMatches = [...chunk.matchAll(/class="hidden-xs-up visible-sm-up wrap">\s*([^<]{2,60})\s*<\/div>/g)];
     if (nameMatches.length < 2) continue;
     const home = nameMatches[0][1].trim();
     const away = nameMatches[1][1].trim();
+    if (!home || !away || home === away) continue;
 
-    const logoIds = [...new Set([...chunk.matchAll(/\/medium\/(\d{5,7})\.png/g)].map(m => m[1]))];
+    const allLogoMatches = [...chunk.matchAll(/\/medium\/(\d{4,7})\.png/g)];
+    const logoIds = [];
+    const seenIds = new Set();
+    for (const m of allLogoMatches) {
+      if (!seenIds.has(m[1])) { seenIds.add(m[1]); logoIds.push(m[1]); }
+    }
+
     const timeM = chunk.match(/<div class="text-center">(\d{1,2}:\d{2})<\/div>/);
     const time = timeM ? timeM[1] : null;
 
-    const nums = [...chunk.matchAll(/>(\d+)<sup>/g)].map(m => parseInt(m[1]));
-    const isUpcoming = nums.length < 2;
+    const eredmIdx = chunk.indexOf('aria-label="Eredm."');
+    let isUpcoming = true;
+    let hs = null, as = null;
+    if (eredmIdx >= 0) {
+      const scoreChunk = chunk.slice(eredmIdx, eredmIdx + 400);
+      const nums = [...scoreChunk.matchAll(/>(\d+)<sup/g)].map(m => parseInt(m[1]));
+      if (nums.length >= 2) { hs = nums[0]; as = nums[1]; isUpcoming = false; }
+    }
 
     const k = key(home, away);
     if (seen.has(k)) continue;
@@ -200,7 +202,7 @@ function parseMatchesFallback(html) {
 
     const entry = { round, home, away, hid: logoIds[0]||null, aid: logoIds[1]||null, time };
     if (isUpcoming) upcoming.push({ ...entry, upcoming: true });
-    else results.push({ ...entry, upcoming: false, hs: nums[0], as: nums[1] });
+    else results.push({ ...entry, upcoming: false, hs, as });
   }
 
   return { upcoming, results };
@@ -211,7 +213,10 @@ function parseMatchesFallback(html) {
 // ─────────────────────────────────────────────────────────────
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'GET, OPTIONS' } });
+    return new Response(null, {
+      status: 204,
+      headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'GET, OPTIONS' },
+    });
   }
 
   const { searchParams } = new URL(req.url);
@@ -223,44 +228,50 @@ export default async function handler(req) {
     const seasonUrl = `${BASE_URL}/season/${seasonId}`;
     console.log(`[matches] Fetching: ${seasonUrl}`);
 
-    const res = await fetch(seasonUrl, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(12000) });
+    const res = await fetch(seasonUrl, {
+      headers: FETCH_HEADERS,
+      signal: AbortSignal.timeout(12000),
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const html = await res.text();
     const hasCursorPointer = html.includes('cursor-pointer');
     const hasVLLM = html.includes('VLLM');
     const trCount = (html.match(/<tr/gi) || []).length;
+    const cpCount = (html.match(/<tr class="cursor-pointer">/g) || []).length;
 
-    console.log(`[matches] HTML ${html.length}ch, VLLM:${hasVLLM}, cursor-pointer:${hasCursorPointer}, TR:${trCount}`);
+    console.log(`[matches] HTML ${html.length}ch | VLLM:${hasVLLM} | cursor-pointer:${hasCursorPointer} (${cpCount}x) | TR:${trCount}`);
 
-    // ?raw=1 → nyers diagnózis
+    // ?raw=1 → nyers HTML snippet diagnózis
     if (raw) {
       const vllmIdx = html.indexOf('VLLM');
       const snippet = vllmIdx >= 0
-        ? html.slice(Math.max(0, vllmIdx - 300), vllmIdx + 4000)
-        : html.slice(0, 4000);
+        ? html.slice(Math.max(0, vllmIdx - 300), vllmIdx + 5000)
+        : html.slice(0, 5000);
       return new Response(
-        JSON.stringify({ seasonId, htmlLength: html.length, hasVLLM, hasCursorPointer, trCount, snippet }),
+        JSON.stringify({ seasonId, htmlLength: html.length, hasVLLM, hasCursorPointer, cpCount, trCount, snippet }),
         { status: 200, headers: corsHeaders }
       );
     }
 
-    if (!hasVLLM) throw new Error(`VLLM nem található (${html.length} chars)`);
+    if (!hasVLLM) throw new Error(`VLLM nem található a HTML-ben (${html.length} chars)`);
 
     const { upcoming, results } = parseMatches(html);
-    console.log(`[matches] upcoming:${upcoming.length} results:${results.length}`);
+    console.log(`[matches] parsed: upcoming=${upcoming.length} results=${results.length}`);
 
     const upRounds = [...new Set(upcoming.map(m => m.round))].sort((a, b) => a - b);
     const nextRound = upRounds[0] ?? null;
     const nextFixtures = upcoming.filter(m => m.round === nextRound);
+
     const doneRounds = [...new Set(results.map(m => m.round))].sort((a, b) => b - a);
+    const lastRound = doneRounds[0] ?? null;
     const recentResults = results.filter(m => doneRounds.slice(0, 3).includes(m.round));
 
     const payload = {
       nextFixtures,
       nextRound,
       recentResults,
-      lastRound: doneRounds[0] ?? null,
+      lastRound,
       seasonId,
       source: 'sportradar-scrape',
       totalUpcoming: upcoming.length,
@@ -269,10 +280,12 @@ export default async function handler(req) {
 
     if (debug) {
       payload.allUpcoming = upcoming;
-      payload.allResults = results.slice(0, 20);
-      payload.htmlStats = { length: html.length, hasVLLM, hasCursorPointer, trCount };
+      payload.allResults = results.slice(0, 30);
+      payload.htmlStats = { length: html.length, hasVLLM, hasCursorPointer, cpCount, trCount };
       const vllmIdx = html.indexOf('VLLM');
-      if (vllmIdx >= 0) payload.vllmSnippet = html.slice(Math.max(0, vllmIdx - 200), vllmIdx + 3000);
+      if (vllmIdx >= 0) {
+        payload.vllmSnippet = html.slice(Math.max(0, vllmIdx - 200), vllmIdx + 4000);
+      }
     }
 
     return new Response(JSON.stringify(payload), { status: 200, headers: corsHeaders });
@@ -280,7 +293,14 @@ export default async function handler(req) {
   } catch (error) {
     console.error('[matches] Error:', error.message);
     return new Response(
-      JSON.stringify({ nextFixtures: [], nextRound: null, recentResults: [], lastRound: null, error: error.message }),
+      JSON.stringify({
+        nextFixtures: [],
+        nextRound: null,
+        recentResults: [],
+        lastRound: null,
+        error: error.message,
+        seasonId: currentSeasonId,
+      }),
       { status: 200, headers: corsHeaders }
     );
   }
