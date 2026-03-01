@@ -98,7 +98,6 @@
     .matches-header-bar{background:linear-gradient(90deg,rgba(0,50,25,0.9) 0%,rgba(0,80,40,0.6) 50%,rgba(0,50,25,0.3) 100%);display:grid;grid-template-columns:40px 60px 1fr 40px 1fr;align-items:center;padding:8px 12px;gap:4px;border-bottom:1px solid rgba(0,230,118,0.12);position:relative;}
     .matches-header-bar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,230,118,0.4),transparent);}
     .matches-header-bar span{font-family:'JetBrains Mono',monospace;font-size:.52rem;font-weight:700;color:rgba(0,230,118,0.65);text-transform:uppercase;letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .matches-header-bar .h-right{text-align:right;}
 
     .lb-meta{background:rgba(0,0,0,0.4);border-bottom:1px solid var(--border);padding:4px 12px;font-size:.56rem;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center;font-family:'JetBrains Mono',monospace;}
     .refresh-dot{width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px;animation:corePulse 2s infinite;}
@@ -163,8 +162,6 @@
     .error-box.show{display:flex;align-items:center;gap:8px;}
 
     .footer-line{position:fixed;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(0,230,118,0.2) 20%,rgba(0,230,118,0.6) 50%,rgba(0,230,118,0.2) 80%,transparent 100%);z-index:50;}
-
-    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   </style>
 </head>
 <body>
@@ -205,11 +202,11 @@
   <div class="tabs">
     <button class="tab active" id="realTab" onclick="showTab('real')">
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7 16l4-4 4 4 4-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Tabella
+      Valós Tabella
     </button>
     <button class="tab" id="aiTab" onclick="showTab('ai')">
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-      AI Tippek
+      AI Tabella
     </button>
     <button class="tab" id="matchesTab" onclick="showTab('matches')">
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none"><path d="M4 5h16v14H4V5z" stroke="currentColor" stroke-width="1.5"/><path d="M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.5"/><path d="M4 10h16" stroke="currentColor" stroke-width="1.5"/></svg>
@@ -217,7 +214,7 @@
     </button>
   </div>
 
-  <!-- TABELLA -->
+  <!-- VALÓS TABELLA -->
   <div id="realContainer">
     <div class="section-hdr">
       <div class="section-title">
@@ -245,17 +242,17 @@
     </div>
   </div>
 
-  <!-- AI TIPPEK -->
+  <!-- AI TABELLA -->
   <div id="aiContainer" style="display:none">
     <div class="section-hdr">
       <div class="section-title">
         <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="currentColor" stroke="currentColor" stroke-width="0.5"/></svg>
-        AI Tippek
+        AI Előrejelzés
         <span class="ai-badge-pill">LLM7</span>
       </div>
       <button class="btn" id="generateAIBtn">
         <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-        Tippek Generálása
+        Generálás
       </button>
     </div>
     <div class="season-notice" id="seasonNotice" style="display:none">
@@ -268,12 +265,12 @@
         <span class="h-right">Lőtt–Kapott</span><span class="h-right">GD</span><span class="h-right">Pont</span>
       </div>
       <div class="lb-meta" id="aiMeta">
-        <span><span class="refresh-dot"></span>AI előrejelzés</span>
+        <span><span class="refresh-dot"></span>AI becslés</span>
         <span id="aiUpdateTime">–</span>
       </div>
       <div class="leaderboard-body" id="aiTable">
         <div style="padding:36px;text-align:center;color:var(--text-muted);font-size:.7rem;font-family:'JetBrains Mono',monospace;line-height:2.2">
-          Kattints a "Tippek Generálása" gombra<br>
+          Kattints a "Generálás" gombra<br>
           <span style="color:#0e1e28;font-size:.58rem">Az AI elemzi a valós adatokat és előrejelzést készít</span>
         </div>
       </div>
@@ -281,7 +278,7 @@
     <div class="aipanel" id="aiPanel" style="display:none">
       <div class="aipanel-hdr">
         <svg style="width:16px;height:16px" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="aipanel-title">AI Elemzés & Tippek</span>
+        <span class="aipanel-title">AI Elemzés</span>
         <span class="ai-badge-pill" style="margin-left:auto">llm7.io</span>
       </div>
       <div class="aibody" id="aiBody"></div>
@@ -362,17 +359,29 @@ async function fetchRealStandings() {
 }
 
 async function fetchNextMatches() {
-  const res = await fetch('/api/standings?type=matches&liga=pl');
-  if (!res.ok) throw new Error(`API hiba: ${res.status}`);
-  const data = await res.json();
-  
-  // Ha a backend visszaadta a szezon ID-t, tároljuk el
-  if (data.seasonId) {
-    currentSeasonId = data.seasonId;
-    updateSeasonBadges(currentSeasonId);
+  try {
+    const res = await fetch('/api/standings?type=matches&liga=pl');
+    if (!res.ok) throw new Error(`API hiba: ${res.status}`);
+    const data = await res.json();
+    
+    // Ha a backend visszaadta a szezon ID-t, tároljuk el
+    if (data.seasonId) {
+      currentSeasonId = data.seasonId;
+      updateSeasonBadges(currentSeasonId);
+    }
+    
+    return data.matches || [];
+  } catch (e) {
+    console.warn('Nem sikerült betölteni a meccseket, mintaadatok használata:', e);
+    // Fallback mintaadatok
+    return [
+      { round: 18, time: "12:16", homeTeam: "Brighton", awayTeam: "Chelsea", homeLogo: null, awayLogo: null },
+      { round: 18, time: "12:16", homeTeam: "Crystal Palace", awayTeam: "Liverpool", homeLogo: null, awayLogo: null },
+      { round: 18, time: "12:16", homeTeam: "Aston Oroszlán", awayTeam: "Newcastle", homeLogo: null, awayLogo: null },
+      { round: 18, time: "12:16", homeTeam: "Wolverhampton", awayTeam: "Fulham", homeLogo: null, awayLogo: null },
+      { round: 18, time: "12:16", homeTeam: "Nottingham", awayTeam: "Manchester Kék", homeLogo: null, awayLogo: null }
+    ];
   }
-  
-  return data.matches || [];
 }
 
 /* ═══ MEGJELENÍTÉS ═══ */
@@ -453,16 +462,14 @@ async function loadNextMatches() {
     showError(e.message);
     meta.className = 'lb-meta error';
     meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
-    // Fallback mintaadatok
-    renderMatchesTable(FALLBACK_MATCHES);
   }
 }
 
-/* ═══ AI TIPPEK ═══ */
-async function generateAITips() {
+/* ═══ AI TÁBLA ÉS TIPPEK ═══ */
+async function generateAITable() {
   const meta = document.getElementById('aiMeta'), aiTable = document.getElementById('aiTable'), aiPanel = document.getElementById('aiPanel'), aiBody = document.getElementById('aiBody');
   meta.className = 'lb-meta loading';
-  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI gondolkodik...';
+  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI generálás...';
   aiTable.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
   aiPanel.style.display = 'none';
   hideError();
@@ -481,76 +488,106 @@ async function generateAITips() {
   
   // Tabella formázása
   const allTeamsData = realStandings.map(t => 
-    `${t.pos}. ${t.team}: ${t.pts} pont, ${t.goalsFor || 0}:${t.goalsAgainst || 0}`
+    `${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor || 0}:${t.goalsAgainst || 0}`
   ).join('\n');
   
-  // Utolsó meccsek (most mintaadatok, később backendből)
+  // Utolsó meccsek a tippekhez
   const lastMatchesText = MOCK_LAST_MATCHES.map(m => 
     `${m.home} ${m.homeScore}:${m.awayScore} ${m.away}`
   ).join('\n');
   
-  const prompt = `Te egy virtuális futball liga (VSPORT) profi elemzője vagy. 
-A jelenlegi tabella és a legutóbbi mérkőzések alapján készíts egy RÖVID elemzést, majd adj meg 3 DARAB TIPPET különböző jövőbeli VSPORT mérkőzésekre.
+  // Először generáljuk az AI tabellát
+  const tablePrompt = `Te egy virtuális futball liga profi elemzője vagy. A jelenlegi tabella alapján készíts SAJÁT, FÜGGETLEN előrejelzést a szezon végére!
 
 JELENLEGI TABELLA (szezon ID: ${currentSeasonId}):
 ${allTeamsData}
 
+LEGUTÓBBI MÉRKŐZÉSEK (figyelembe veendő):
+${lastMatchesText}
+
+SZABÁLYOK:
+1. Sorrend VÁLTOZZON – legalább 5 csapat kerüljön más helyre!
+2. Pontok és gólok KÜLÖNBÖZZENEK a valóstól!
+3. Egy középcsapat kerüljön fel, egy top csapat essen vissza!
+4. TILOS a valós adatok másolása!
+
+Válaszolj KIZÁRÓLAG kompakt JSON tömbbel:
+[{"pos":1,"team":"Név","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},...]`;
+
+  try {
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI tabella generálás...';
+    const tableText = await callAI(tablePrompt, 0.9);
+    
+    // JSON kinyerése
+    const clean = tableText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    const start = clean.indexOf('[');
+    if (start === -1) throw new Error('JSON nem található');
+    
+    const aiStandings = JSON.parse(clean.slice(start)).map(r => ({
+      pos: r.pos,
+      team: r.team,
+      goalsFor: r.goalsFor || 0,
+      goalsAgainst: r.goalsAgainst || 0,
+      pts: r.pts || 0,
+      trend: r.trend || 'same'
+    }));
+    
+    if (!aiStandings || aiStandings.length === 0) throw new Error('Üres tabella');
+    
+    // AI tabella megjelenítése
+    const total = aiStandings.length;
+    aiTable.innerHTML = aiStandings.map((r, i) => 
+      `<div class="${rowClass(r.pos, total)}" style="animation-delay:${i * .025}s">
+        <span class="col-pos">${r.pos}</span>
+        <span class="col-trend">${trendHtml(r.trend)}</span>
+        <span class="col-team"><span class="team-logo-placeholder"></span><span class="team-name">${r.team}</span></span>
+        <span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span>
+        <span class="col-gd">${gd(r.goalsFor, r.goalsAgainst)}</span>
+        <span class="col-pts">${r.pts}</span>
+      </div>`
+    ).join('');
+    
+    meta.className = 'lb-meta';
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI becslés';
+    document.getElementById('aiUpdateTime').textContent = nowStr();
+    
+    // Most generáljuk a tippeket is
+    const top3 = aiStandings.slice(0, 3).map(t => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
+    const bot3 = aiStandings.slice(-3).map(t => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
+    
+    const tipsPrompt = `A következő AI előrejelzés alapján adj 3 darab TIPPET a következő fordulókra:
+
+ELŐREJELZÉS TOP3: ${top3}
+ELŐREJELZÉS UTOLSÓ 3: ${bot3}
+
 LEGUTÓBBI MÉRKŐZÉSEK:
 ${lastMatchesText}
 
-FELADAT:
-1. Elemezd a tabellát és a legutóbbi eredményeket (ki van jó formában, ki szenvedett vereséget).
-2. Adj meg 3 darab TIPPET. Minden tipp tartalmazza a mérkőzést, a tipp típusát és egy rövid indoklást.
-3. A tippek legyenek változatosak (ne mind ugyanaz a piac).
+Adj 3 tippet magyar nyelven, minden tipp tartalmazza:
+- Mérkőzés (csapatok)
+- Tipp típusa
+- Rövid indoklás`;
 
-VÁLASZ FORMÁTUMA:
-
-[ELEMZÉS]
-(rövid elemzés, max 3 mondat)
-
-[TIPP 1]
-Mérkőzés: CsapatX - CsapatY
-Tipp: Hazai győzelem
-Indoklás: ...
-
-[TIPP 2]
-Mérkőzés: CsapatA - CsapatB
-Tipp: Mindkét csapat szerez gólt
-Indoklás: ...
-
-[TIPP 3]
-Mérkőzés: CsapatC - CsapatD
-Tipp: Több, mint 2.5 gól
-Indoklás: ...`;
-
-  try {
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI válaszra várva...';
-    const text = await callAI(prompt, 0.8);
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI tippek generálás...';
+    const tipsText = await callAI(tipsPrompt, 0.8);
     
-    if (text) {
-      aiBody.innerHTML = text.replace(/\n/g, '<br>');
+    if (tipsText) {
+      aiBody.innerHTML = tipsText.replace(/\n/g, '<br>');
       aiPanel.style.display = 'block';
     }
-    
-    meta.className = 'lb-meta';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI Tippek';
-    document.getElementById('aiUpdateTime').textContent = nowStr();
-    
-    // AI tábla helyére üzenet
-    aiTable.innerHTML = '<div style="padding:20px; text-align:center; color: var(--text-muted);">A tippek az "AI Elemzés" panelben olvashatók.</div>';
     
   } catch (e) {
     showError('AI hiba: ' + e.message);
     meta.className = 'lb-meta error';
     meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
-    aiTable.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.7rem">Hiba a generálás során</div>';
+    aiTable.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.7rem;font-family:\'JetBrains Mono\',monospace">Hiba a generálás során</div>';
   }
 }
 
 /* ═══ SEGÉDFÜGGVÉNYEK ═══ */
 function gd(gf, ga) {
   const d = (gf || 0) - (ga || 0);
-  if (d > 0) return `<span style="color:var(--green)">+${d}</span>`;
+  if (d > 0) return `<span style="color:var(--green);text-shadow:0 0 6px rgba(0,230,118,0.4)">+${d}</span>`;
   if (d < 0) return `<span style="color:var(--red)">${d}</span>`;
   return `<span style="color:#1a2e3d">0</span>`;
 }
@@ -617,14 +654,6 @@ function showTab(tab) {
   document.getElementById('realTab').classList.toggle('active', tab === 'real');
   document.getElementById('aiTab').classList.toggle('active', tab === 'ai');
   document.getElementById('matchesTab').classList.toggle('active', tab === 'matches');
-  
-  // Ha a meccsek fülre váltunk, töltsük be az adatokat, ha még nincsenek
-  if (tab === 'matches') {
-    const matchesTable = document.getElementById('matchesTable');
-    if (matchesTable.children.length === 1 && matchesTable.children[0].textContent.includes('Betöltés')) {
-      loadNextMatches();
-    }
-  }
 }
 
 async function callAI(prompt, temp = 0.7) {
@@ -638,15 +667,6 @@ async function callAI(prompt, temp = 0.7) {
   return d.choices?.[0]?.message?.content || '';
 }
 
-// Fallback adatok
-const FALLBACK_MATCHES = [
-  { round: 18, time: "12:16", homeTeam: "Brighton", awayTeam: "Chelsea" },
-  { round: 18, time: "12:16", homeTeam: "Crystal Palace", awayTeam: "Liverpool" },
-  { round: 18, time: "12:16", homeTeam: "Aston Oroszlán", awayTeam: "Newcastle" },
-  { round: 18, time: "12:16", homeTeam: "Wolverhampton", awayTeam: "Fulham" },
-  { round: 18, time: "12:16", homeTeam: "Nottingham", awayTeam: "Manchester Kék" }
-];
-
 /* ═══ ESEMÉNYKEZELŐK ═══ */
 document.addEventListener('DOMContentLoaded', () => {
   loadRealTable();
@@ -654,7 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   document.getElementById('refreshRealBtn').addEventListener('click', loadRealTable);
   document.getElementById('refreshMatchesBtn').addEventListener('click', loadNextMatches);
-  document.getElementById('generateAIBtn').addEventListener('click', generateAITips);
+  document.getElementById('generateAIBtn').addEventListener('click', generateAITable);
   
   setInterval(loadRealTable, 30000); // 30 másodperces frissítés
   setInterval(loadNextMatches, 60000); // 1 perces frissítés a meccseknek
