@@ -1127,10 +1127,17 @@ function calcMatchProbs(homeStats,awayStats,played){
     over15:(probOver15/n*100).toFixed(1),
     over25:(probOver25/n*100).toFixed(1),
     over35:(probOver35/n*100).toFixed(1),
+    under15:((1-probOver15/n)*100).toFixed(1),
+    under25:((1-probOver25/n)*100).toFixed(1),
+    under35:((1-probOver35/n)*100).toFixed(1),
     homeOver15:(probH15/n*100).toFixed(1),
     homeOver25:(probH25/n*100).toFixed(1),
+    homeUnder15:((1-probH15/n)*100).toFixed(1),
+    homeUnder25:((1-probH25/n)*100).toFixed(1),
     awayOver15:(probA15/n*100).toFixed(1),
     awayOver25:(probA25/n*100).toFixed(1),
+    awayUnder15:((1-probA15/n)*100).toFixed(1),
+    awayUnder25:((1-probA25/n)*100).toFixed(1),
     topScores
   };
 }
@@ -1238,8 +1245,11 @@ async function generateOneTip(home,away,num,standingsCtx,played,conversationHist
   const homeStats=getTeamStats(home),awayStats=getTeamStats(away);
   const probs=calcMatchProbs(homeStats,awayStats,played);
   const bttsProb=parseFloat(probs.btts),o15Prob=parseFloat(probs.over15),o25Prob=parseFloat(probs.over25),o35Prob=parseFloat(probs.over35);
+  const u15Prob=parseFloat(probs.under15),u25Prob=parseFloat(probs.under25),u35Prob=parseFloat(probs.under35);
   const ho15Prob=parseFloat(probs.homeOver15),ho25Prob=parseFloat(probs.homeOver25);
+  const hu15Prob=parseFloat(probs.homeUnder15),hu25Prob=parseFloat(probs.homeUnder25);
   const ao15Prob=parseFloat(probs.awayOver15),ao25Prob=parseFloat(probs.awayOver25);
+  const au15Prob=parseFloat(probs.awayUnder15),au25Prob=parseFloat(probs.awayUnder25);
   const topScores=probs.topScores||[];
   const homeRank=homeStats?.pos||'?',awayRank=awayStats?.pos||'?',homeForm=homeStats?.trend||'same',awayForm=awayStats?.trend||'same';
 
@@ -1259,9 +1269,13 @@ async function generateOneTip(home,away,num,standingsCtx,played,conversationHist
     `- ${away} λ: ${probs.lambdaAway}\n`+
     `- Várható összes gól: ${probs.expectedTotal}\n`+
     `- BTTS: ${probs.btts}%\n`+
-    `- Over 1.5: ${probs.over15}% | Over 2.5: ${probs.over25}% | Over 3.5: ${probs.over35}%\n`+
-    `- ${home} Over 1.5: ${probs.homeOver15}% | Over 2.5: ${probs.homeOver25}%\n`+
-    `- ${away} Over 1.5: ${probs.awayOver15}% | Over 2.5: ${probs.awayOver25}%\n`+
+    `- Over/Alá 1.5: ${probs.over15}% felé / ${probs.under15}% alá\n`+
+    `- Over/Alá 2.5: ${probs.over25}% felé / ${probs.under25}% alá\n`+
+    `- Over/Alá 3.5: ${probs.over35}% felé / ${probs.under35}% alá\n`+
+    `- ${home} gólok 1.5 felé: ${probs.homeOver15}% | alá: ${probs.homeUnder15}%\n`+
+    `- ${home} gólok 2.5 felé: ${probs.homeOver25}% | alá: ${probs.homeUnder25}%\n`+
+    `- ${away} gólok 1.5 felé: ${probs.awayOver15}% | alá: ${probs.awayUnder15}%\n`+
+    `- ${away} gólok 2.5 felé: ${probs.awayOver25}% | alá: ${probs.awayUnder25}%\n`+
     `- Top végeredmények: ${topScores.map(s=>`${s.score}(${s.pct}%)`).join(', ')}`+
     prevNote +
     `\n\nVálaszolj CSAK valid JSON-nal:\n`+
@@ -1336,19 +1350,32 @@ async function generateOneTip(home,away,num,standingsCtx,played,conversationHist
         ${awayStats?`<span class="tip-xg-sub">${awayStats.pos}. hely · ${((awayStats.goalsFor||0)/Math.max(1,played)).toFixed(2)} gól/m</span>`:''}
       </div>
     </div>
-    <div class="tip-section-sub">Összes gól</div>
+    <div class="tip-section-sub">Összes gól – Felé</div>
     <div class="tip-cards">
-      ${buildCard2('BTTS','Mindkét csapat gólt szerez',bttsYes?'IGEN':'NEM',bttsConf,bestTip==='btts',probs.btts+'%',0)}
-      ${buildCard2('O1.5','Over 1.5 gól',o15Yes?'IGEN':'NEM',o15Conf,bestTip==='over15',probs.over15+'%',1)}
-      ${buildCard2('O2.5','Over 2.5 gól',o25Yes?'IGEN':'NEM',o25Conf,bestTip==='over25',probs.over25+'%',2)}
-      ${buildCard2('O3.5','Over 3.5 gól',o35Yes?'IGEN':'NEM',o35Conf,bestTip==='over35',probs.over35+'%',3)}
+      ${buildCard2('MGCS','Mindkét csapat gólt szerez',bttsYes?'IGEN':'NEM',bttsConf,bestTip==='btts',probs.btts+'%',0)}
+      ${buildCard2('1.5 Felé','1.5 gól felett',o15Yes?'IGEN':'NEM',o15Conf,bestTip==='over15',probs.over15+'%',1)}
+      ${buildCard2('2.5 Felé','2.5 gól felett',o25Yes?'IGEN':'NEM',o25Conf,bestTip==='over25',probs.over25+'%',2)}
+      ${buildCard2('3.5 Felé','3.5 gól felett',o35Yes?'IGEN':'NEM',o35Conf,bestTip==='over35',probs.over35+'%',3)}
     </div>
-    <div class="tip-section-sub">Egyéni gólok – ${home} & ${away}</div>
-    <div class="tip-cards-wide">
-      ${buildCard2('H O1.5','Hazai Over 1.5',ho15Yes?'IGEN':'NEM',ho15Conf,bestTip==='home_o15',probs.homeOver15+'%',0)}
-      ${buildCard2('H O2.5','Hazai Over 2.5',ho25Yes?'IGEN':'NEM',ho25Conf,bestTip==='home_o25',probs.homeOver25+'%',1)}
-      ${buildCard2('V O1.5','Vendég Over 1.5',ao15Yes?'IGEN':'NEM',ao15Conf,bestTip==='away_o15',probs.awayOver15+'%',2)}
-      ${buildCard2('V O2.5','Vendég Over 2.5',ao25Yes?'IGEN':'NEM',ao25Conf,bestTip==='away_o25',probs.awayOver25+'%',3)}
+    <div class="tip-section-sub">Összes gól – Alá</div>
+    <div class="tip-cards">
+      ${buildCard2('1.5 Alá','1.5 gól alatt',u15Prob>50?'IGEN':'NEM',Math.round(u15Prob),bestTip==='under15',probs.under15+'%',0)}
+      ${buildCard2('2.5 Alá','2.5 gól alatt',u25Prob>50?'IGEN':'NEM',Math.round(u25Prob),bestTip==='under25',probs.under25+'%',1)}
+      ${buildCard2('3.5 Alá','3.5 gól alatt',u35Prob>50?'IGEN':'NEM',Math.round(u35Prob),bestTip==='under35',probs.under35+'%',2)}
+    </div>
+    <div class="tip-section-sub">Hazai gólok – ${home}</div>
+    <div class="tip-cards">
+      ${buildCard2('H 1.5↑','Hazai 1.5 felett',ho15Yes?'IGEN':'NEM',ho15Conf,bestTip==='home_o15',probs.homeOver15+'%',0)}
+      ${buildCard2('H 2.5↑','Hazai 2.5 felett',ho25Yes?'IGEN':'NEM',ho25Conf,bestTip==='home_o25',probs.homeOver25+'%',1)}
+      ${buildCard2('H 1.5↓','Hazai 1.5 alatt',hu15Prob>50?'IGEN':'NEM',Math.round(hu15Prob),false,probs.homeUnder15+'%',2)}
+      ${buildCard2('H 2.5↓','Hazai 2.5 alatt',hu25Prob>50?'IGEN':'NEM',Math.round(hu25Prob),false,probs.homeUnder25+'%',3)}
+    </div>
+    <div class="tip-section-sub">Vendég gólok – ${away}</div>
+    <div class="tip-cards">
+      ${buildCard2('V 1.5↑','Vendég 1.5 felett',ao15Yes?'IGEN':'NEM',ao15Conf,bestTip==='away_o15',probs.awayOver15+'%',0)}
+      ${buildCard2('V 2.5↑','Vendég 2.5 felett',ao25Yes?'IGEN':'NEM',ao25Conf,bestTip==='away_o25',probs.awayOver25+'%',1)}
+      ${buildCard2('V 1.5↓','Vendég 1.5 alatt',au15Prob>50?'IGEN':'NEM',Math.round(au15Prob),false,probs.awayUnder15+'%',2)}
+      ${buildCard2('V 2.5↓','Vendég 2.5 alatt',au25Prob>50?'IGEN':'NEM',Math.round(au25Prob),false,probs.awayUnder25+'%',3)}
     </div>
     <div class="tip-section-sub">Top végeredmények (Poisson)</div>
     <div class="tip-score-grid">
