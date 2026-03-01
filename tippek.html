@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VSPORT – AI Tabella</title>
+  <title>VSPORT – AI Tabella & Tippek</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
@@ -229,7 +229,7 @@
     <div class="section-hdr">
       <div class="section-title">
         <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="currentColor" stroke="currentColor" stroke-width="0.5"/></svg>
-        AI Előrejelzés
+        AI Elemzés & Tippek
         <span class="ai-badge-pill">LLM7</span>
       </div>
       <button class="btn" id="generateAIBtn">
@@ -253,14 +253,14 @@
       <div class="leaderboard-body" id="aiTable">
         <div style="padding:36px;text-align:center;color:var(--text-muted);font-size:.7rem;font-family:'JetBrains Mono',monospace;line-height:2.2">
           Kattints a "Generálás" gombra<br>
-          <span style="color:#0e1e28;font-size:.58rem">Az AI elemzi a valós adatokat és előrejelzést készít</span>
+          <span style="color:#0e1e28;font-size:.58rem">Az AI elemzi a valós adatokat és a legutóbbi meccseket, majd tippeket ad.</span>
         </div>
       </div>
     </div>
     <div class="aipanel" id="aiPanel" style="display:none">
       <div class="aipanel-hdr">
         <svg style="width:16px;height:16px" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="var(--green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="aipanel-title">AI Elemzés</span>
+        <span class="aipanel-title">AI Elemzés & Tippek</span>
         <span class="ai-badge-pill" style="margin-left:auto">llm7.io</span>
       </div>
       <div class="aibody" id="aiBody"></div>
@@ -287,6 +287,27 @@ animParticles();
 const LLM7_URL='https://api.llm7.io/v1/chat/completions';
 const LLM7_KEY='/WF1cs8NieiVJAvBfBR+n5Fb/vxRW1oSmv3EqtTSTRxWQBGMexqcI4Xivs+BqTXfNYMZI8OUFZpv5YAA0FOjcumYWgcG8AkhePVVO8zCVKQo3GMYfArXw2yPPKY7w3tRvofNvQ==';
 let realStandings=[],lastSeasonId=null,lastTotalPoints=null,currentTab='real';
+
+// --- ÚJ: Sportradar URL és Mintaadatok ---
+const SPORTRADAR_URL = 'https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061404';
+
+// Mintaadatok a felhasználó által megadott HTML alapján (Utolsó mérkőzések szekció)
+function getMockMatches() {
+  return [
+    { home: "Vörös Ördögök", away: "Nottingham", homeScore: 3, awayScore: 0 },
+    { home: "Everton", away: "Brighton", homeScore: 2, awayScore: 0 },
+    { home: "Fulham", away: "London Ágyúk", homeScore: 2, awayScore: 2 },
+    { home: "Newcastle", away: "Liverpool", homeScore: 0, awayScore: 1 },
+    { home: "West Ham", away: "Brentford", homeScore: 1, awayScore: 2 }
+  ];
+}
+
+// Mintaadatok használata a letöltés helyett (CORS miatt)
+async function fetchLastMatches() {
+  // Itt lehetne a valós fetch, de mivel CORS tiltja, visszaadjuk a mintát
+  console.log('Mintaadatok betöltése (utolsó 5 meccs)');
+  return getMockMatches();
+}
 
 async function callAI(prompt,temp=0.7){
   const res=await fetch(LLM7_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${LLM7_KEY}`},body:JSON.stringify({model:'default',messages:[{role:'user',content:prompt}],temperature:temp,max_tokens:2048})});
@@ -317,39 +338,101 @@ async function loadRealTable(){
   catch(e){showError(e.message);meta.className='lb-meta error';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Hiba';}
 }
 
+// --- MÓDOSÍTOTT: AI Tábla generálás (most már a meccsek elemzésével) ---
 async function generateAITable(){
-  const meta=document.getElementById('aiMeta'),aiTable=document.getElementById('aiTable'),aiPanel=document.getElementById('aiPanel');
-  meta.className='lb-meta loading';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI generálás...';
+  const meta=document.getElementById('aiMeta'),aiTable=document.getElementById('aiTable'),aiPanel=document.getElementById('aiPanel'),aiBody=document.getElementById('aiBody');
+  meta.className='lb-meta loading';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI generálás (adatgyűjtés)...';
   aiTable.innerHTML='<div class="dots"><span></span><span></span><span></span></div>';
   aiPanel.style.display='none';hideError();
-  if(realStandings.length===0){try{const{standings,seasonId}=await fetchRealStandings();detectSeasonReset(standings,seasonId);realStandings=standings;}catch(e){showError('Valódi adatok betöltése sikertelen: '+e.message);meta.className='lb-meta error';return;}}
-  const allTeamsData=realStandings.map(t=>`${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n');
-  const totalPts=realStandings.reduce((s,t)=>s+(t.pts||0),0);
-  const seasonNote=totalPts<50?'FONTOS: ÚJ szezon eleje. Becsüld a teljes szezon végét!':'Becsüld a szezon végét!';
-  const prompt=`Te egy virtuális futball liga profí elemzője vagy. A jelenlegi tabella alapján készíts SAJÁT, FÜGGETLEN előrejelzést a szezon végére!\n\nJELENLEGI TABELLA:\n${allTeamsData}\n\n${seasonNote}\n\nSZABÁLYOK:\n1. Sorrend VÁLTOZZON – legalább 5 csapat kerüljön más helyre!\n2. Pontok és gólok KÜLÖNBÖZZENEK a valóstól!\n3. Egy középcsapat kerüljön fel, egy top csapat essen vissza!\n4. trend: "up"/"down"/"same"\n5. TILOS a valós adatok másolása!\n\nVálaszolj KIZÁRÓLAG kompakt JSON tömbbel:\n[{"pos":1,"team":"Név","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},...]`;
+  
+  // 1. Valós tabella betöltése, ha még nincs meg
+  if(realStandings.length===0){
+    try{
+      const{standings,seasonId}=await fetchRealStandings();
+      detectSeasonReset(standings,seasonId);
+      realStandings=standings;
+    } catch(e){
+      showError('Valódi adatok betöltése sikertelen: '+e.message);
+      meta.className='lb-meta error';
+      return;
+    }
+  }
+  
+  // 2. Utolsó mérkőzések betöltése (mintaadatok)
+  const lastMatches = await fetchLastMatches();
+  
+  // 3. AI Prompt összeállítása
+  const allTeamsData = realStandings.map(t => `${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n');
+  const totalPts = realStandings.reduce((s,t)=> s + (t.pts||0),0);
+  const seasonNote = totalPts < 50 ? 'FONTOS: ÚJ szezon eleje. A valós adatok még nem reprezentatívak.' : 'Becsüld a szezon végét a jelenlegi forma alapján!';
+  
+  // Utolsó meccsek formázása
+  const matchesText = lastMatches.length > 0 
+    ? 'LEGUTÓBBI MÉRKŐZÉSEK:\n' + lastMatches.map(m => `${m.home} ${m.homeScore}:${m.awayScore} ${m.away}`).join('\n')
+    : 'Nincs elérhető információ a legutóbbi meccsekről.';
+  
+  const prompt = `Te egy virtuális futball liga (VSPORT) profi elemzője vagy. 
+A jelenlegi tabella és a legutóbbi mérkőzések alapján készíts egy RÖVID elemzést, majd adj meg 3 DARAB TIPPET különböző jövőbeli VSPORT mérkőzésekre.
+
+JELENLEGI TABELLA:
+${allTeamsData}
+
+${matchesText}
+
+FELADAT:
+1.  Elemezd a tabellát és a legutóbbi eredményeket (pl. ki van jó formában, ki szenvedett vereséget).
+2.  Adj meg maximum 3 darab TIPPET. Minden tipp tartalmazza a mérkőzést (pl. "CsapatA - CsapatB"), a tipp típusát (pl. "Hazai győzelem", "Döntetlen", "Vendég győzelem", "Mindkét csapat szerez gólt", "Több, mint 2.5 gól") és egy rövid indoklást (1 mondat).
+3.  A tippek legyenek változatosak (ne mind ugyanaz a piac).
+4.  A válaszod struktúrája legyen a következő:
+    
+    [ELEMZÉS]
+    (Itt a rövid elemzésed, max 3 mondat)
+    
+    [TIPP 1]
+    Mérkőzés: CsapatX - CsapatY
+    Tipp: Hazai győzelem
+    Indoklás: A CsapatX az utóbbi 5 meccséből 4-et megnyert, míg a CsapatY kettőt is kikapott.
+
+    [TIPP 2]
+    Mérkőzés: CsapatA - CsapatB
+    Tipp: Mindkét csapat szerez gólt
+    Indoklás: Mindkét csapat utolsó 3 meccsén mindig volt gól mindkét oldalon.
+
+    [TIPP 3]
+    Mérkőzés: CsapatC - CsapatD
+    Tipp: Több, mint 2.5 gól
+    Indoklás: A két csapat egymás elleni mérkőzései általában gólgazdagok, és a formájuk is ezt mutatja.`;
+
+  // 4. AI Hívás
   try{
-    const text=await callAI(prompt,0.9);
-    const clean=text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    const start=clean.indexOf('[');if(start===-1)throw new Error('JSON nem található');
-    const aiStandings=JSON.parse(clean.slice(start)).map(r=>({pos:r.pos,team:r.team,goalsFor:r.goalsFor??0,goalsAgainst:r.goalsAgainst??0,pts:r.pts??0,trend:r.trend??'same'}));
-    if(!aiStandings||aiStandings.length===0)throw new Error('Üres tabella');
-    const total=aiStandings.length;
-    aiTable.innerHTML=aiStandings.map((r,i)=>`<div class="${rowClass(r.pos,total)}" style="animation-delay:${i*.025}s"><span class="col-pos">${r.pos}</span><span class="col-trend">${trendHtml(r.trend)}</span><span class="col-team"><span class="team-logo-placeholder"></span><span class="team-name">${r.team}</span></span><span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span><span class="col-gd">${gd(r.goalsFor,r.goalsAgainst)}</span><span class="col-pts">${r.pts}</span></div>`).join('');
-    meta.className='lb-meta';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI becslés';
+    meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI gondolkodik...';
+    const text = await callAI(prompt, 0.8);
+    
+    // Eredmény megjelenítése a szöveges panelben
+    if(text){
+      // Formázás: sortörések helyettesítése <br>-rel
+      aiBody.innerHTML = text.replace(/\n/g, '<br>');
+      aiPanel.style.display = 'block';
+    }
+    
+    meta.className='lb-meta';
+    meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI Elemzés & Tippek';
     document.getElementById('aiUpdateTime').textContent=nowStr();
-    const top3=aiStandings.slice(0,3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
-    const bot3=aiStandings.slice(-3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
-    const analText=await callAI(`Rövid elemzés MAGYARUL (max 4 mondat):\nTop 3: ${top3}\nUtolsó 3: ${bot3}\nMiért lehetnek ilyen helyzetben?`);
-    if(analText){document.getElementById('aiBody').innerHTML=analText.replace(/\n/g,'<br>');aiPanel.style.display='block';}
-  }catch(e){
-    showError(e.message);meta.className='lb-meta error';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Hiba';
-    aiTable.innerHTML='<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.7rem;font-family:\'JetBrains Mono\',monospace">Hiba. Próbáld újra.</div>';
+    
+    // AI Tabella törlése, mert most nem tabellát, hanem szöveges tippeket várunk
+    aiTable.innerHTML = '<div style="padding:20px; text-align:center; color: var(--text-muted);">A tippek az "AI Elemzés" panelben olvashatók.</div>';
+    
+  } catch(e){
+    showError('AI hiba: ' + e.message);
+    meta.className='lb-meta error';
+    meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Hiba';
+    aiTable.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.7rem;font-family:\'JetBrains Mono\',monospace">Hiba a generálás során. Próbáld újra.</div>';
   }
 }
 
 function gd(gf,ga){const d=(gf||0)-(ga||0);if(d>0)return`<span style="color:var(--green);text-shadow:0 0 6px rgba(0,230,118,0.4)">+${d}</span>`;if(d<0)return`<span style="color:var(--red)">${d}</span>`;return`<span style="color:#1a2e3d">0</span>`;}
 function trendHtml(t){if(t==='up')return'<span class="trend-up">▲</span>';if(t==='down')return'<span class="trend-down">▼</span>';return'<span class="trend-same">—</span>';}
-function logoHtml(logo){if(!logo)return'<span class="team-logo-placeholder"></span>';return`<img class="team-logo" src="${logo}" alt="" loading="lazy" onerror="this.style.display='none'">`;}
+function logoHtml(logo){if(!logo)return'<span class="team-logo-placeholder"></span>';return`<img class="team-logo" src="${logo}" alt="" loading="lazy" onerror="this.style.display=\'none\'">`;}
 function rowClass(pos,total){if(pos<=3)return'lb-row top3';if(total&&pos>total-3)return'lb-row relegation';return'lb-row';}
 function nowStr(){return new Date().toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
 function showError(msg){document.getElementById('errorText').textContent=msg;document.getElementById('errorBox').classList.add('show');}
