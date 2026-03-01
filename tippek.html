@@ -661,6 +661,7 @@ function renderRealTable(standings){
   table.innerHTML=standings.map((r,i)=>`<div class="${rowClass(r.pos,total)}" style="animation-delay:${i*.025}s"><span class="col-pos">${r.pos}</span><span class="col-trend">${trendHtml(r.trend??'same')}</span><span class="col-team">${logoHtml(r.logo)}<span class="team-name">${r.team}</span></span><span class="col-goals">${r.goalsFor??'–'}:${r.goalsAgainst??'–'}</span><span class="col-gd">${gd(r.goalsFor,r.goalsAgainst)}</span><span class="col-pts">${r.pts}</span></div>`).join('');
   meta.className='lb-meta';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Élő adat';
   document.getElementById('realUpdateTime').textContent=nowStr();
+  refreshTeamList();
 }
 
 async function loadRealTable(){
@@ -826,11 +827,19 @@ document.addEventListener('DOMContentLoaded',()=>{
   renderHistoryTab(loadHistory());
 });
 /* ═══ TIP GENERATOR v2 ═══ */
-const TEAM_LIST = [
-  'Manchester Kék','Liverpool','Chelsea','Vörös Ördögök','London Ágyúk',
-  'Fulham','Tottenham','West Ham','Newcastle','Everton',
-  'Brighton','Brentford','Crystal Palace','Wolverhampton','Aston Oroszlán','Nottingham'
-];
+// TEAM_LIST is dynamically populated from realStandings - no hardcoded names
+let TEAM_LIST = [];
+
+function refreshTeamList() {
+  const standings = realStandings && realStandings.length > 0 ? realStandings : [];
+  if (standings.length > 0) {
+    TEAM_LIST = standings.slice().sort((a,b)=>a.pos-b.pos).map(t=>t.team);
+  }
+  // Refresh all open dropdowns with new team list
+  document.querySelectorAll('.custom-select-wrap').forEach(wrap => {
+    if (wrap._buildOptions) wrap._buildOptions('');
+  });
+}
 
 let matchCount = 0;
 
@@ -888,6 +897,16 @@ function buildDropdown(id, labelText, align='left') {
     const existing = dropdown.querySelectorAll('.cs-option');
     existing.forEach(e=>e.remove());
     const fl = filter.toLowerCase();
+
+    // If no teams loaded yet, show loading state
+    if (TEAM_LIST.length === 0) {
+      const loading = document.createElement('div');
+      loading.style.cssText = 'padding:12px;text-align:center;color:var(--text-muted);font-family:JetBrains Mono,monospace;font-size:.6rem';
+      loading.textContent = 'Tabella betöltés alatt...';
+      dropdown.appendChild(loading);
+      return;
+    }
+
     TEAM_LIST.filter(t => !fl || t.toLowerCase().includes(fl)).forEach(team => {
       const opt = document.createElement('div');
       opt.className = 'cs-option ' + teamDotClass(team);
@@ -911,6 +930,8 @@ function buildDropdown(id, labelText, align='left') {
       dropdown.appendChild(opt);
     });
   }
+  // expose for refreshTeamList
+  selWrap._buildOptions = buildOptions;
 
   function openDropdown() {
     document.querySelectorAll('.custom-select-wrap.open').forEach(w=>{ if(w!==selWrap) w.classList.remove('open'); });
