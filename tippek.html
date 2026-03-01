@@ -23,13 +23,7 @@
     @keyframes grain { 0%{transform:translate(0,0)} 10%{transform:translate(-2%,-2%)} 20%{transform:translate(2%,2%)} 30%{transform:translate(-1%,1%)} 40%{transform:translate(1%,-1%)} 50%{transform:translate(-2%,1%)} 60%{transform:translate(2%,-2%)} 70%{transform:translate(-1%,-1%)} 80%{transform:translate(1%,2%)} 90%{transform:translate(-2%,2%)} 100%{transform:translate(2%,-1%)} }
     body::after { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px); }
 
-    header {
-      position:sticky; top:0; z-index:100;
-      background:rgba(8,8,8,0.92); backdrop-filter:blur(12px);
-      border-bottom:1px solid var(--border);
-      padding:0 24px; height:52px;
-      display:flex; align-items:center; gap:14px;
-    }
+    header { position:sticky; top:0; z-index:100; background:rgba(8,8,8,0.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:0 24px; height:52px; display:flex; align-items:center; gap:14px; }
     .live-dot { width:8px; height:8px; border-radius:50%; background:#fff; box-shadow:0 0 0 0 rgba(255,255,255,0.4); animation:livePulse 2s infinite; }
     @keyframes livePulse { 0%{box-shadow:0 0 0 0 rgba(255,255,255,0.4)} 70%{box-shadow:0 0 0 6px rgba(255,255,255,0)} 100%{box-shadow:0 0 0 0 rgba(255,255,255,0)} }
     .header-sep { width:1px; height:20px; background:var(--border2); }
@@ -39,17 +33,10 @@
 
     @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
     @keyframes fadeIn { from{opacity:0} to{opacity:1} }
-
     .page { position:relative; z-index:1; max-width:960px; margin:0 auto; padding:28px 20px 60px; animation:fadeUp 0.5s ease both; }
 
     .tabs { display:flex; margin-bottom:24px; border-bottom:1px solid var(--border); }
-    .tab {
-      background:none; border:none; border-bottom:2px solid transparent;
-      color:var(--text-dim); font-size:.65rem; font-family:'DM Mono',monospace;
-      letter-spacing:1.5px; padding:10px 20px; cursor:pointer; transition:all .15s;
-      text-transform:uppercase; display:flex; align-items:center; gap:8px;
-      position:relative; top:1px;
-    }
+    .tab { background:none; border:none; border-bottom:2px solid transparent; color:var(--text-dim); font-size:.65rem; font-family:'DM Mono',monospace; letter-spacing:1.5px; padding:10px 20px; cursor:pointer; transition:all .15s; text-transform:uppercase; display:flex; align-items:center; gap:8px; position:relative; top:1px; }
     .tab:hover { color:#aaa; }
     .tab.active { color:#fff; border-bottom-color:#fff; }
     .tab-icon { width:14px; height:14px; }
@@ -60,12 +47,7 @@
     .ai-badge { background:var(--green-dim); color:#fff; font-size:.55rem; font-family:'DM Mono',monospace; padding:2px 8px; border-radius:2px; letter-spacing:1px; animation:livePulse 2s infinite; }
 
     .leaderboard-block { background:var(--surface); border:1px solid var(--border); border-radius:2px; overflow:hidden; margin-bottom:16px; }
-    .leaderboard-header-bar {
-      background:linear-gradient(90deg,#1a4d1a 0%,#1e6b1e 100%);
-      display:grid; grid-template-columns:28px 18px 1fr 80px 46px 38px;
-      align-items:center; padding:8px 12px; gap:4px;
-      border-bottom:1px solid rgba(76,175,80,0.2);
-    }
+    .leaderboard-header-bar { background:linear-gradient(90deg,#1a4d1a 0%,#1e6b1e 100%); display:grid; grid-template-columns:28px 18px 1fr 80px 46px 38px; align-items:center; padding:8px 12px; gap:4px; border-bottom:1px solid rgba(76,175,80,0.2); }
     .leaderboard-header-bar span { font-family:'DM Mono',monospace; font-size:.55rem; color:rgba(255,255,255,0.65); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .leaderboard-header-bar .h-right { text-align:right; }
     .lb-meta { background:#0a0a0a; border-bottom:1px solid var(--border); padding:4px 12px; font-size:.58rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; font-family:'DM Mono',monospace; }
@@ -84,9 +66,7 @@
     .lb-row.top3 .col-pos { color:var(--green); }
     .lb-row.relegation .col-pos { color:var(--red); }
     .col-trend { display:flex; align-items:center; justify-content:center; }
-    .trend-up { color:var(--green); font-size:.5rem; }
-    .trend-down { color:var(--red); font-size:.5rem; }
-    .trend-same { color:#252525; font-size:.5rem; }
+    .trend-up { color:var(--green); font-size:.5rem; } .trend-down { color:var(--red); font-size:.5rem; } .trend-same { color:#252525; font-size:.5rem; }
     .col-team { display:flex; align-items:center; gap:7px; min-width:0; }
     .team-logo { width:16px; height:16px; object-fit:contain; flex-shrink:0; }
     .team-logo-placeholder { width:16px; height:16px; flex-shrink:0; background:#1a1a1a; border-radius:50%; }
@@ -100,22 +80,12 @@
     .aipanel-title { font-family:'DM Mono',monospace; font-size:.65rem; font-weight:500; letter-spacing:1.5px; text-transform:uppercase; color:var(--text); }
     .aibody { padding:18px 20px; font-size:.82rem; line-height:1.8; color:#999; min-height:80px; }
 
-    .tips-meta-bar {
-      display:flex; align-items:center; justify-content:space-between;
-      margin-bottom:16px; padding:8px 14px;
-      background:var(--surface); border:1px solid var(--border); border-radius:2px;
-      font-family:'DM Mono',monospace; font-size:.6rem; color:var(--text-dim);
-    }
+    .tips-meta-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding:8px 14px; background:var(--surface); border:1px solid var(--border); border-radius:2px; }
     .tips-meta-left { display:flex; align-items:center; gap:8px; }
     .round-badge { background:#fff; color:#000; font-size:.55rem; font-weight:800; padding:2px 8px; border-radius:1px; letter-spacing:2px; }
 
     .matches-grid { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
-    .match-card {
-      background:var(--surface); border:1px solid var(--border); border-radius:2px;
-      padding:12px 16px;
-      display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px;
-      animation:fadeIn 0.3s ease both; transition:border-color .15s;
-    }
+    .match-card { background:var(--surface); border:1px solid var(--border); border-radius:2px; padding:12px 16px; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px; animation:fadeIn 0.3s ease both; transition:border-color .15s; }
     .match-card:hover { border-color:var(--border2); }
     .match-card.has-tip { border-left:2px solid var(--green); }
     .match-home { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
@@ -127,26 +97,17 @@
     .match-time { font-family:'DM Mono',monospace; font-size:.6rem; color:var(--text-dim); margin-bottom:2px; }
     .match-vs { font-family:'DM Mono',monospace; font-size:.65rem; color:var(--text-muted); letter-spacing:2px; }
 
-    .tips-section-title {
-      font-family:'DM Mono',monospace; font-size:.6rem; letter-spacing:2px;
-      color:var(--text-muted); text-transform:uppercase;
-      margin-bottom:10px; display:flex; align-items:center; gap:10px;
-    }
+    .tips-section-title { font-family:'DM Mono',monospace; font-size:.6rem; letter-spacing:2px; color:var(--text-muted); text-transform:uppercase; margin-bottom:10px; display:flex; align-items:center; gap:10px; }
     .tips-section-title::after { content:''; flex:1; height:1px; background:var(--border); }
 
     .tips-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
-    .tip-card {
-      background:var(--surface); border:1px solid var(--border); border-radius:2px;
-      padding:14px 16px; display:flex; flex-direction:column; gap:8px;
-      animation:fadeIn 0.4s ease both; transition:all .2s; position:relative; overflow:hidden;
-    }
+    .tip-card { background:var(--surface); border:1px solid var(--border); border-radius:2px; padding:14px 16px; display:flex; flex-direction:column; gap:8px; animation:fadeIn 0.4s ease both; transition:all .2s; position:relative; overflow:hidden; }
     .tip-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
     .tip-card.over15::before { background:linear-gradient(90deg,var(--green),transparent); }
     .tip-card.btts::before   { background:linear-gradient(90deg,var(--amber),transparent); }
     .tip-card:hover { border-color:var(--border2); }
     .tip-type { display:flex; align-items:center; gap:6px; font-family:'DM Mono',monospace; font-size:.55rem; letter-spacing:1.5px; text-transform:uppercase; }
-    .tip-type.over15 { color:var(--green); }
-    .tip-type.btts   { color:var(--amber); }
+    .tip-type.over15 { color:var(--green); } .tip-type.btts { color:var(--amber); }
     .tip-type-icon { width:12px; height:12px; }
     .tip-match { font-size:.8rem; font-weight:700; color:#fff; line-height:1.3; }
     .tip-confidence { display:flex; align-items:center; gap:6px; margin-top:2px; }
@@ -162,13 +123,11 @@
 
     .dots { display:flex; gap:6px; padding:16px 0; justify-content:center; }
     .dots span { width:6px; height:6px; border-radius:50%; background:#fff; opacity:.15; animation:dotPulse 1.2s infinite; }
-    .dots span:nth-child(2){ animation-delay:.2s; }
-    .dots span:nth-child(3){ animation-delay:.4s; }
+    .dots span:nth-child(2){ animation-delay:.2s; } .dots span:nth-child(3){ animation-delay:.4s; }
     @keyframes dotPulse { 0%,100%{opacity:.15} 50%{opacity:.8} }
 
     .error-box { display:none; background:rgba(229,57,53,0.08); border:1px solid rgba(229,57,53,0.2); border-radius:2px; padding:12px 16px; font-size:.75rem; color:#ff8a80; margin-bottom:16px; font-family:'DM Mono',monospace; }
     .error-box.show { display:flex; align-items:center; gap:8px; }
-
     .btn { display:flex; align-items:center; gap:7px; background:var(--surface2); border:1px solid var(--border2); color:var(--text-dim); font-size:.65rem; font-family:'DM Mono',monospace; letter-spacing:1px; padding:7px 14px; border-radius:2px; cursor:pointer; transition:all .15s; text-transform:uppercase; }
     .btn:hover { background:#1a1a1a; border-color:#555; color:#fff; }
     .btn-icon { width:13px; height:13px; }
@@ -176,8 +135,7 @@
     @media (max-width:600px) {
       .tips-grid { grid-template-columns:1fr; }
       .match-card { grid-template-columns:1fr; gap:6px; text-align:center; }
-      .match-home { justify-content:center; }
-      .match-away { justify-content:center; }
+      .match-home { justify-content:center; } .match-away { justify-content:center; }
     }
   </style>
 </head>
@@ -185,9 +143,9 @@
 
 <header>
   <div class="live-dot"></div>
-  <div class="header-sep" style="width:1px;height:20px;background:var(--border2)"></div>
+  <div class="header-sep"></div>
   <span class="site-title">VSPORT</span>
-  <div class="header-sep" style="width:1px;height:20px;background:var(--border2)"></div>
+  <div class="header-sep"></div>
   <a class="back-btn" href="/">
     <svg style="width:12px;height:12px" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Vissza
@@ -210,7 +168,7 @@
     </button>
   </div>
 
-  <!-- TABELLA TAB -->
+  <!-- TABELLA -->
   <div id="realContainer">
     <div class="section-hdr">
       <div class="section-title">
@@ -237,13 +195,13 @@
     </div>
   </div>
 
-  <!-- AI TABELLA TAB -->
+  <!-- AI TABELLA -->
   <div id="aiContainer" style="display:none">
     <div class="section-hdr">
       <div class="section-title">
         <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="white" stroke="white" stroke-width="0.5"/></svg>
         AI Előrejelzés
-        <span class="ai-badge">CLAUDE</span>
+        <span class="ai-badge">LLM7</span>
       </div>
       <button class="btn" id="generateAIBtn">
         <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
@@ -273,19 +231,19 @@
       <div class="aipanel-hdr">
         <svg style="width:16px;height:16px" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="aipanel-title">AI Elemzés</span>
-        <span class="ai-badge" style="margin-left:auto">claude</span>
+        <span class="ai-badge" style="margin-left:auto">llm7.io</span>
       </div>
       <div class="aibody" id="aiBody"></div>
     </div>
   </div>
 
-  <!-- AI TIPPEK TAB -->
+  <!-- AI TIPPEK -->
   <div id="tipsContainer" style="display:none">
     <div class="section-hdr">
       <div class="section-title">
         <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="white" stroke="white" stroke-width="0.5"/></svg>
         AI Tippek
-        <span class="ai-badge">CLAUDE</span>
+        <span class="ai-badge">LLM7</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <span id="tipsRoundBadge" class="round-badge" style="display:none"></span>
@@ -312,11 +270,12 @@
 
     <div id="tipsLoadingState" class="tips-loading">
       <div class="dots"><span></span><span></span><span></span></div>
-      <span>Meccsek és tippek betöltése...</span>
+      <span id="tipsLoadingText">Meccsek betöltése...</span>
     </div>
 
     <div id="tipsEmptyState" style="display:none;padding:40px 20px;text-align:center;color:var(--text-muted);font-family:'DM Mono',monospace;font-size:.65rem;line-height:2">
-      Nincs elérhető következő menet
+      Nincs elérhető következő menet<br>
+      <span style="color:#222;font-size:.6rem">Újrapróbálkozás folyamatban...</span>
     </div>
   </div>
 
@@ -328,10 +287,10 @@
 
 <script>
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CONFIG – Anthropic API (Claude) minden feladathoz
+// CONFIG
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const SEASON_URL = 'https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/3061176';
+const LLM7_URL = 'https://api.llm7.io/v1/chat/completions';
+const LLM7_KEY = '/WF1cs8NieiVJAvBfBR+n5Fb/vxRW1oSmv3EqtTSTRxWQBGMexqcI4Xivs+BqTXfNYMZI8OUFZpv5YAA0FOjcumYWgcG8AkhePVVO8zCVKQo3GMYfArXw2yPPKY7w3tRvofNvQ==';
 const TIPS_REFRESH_MS = 25000;
 
 let realStandings = [];
@@ -341,398 +300,243 @@ let lastRound = null;
 let currentTab = 'real';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ANTHROPIC API – web search ENGEDÉLYEZVE
+// LLM7 (AI tippek + tabella előrejelzés)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function callClaude(prompt, useWebSearch = false, temp = 0.7) {
-  const body = {
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 1500,
-    messages: [{ role: 'user', content: prompt }],
-    temperature: temp,
-  };
-
-  if (useWebSearch) {
-    body.tools = [{ type: 'web_search_20250305', name: 'web_search' }];
-  }
-
-  const res = await fetch(ANTHROPIC_URL, {
+async function callAI(prompt, temp = 0.7) {
+  const res = await fetch(LLM7_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LLM7_KEY}` },
+    body: JSON.stringify({ model: 'default', messages: [{ role: 'user', content: prompt }], temperature: temp, max_tokens: 2048 })
+  });
+  if (!res.ok) throw new Error(`LLM7 hiba: ${res.status}`);
+  const d = await res.json();
+  return d.choices?.[0]?.message?.content || '';
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HTML PARSER – a /api/matches proxy nyers HTML-jét dolgozza fel
+// A sportradar oldal struktúrája a képből:
+//
+// Táblázat soronként:
+//   TD[0]: "VLLM\n14"  ← liga + forduló
+//   TD[1]: "Crystal Palace"  ← hazai csapat
+//   TD[2]: "03:59\n- : -"   ← idő + eredmény
+//   TD[3]: "Wolverhampton"   ← vendég csapat
+//
+// Megközelítés: DOMParser-rel valódi DOM-ot építünk,
+// így nem kell fragilis regex – egyszerű querySelector!
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function parseMatchesFromHTML(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  const upcoming = [];
+  const results  = [];
+  const seen = new Set();
+
+  function matchKey(a, b) { return [a, b].sort().join('|||'); }
+
+  // Minden TR-t megvizsgálunk
+  const rows = doc.querySelectorAll('tr');
+
+  rows.forEach(tr => {
+    const tds = tr.querySelectorAll('td');
+    if (tds.length < 3) return;
+
+    // Keressük azt a TD-t ami VLLM-et tartalmaz
+    let roundTdIdx = -1;
+    let round = null;
+
+    for (let i = 0; i < tds.length; i++) {
+      const txt = tds[i].textContent.trim();
+      if (txt.includes('VLLM')) {
+        // Forduló szám: szám az ugyanebben a cellában
+        const numMatch = txt.match(/(\d+)/);
+        if (numMatch) {
+          round = parseInt(numMatch[1]);
+          roundTdIdx = i;
+          break;
+        }
+      }
+    }
+
+    if (roundTdIdx === -1 || !round) return;
+
+    // Az idő/eredmény TD: az amelyik HH:MM formátumú időt tartalmaz
+    let centerIdx = -1;
+    for (let i = 0; i < tds.length; i++) {
+      if (/\d{1,2}:\d{2}/.test(tds[i].textContent)) {
+        centerIdx = i;
+        break;
+      }
+    }
+    if (centerIdx === -1) return;
+
+    // Hazai = centerIdx - 1, Vendég = centerIdx + 1
+    const homeIdx = centerIdx - 1;
+    const awayIdx = centerIdx + 1;
+    if (homeIdx < 0 || awayIdx >= tds.length) return;
+
+    const home = tds[homeIdx].textContent.trim();
+    const away = tds[awayIdx].textContent.trim();
+
+    if (!home || !away || home.length < 2 || away.length < 2) return;
+    // Kiszűrjük a fejléc sorokat
+    if (/^(BAJ|Mérkőzés|#|Pont|Csapat)/i.test(home)) return;
+
+    const centerText = tds[centerIdx].textContent.trim();
+    const timeMatch = centerText.match(/(\d{1,2}:\d{2})/);
+    const time = timeMatch ? timeMatch[1] : null;
+
+    // Logo ID-k a sorból
+    const imgs = tr.querySelectorAll('img[src*="medium"]');
+    const logoIds = [];
+    imgs.forEach(img => {
+      const m = img.src.match(/\/medium\/(\d{5,7})\.png/);
+      if (m && !logoIds.includes(m[1])) logoIds.push(m[1]);
+    });
+
+    // Eredmény detektálás:
+    // upcoming: "- : -" vagy csak "-" az eredmény részben
+    // played: "2 : 1" vagy "2:1"
+    // Az időt levágjuk, a maradék az eredmény
+    const afterTime = time ? centerText.replace(time, '').trim() : centerText;
+    const isDash = /^\s*-\s*[:\s]*-\s*$/.test(afterTime) || afterTime.trim() === '-';
+    const scoreMatch = afterTime.match(/(\d+)\s*:\s*(\d+)/);
+
+    const key = matchKey(home, away);
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    const entry = { round, home, away, hid: logoIds[0]||null, aid: logoIds[1]||null, time };
+
+    if (isDash && !scoreMatch) {
+      upcoming.push({ ...entry, upcoming: true });
+    } else if (scoreMatch) {
+      results.push({ ...entry, upcoming: false, hs: parseInt(scoreMatch[1]), as: parseInt(scoreMatch[2]) });
+    }
   });
 
-  if (!res.ok) throw new Error(`API hiba: ${res.status}`);
-  const data = await res.json();
+  // Fallback: ha a DOM parser nem működött (pl. nagyon tört HTML),
+  // egyszerű szöveges regex kinyerés
+  if (upcoming.length === 0 && results.length === 0) {
+    return parseMatchesRegexFallback(html);
+  }
 
-  // Összegyűjtjük az összes text blokkot (tool use után is)
-  return (data.content || [])
-    .filter(b => b.type === 'text')
-    .map(b => b.text)
-    .join('\n');
+  return { upcoming, results };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MECCSEK LEKÉRÉSE – Claude web search-csel
+// FALLBACK: regex alapú parser ha a DOM nem megy
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function fetchMatchesViaClaude() {
-  const prompt = `Látogasd meg ezt az URL-t és keresd meg a következő (upcoming) mérkőzéseket:
-${SEASON_URL}
+function parseMatchesRegexFallback(html) {
+  const upcoming = [], results = [], seen = new Set();
+  function matchKey(a, b) { return [a, b].sort().join('|||'); }
 
-A táblázatban "Következő mérkőzések" vagy upcoming mérkőzések vannak ahol az eredmény "- : -".
-Keresd meg a VLLM fordulószámot és az összes upcoming meccset.
+  // Minden TR ami tartalmazza a VLLM szót
+  const trRegex = /<tr[\s>][\s\S]*?<\/tr>/gi;
+  let trMatch;
 
-Válaszolj KIZÁRÓLAG JSON tömbként, semmi más szöveg:
-[{"round":14,"home":"Crystal Palace","away":"Wolverhampton","time":"03:59"},...]
+  while ((trMatch = trRegex.exec(html)) !== null) {
+    const tr = trMatch[0];
+    if (!tr.includes('VLLM')) continue;
 
-Ha nem találsz meccset, adj vissza üres tömböt: []`;
+    // Forduló
+    const roundM = tr.match(/VLLM[\s\S]{0,50}?(\d+)/);
+    if (!roundM) continue;
+    const round = parseInt(roundM[1]);
+    if (round < 1 || round > 999) continue;
 
-  const text = await callClaude(prompt, true, 0.1);
-  console.log('Meccs fetch válasz:', text);
+    // TD tartalmak szövegként
+    const tdTexts = [...tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)]
+      .map(m => m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
 
-  // JSON kinyerése
-  const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  const start = clean.indexOf('[');
-  if (start === -1) return [];
-  const end = clean.lastIndexOf(']');
-  const jsonStr = clean.slice(start, end + 1);
-  return JSON.parse(jsonStr);
+    if (tdTexts.length < 3) continue;
+
+    // Idő TD keresése
+    let centerIdx = tdTexts.findIndex(t => /\d{1,2}:\d{2}/.test(t));
+    if (centerIdx === -1) continue;
+
+    const home = tdTexts[centerIdx - 1];
+    const away = tdTexts[centerIdx + 1];
+    if (!home || !away || home.length < 2) continue;
+
+    const centerText = tdTexts[centerIdx];
+    const timeMatch = centerText.match(/(\d{1,2}:\d{2})/);
+    const time = timeMatch ? timeMatch[1] : null;
+    const afterTime = time ? centerText.replace(time, '').trim() : centerText;
+
+    // Logo ID-k
+    const logoIds = [];
+    for (const m of tr.matchAll(/\/medium\/(\d{5,7})\.png/g)) {
+      if (!logoIds.includes(m[1])) logoIds.push(m[1]);
+    }
+
+    const isDash = /^\s*-\s*[:\s]*-\s*$/.test(afterTime) || afterTime.trim() === '-';
+    const scoreMatch = afterTime.match(/(\d+)\s*:\s*(\d+)/);
+
+    const key = matchKey(home, away);
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const entry = { round, home, away, hid: logoIds[0]||null, aid: logoIds[1]||null, time };
+    if (isDash && !scoreMatch) upcoming.push({ ...entry, upcoming: true });
+    else if (scoreMatch) results.push({ ...entry, upcoming: false, hs: parseInt(scoreMatch[1]), as: parseInt(scoreMatch[2]) });
+  }
+
+  return { upcoming, results };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TABELLA LEKÉRÉSE – /api/standings (meglévő backend)
-// Ha nincs backend, Claude-dal is megcsináljuk
+// MECCSEK LEKÉRÉSE – /api/matches proxy-n keresztül
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function fetchNextMatches() {
+  const res = await fetch('/api/matches');
+  if (!res.ok) throw new Error(`Proxy hiba: ${res.status}`);
+
+  const contentType = res.headers.get('content-type') || '';
+
+  // Ha JSON hibaüzenetet kaptunk
+  if (contentType.includes('application/json')) {
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    // Ha már feldolgozott adatot ad vissza (régi matches.js kompatibilitás)
+    if (data.nextFixtures) return data;
+    return { nextFixtures: [], nextRound: null };
+  }
+
+  // Nyers HTML – mi parsoljuk
+  const html = await res.text();
+  console.log(`[matches] HTML kapott: ${html.length} karakter, VLLM: ${html.includes('VLLM')}`);
+
+  const { upcoming, results } = parseMatchesFromHTML(html);
+  console.log(`[matches] Parsed: ${upcoming.length} upcoming, ${results.length} results`);
+
+  // Következő forduló
+  const upRounds = [...new Set(upcoming.map(m => m.round))].sort((a, b) => a - b);
+  const nextRound = upRounds[0] ?? null;
+  const nextFixtures = upcoming.filter(m => m.round === nextRound);
+
+  // Utolsó fordulók
+  const doneRounds = [...new Set(results.map(m => m.round))].sort((a, b) => b - a);
+  const recentResults = results.filter(m => doneRounds.slice(0, 3).includes(m.round));
+
+  return { nextFixtures, nextRound, recentResults, lastRound: doneRounds[0] ?? null, source: 'html-parsed' };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TABELLA
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 async function fetchRealStandings() {
-  // Próbáljuk először a meglévő API-t
-  try {
-    const res = await fetch('/api/standings?liga=pl');
-    if (res.ok) {
-      const data = await res.json();
-      if (data.standings && data.standings.length > 0) {
-        return { standings: data.standings, seasonId: data.seasonId || null };
-      }
-    }
-  } catch (_) {}
-
-  // Fallback: Claude web search-csel lekéri a tabellát
-  const prompt = `Látogasd meg: ${SEASON_URL}
-Keresd meg a tabella (standings) adatokat.
-Válaszolj KIZÁRÓLAG JSON tömbként:
-[{"pos":1,"team":"Arsenal","goalsFor":45,"goalsAgainst":18,"pts":67,"trend":"up"},...]`;
-
-  const text = await callClaude(prompt, true, 0.1);
-  const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  const start = clean.indexOf('[');
-  if (start === -1) throw new Error('Tabella nem elérhető');
-  const jsonStr = clean.slice(start, clean.lastIndexOf(']') + 1);
-  const standings = JSON.parse(jsonStr).map(r => ({
-    pos: r.pos, team: r.team,
-    goalsFor: r.goalsFor ?? r.goals_for ?? 0,
-    goalsAgainst: r.goalsAgainst ?? r.goals_against ?? 0,
-    pts: r.pts ?? r.points ?? 0,
-    trend: r.trend ?? 'same',
-    logo: null,
-  }));
-  return { standings, seasonId: null };
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// AI TIPPEK GENERÁLÁSA
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function generateTips(fixtures, standings) {
-  const matchList = fixtures.map(m => `${m.home} vs ${m.away}`).join('\n');
-  const standingsSummary = standings.length > 0
-    ? standings.slice(0, 8).map(t => `${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n')
-    : 'Nincs tabella adat';
-
-  const prompt = `Virtuális futball liga tipp-elemző vagy. Adj 4 tippet MAGYARUL.
-
-MECCSEK:
-${matchList}
-
-TABELLA (top 8):
-${standingsSummary}
-
-SZABÁLYOK:
-- Pontosan 2 db "over15" tipp (1.5 gól felett)
-- Pontosan 2 db "btts" tipp (mindkét csapat góloz)
-- Megbízhatóság: 50-95%
-- 1 mondatos magyar indoklás
-
-Válaszolj KIZÁRÓLAG JSON tömbként:
-[{"type":"over15","match":"Hazai vs Vendég","confidence":78,"reason":"..."},
- {"type":"over15","match":"Hazai vs Vendég","confidence":72,"reason":"..."},
- {"type":"btts","match":"Hazai vs Vendég","confidence":68,"reason":"..."},
- {"type":"btts","match":"Hazai vs Vendég","confidence":65,"reason":"..."}]`;
-
-  const text = await callClaude(prompt, false, 0.8);
-  const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  const start = clean.indexOf('[');
-  const end = clean.lastIndexOf(']');
-  if (start === -1) throw new Error('Tipp JSON nem található');
-  return JSON.parse(clean.slice(start, end + 1));
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// AI TABELLA GENERÁLÁS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function generateAITable() {
-  const meta = document.getElementById('aiMeta');
-  const aiTable = document.getElementById('aiTable');
-  const aiPanel = document.getElementById('aiPanel');
-  meta.className = 'lb-meta loading';
-  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI generálás...';
-  aiTable.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
-  aiPanel.style.display = 'none';
-  hideError();
-
-  if (realStandings.length === 0) {
-    try {
-      const { standings, seasonId } = await fetchRealStandings();
-      detectSeasonReset(standings, seasonId);
-      realStandings = standings;
-    } catch(e) {
-      showError('Valódi adatok betöltése sikertelen: ' + e.message);
-      meta.className = 'lb-meta error';
-      return;
-    }
-  }
-
-  const allTeamsData = realStandings.map(t => `${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n');
-  const totalPts = realStandings.reduce((s, t) => s + (t.pts || 0), 0);
-  const seasonNote = totalPts < 50 ? 'FONTOS: ÚJ szezon eleje!' : 'Becsüld a szezon végét!';
-
-  const prompt = `Virtuális futball liga elemző vagy. A jelenlegi tabella alapján készíts szezonvégi előrejelzést!
-
-JELENLEGI TABELLA:
-${allTeamsData}
-
-${seasonNote}
-
-SZABÁLYOK:
-1. Legalább 5 csapat helye változzon!
-2. Pontok és gólok különbözzenek a valóstól!
-3. trend: "up"/"down"/"same"
-
-Válaszolj KIZÁRÓLAG JSON tömbbel:
-[{"pos":1,"team":"Név","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},...]`;
-
-  try {
-    const text = await callClaude(prompt, false, 0.9);
-    const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-    const start = clean.indexOf('[');
-    if (start === -1) throw new Error('JSON nem található');
-    const aiStandings = JSON.parse(clean.slice(start)).map(r => ({
-      pos: r.pos, team: r.team,
-      goalsFor: r.goalsFor ?? 0, goalsAgainst: r.goalsAgainst ?? 0,
-      pts: r.pts ?? 0, trend: r.trend ?? 'same',
-    }));
-
-    if (!aiStandings || aiStandings.length === 0) throw new Error('Üres tabella');
-
-    const total = aiStandings.length;
-    aiTable.innerHTML = aiStandings.map((r, i) => `
-      <div class="${rowClass(r.pos, total)}" style="animation-delay:${i*0.025}s">
-        <span class="col-pos">${r.pos}</span>
-        <span class="col-trend">${trendHtml(r.trend)}</span>
-        <span class="col-team"><span class="team-logo-placeholder"></span><span class="team-name">${r.team}</span></span>
-        <span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span>
-        <span class="col-gd">${gd(r.goalsFor, r.goalsAgainst)}</span>
-        <span class="col-pts">${r.pts}</span>
-      </div>`).join('');
-
-    meta.className = 'lb-meta';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI becslés';
-    document.getElementById('aiUpdateTime').textContent = nowStr();
-
-    const top3 = aiStandings.slice(0, 3).map(t => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
-    const bot3 = aiStandings.slice(-3).map(t => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
-    const analText = await callClaude(`Rövid elemzés MAGYARUL (max 4 mondat):\nTop 3: ${top3}\nUtolsó 3: ${bot3}\nMiért lehetnek ilyen helyzetben?`, false);
-    if (analText) {
-      document.getElementById('aiBody').innerHTML = analText.replace(/\n/g, '<br>');
-      aiPanel.style.display = 'block';
-    }
-  } catch(e) {
-    showError(e.message);
-    meta.className = 'lb-meta error';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
-    aiTable.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.72rem;font-family:\'DM Mono\',monospace">Hiba. Próbáld újra.</div>';
-  }
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TIPPEK TAB BETÖLTÉSE
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function loadTips(forceRefresh = false) {
-  const dot = document.getElementById('tipsDot');
-  const statusText = document.getElementById('tipsStatusText');
-  const updateTime = document.getElementById('tipsUpdateTime');
-  const matchesSection = document.getElementById('matchesSection');
-  const loadingState = document.getElementById('tipsLoadingState');
-  const emptyState = document.getElementById('tipsEmptyState');
-  const roundBadge = document.getElementById('tipsRoundBadge');
-
-  dot.style.background = 'var(--amber)';
-  statusText.textContent = 'Meccsek keresése...';
-  loadingState.style.display = 'flex';
-  matchesSection.style.display = 'none';
-  emptyState.style.display = 'none';
-
-  try {
-    // Claude web search-csel lekéri a meccseket
-    statusText.textContent = 'AI keres a sportradar oldalon...';
-    const fixtures = await fetchMatchesViaClaude();
-
-    if (!fixtures || fixtures.length === 0) {
-      loadingState.style.display = 'none';
-      emptyState.style.display = 'block';
-      dot.style.background = 'var(--text-muted)';
-      statusText.textContent = 'Nincs következő menet';
-      updateTime.textContent = nowStr();
-      return;
-    }
-
-    const round = fixtures[0]?.round ?? null;
-
-    // Ha ugyanaz a menet és nem force, skip AI tipp
-    if (round && round === lastRound && !forceRefresh) {
-      dot.style.background = 'var(--green)';
-      statusText.textContent = `${round}. menet – nincs változás`;
-      updateTime.textContent = nowStr();
-      return;
-    }
-
-    lastRound = round;
-
-    if (round) {
-      roundBadge.textContent = `${round}. MENET`;
-      roundBadge.style.display = 'inline-block';
-    }
-
-    // Meccsek megjelenítése
-    renderMatches(fixtures);
-    matchesSection.style.display = 'block';
-    loadingState.style.display = 'none';
-
-    // Standings betöltése
-    if (realStandings.length === 0) {
-      try {
-        const { standings } = await fetchRealStandings();
-        realStandings = standings;
-      } catch(_) {}
-    }
-
-    // AI tippek
-    statusText.textContent = 'AI tippek generálása...';
-    dot.style.background = 'var(--amber)';
-    document.getElementById('tipsGrid').innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
-
-    const tips = await generateTips(fixtures, realStandings);
-    renderTips(tips);
-
-    dot.style.background = 'var(--green)';
-    statusText.textContent = `${round ? round + '. menet' : 'Következő menet'} – tippek kész`;
-    updateTime.textContent = nowStr();
-
-  } catch(e) {
-    console.error('Tips hiba:', e);
-    loadingState.style.display = 'none';
-    emptyState.style.display = 'block';
-    dot.style.background = 'var(--red)';
-    statusText.textContent = `Hiba: ${e.message}`;
-    updateTime.textContent = nowStr();
-  }
-}
-
-async function checkForNewRound() {
-  if (currentTab !== 'tips') return;
-  try {
-    const fixtures = await fetchMatchesViaClaude();
-    const round = fixtures?.[0]?.round ?? null;
-    if (round && round !== lastRound) {
-      await loadTips(true);
-    }
-  } catch(_) {}
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// RENDER HELPERS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function renderMatches(fixtures) {
-  document.getElementById('matchesGrid').innerHTML = fixtures.map((m, i) => `
-    <div class="match-card" style="animation-delay:${i*0.04}s">
-      <div class="match-home">
-        <span class="match-team-name">${m.home}</span>
-        <span class="match-logo-ph"></span>
-      </div>
-      <div class="match-center">
-        ${m.time ? `<div class="match-time">${m.time}</div>` : ''}
-        <div class="match-vs">VS</div>
-      </div>
-      <div class="match-away">
-        <span class="match-logo-ph"></span>
-        <span class="match-team-name">${m.away}</span>
-      </div>
-    </div>`).join('');
-}
-
-function renderTips(tips) {
-  document.getElementById('tipsGrid').innerHTML = tips.slice(0, 4).map((tip, i) => {
-    const isOver = tip.type === 'over15';
-    const conf = Math.min(95, Math.max(50, parseInt(tip.confidence) || 70));
-    return `
-      <div class="tip-card ${tip.type}" style="animation-delay:${i*0.08}s">
-        <div class="tip-type ${tip.type}">
-          ${isOver
-            ? `<svg class="tip-type-icon" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
-            : `<svg class="tip-type-icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M8 12s1-2 4-2 4 2 4 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`
-          }
-          ${isOver ? '1.5 GÓL FELETT' : 'MINDKÉT CSAPAT GÓLOZ'}
-        </div>
-        <div class="tip-match">${tip.match || ''}</div>
-        <div class="tip-confidence">
-          <div class="tip-conf-bar"><div class="tip-conf-fill" style="width:${conf}%"></div></div>
-          <span class="tip-conf-pct">${conf}%</span>
-        </div>
-        <div class="tip-reason">${tip.reason || ''}</div>
-      </div>`;
-  }).join('');
-
-  // Tippelt meccsek kiemelése
-  tips.forEach(tip => {
-    const matchName = tip.match || '';
-    document.querySelectorAll('.match-card').forEach(card => {
-      const home = card.querySelector('.match-home .match-team-name')?.textContent || '';
-      const away = card.querySelector('.match-away .match-team-name')?.textContent || '';
-      if (matchName.includes(home) || matchName.includes(away)) {
-        card.classList.add('has-tip');
-      }
-    });
-  });
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TABELLA BETÖLTÉSE
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function loadRealTable() {
-  const meta = document.getElementById('realMeta');
-  meta.className = 'lb-meta loading';
-  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Betöltés...';
-  try {
-    const { standings, seasonId } = await fetchRealStandings();
-    detectSeasonReset(standings, seasonId);
-    realStandings = standings;
-    renderRealTable(standings);
-  } catch(e) {
-    showError(e.message);
-    meta.className = 'lb-meta error';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
-  }
+  const res = await fetch('/api/standings?liga=pl');
+  if (!res.ok) throw new Error(`API hiba: ${res.status}`);
+  const data = await res.json();
+  return { standings: data.standings || [], seasonId: data.seasonId || null };
 }
 
 function renderRealTable(standings) {
   const table = document.getElementById('realTable');
-  const meta = document.getElementById('realMeta');
+  const meta  = document.getElementById('realMeta');
   if (!standings || standings.length === 0) {
     table.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:.72rem">Nincs adat</div>';
     return;
@@ -752,6 +556,251 @@ function renderRealTable(standings) {
   document.getElementById('realUpdateTime').textContent = nowStr();
 }
 
+async function loadRealTable() {
+  const meta = document.getElementById('realMeta');
+  meta.className = 'lb-meta loading';
+  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Betöltés...';
+  try {
+    const { standings, seasonId } = await fetchRealStandings();
+    detectSeasonReset(standings, seasonId);
+    realStandings = standings;
+    renderRealTable(standings);
+  } catch(e) {
+    showError(e.message);
+    meta.className = 'lb-meta error';
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI TABELLA
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function generateAITable() {
+  const meta = document.getElementById('aiMeta');
+  const aiTable = document.getElementById('aiTable');
+  const aiPanel = document.getElementById('aiPanel');
+  meta.className = 'lb-meta loading';
+  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI generálás...';
+  aiTable.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+  aiPanel.style.display = 'none';
+  hideError();
+
+  if (realStandings.length === 0) {
+    try { const { standings, seasonId } = await fetchRealStandings(); detectSeasonReset(standings, seasonId); realStandings = standings; }
+    catch(e) { showError('Valódi adatok betöltése sikertelen: ' + e.message); meta.className = 'lb-meta error'; return; }
+  }
+
+  const allTeamsData = realStandings.map(t => `${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n');
+  const totalPts = realStandings.reduce((s, t) => s + (t.pts || 0), 0);
+  const seasonNote = totalPts < 50 ? 'FONTOS: ÚJ szezon eleje. Becsüld a teljes szezon végét!' : 'Becsüld a szezon végét!';
+
+  const prompt = `Te egy virtuális futball liga profí elemzője vagy. A jelenlegi tabella alapján készíts SAJÁT, FÜGGETLEN előrejelzést a szezon végére!\n\nJELENLEGI TABELLA:\n${allTeamsData}\n\n${seasonNote}\n\nSZABÁLYOK:\n1. Sorrend VÁLTOZZON – legalább 5 csapat kerüljön más helyre!\n2. Pontok és gólok KÜLÖNBÖZZENEK a valóstól!\n3. Egy középcsapat kerüljön fel, egy top csapat essen vissza!\n4. trend: "up"/"down"/"same"\n5. TILOS a valós adatok másolása!\n\nVálaszolj KIZÁRÓLAG kompakt JSON tömbbel:\n[{"pos":1,"team":"Név","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},...]`;
+
+  try {
+    const text = await callAI(prompt, 0.9);
+    const clean = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    const start = clean.indexOf('[');
+    if (start === -1) throw new Error('JSON nem található');
+    const aiStandings = JSON.parse(clean.slice(start)).map(r => ({
+      pos: r.pos, team: r.team,
+      goalsFor: r.goalsFor ?? 0, goalsAgainst: r.goalsAgainst ?? 0,
+      pts: r.pts ?? 0, trend: r.trend ?? 'same',
+    }));
+    if (!aiStandings || aiStandings.length === 0) throw new Error('Üres tabella');
+
+    const total = aiStandings.length;
+    aiTable.innerHTML = aiStandings.map((r, i) => `
+      <div class="${rowClass(r.pos, total)}" style="animation-delay:${i*0.025}s">
+        <span class="col-pos">${r.pos}</span>
+        <span class="col-trend">${trendHtml(r.trend)}</span>
+        <span class="col-team"><span class="team-logo-placeholder"></span><span class="team-name">${r.team}</span></span>
+        <span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span>
+        <span class="col-gd">${gd(r.goalsFor, r.goalsAgainst)}</span>
+        <span class="col-pts">${r.pts}</span>
+      </div>`).join('');
+    meta.className = 'lb-meta';
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI becslés';
+    document.getElementById('aiUpdateTime').textContent = nowStr();
+
+    const top3 = aiStandings.slice(0,3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
+    const bot3 = aiStandings.slice(-3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
+    const analText = await callAI(`Rövid elemzés MAGYARUL (max 4 mondat):\nTop 3: ${top3}\nUtolsó 3: ${bot3}\nMiért lehetnek ilyen helyzetben?`);
+    if (analText) { document.getElementById('aiBody').innerHTML = analText.replace(/\n/g,'<br>'); aiPanel.style.display = 'block'; }
+  } catch(e) {
+    showError(e.message);
+    meta.className = 'lb-meta error';
+    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
+    aiTable.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.72rem;font-family:\'DM Mono\',monospace">Hiba. Próbáld újra.</div>';
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI TIPPEK
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function generateTips(fixtures, standings) {
+  const matchList = fixtures.map(m => `${m.home} vs ${m.away}`).join('\n');
+  const standingsSummary = standings.length > 0
+    ? standings.slice(0, 8).map(t => `${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n')
+    : 'Nincs tabella adat';
+
+  const prompt = `Te egy virtuális futball liga profí tipp-elemzője vagy. A következő menet meccseiből adj 4 tippet MAGYARUL.
+
+MECCSEK:
+${matchList}
+
+TABELLA (top 8):
+${standingsSummary}
+
+SZABÁLYOK:
+- Adj pontosan 2 db "1.5 gól felett" (over 1.5) tippet
+- Adj pontosan 2 db "mindkét csapat góloz" (BTTS) tippet
+- Megbízhatóság: 50-95%
+- 1 mondatos MAGYAR indoklás
+
+Válaszolj KIZÁRÓLAG kompakt JSON tömbként:
+[{"type":"over15","match":"Hazai vs Vendég","confidence":78,"reason":"..."},
+ {"type":"over15","match":"Hazai vs Vendég","confidence":72,"reason":"..."},
+ {"type":"btts","match":"Hazai vs Vendég","confidence":68,"reason":"..."},
+ {"type":"btts","match":"Hazai vs Vendég","confidence":65,"reason":"..."}]`;
+
+  const text = await callAI(prompt, 0.8);
+  const clean = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  const start = clean.indexOf('[');
+  const end = clean.lastIndexOf(']');
+  if (start === -1) throw new Error('Tipp JSON nem található');
+  return JSON.parse(clean.slice(start, end + 1));
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TIPPEK TAB
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function loadTips(forceRefresh = false) {
+  const dot = document.getElementById('tipsDot');
+  const statusText = document.getElementById('tipsStatusText');
+  const updateTime = document.getElementById('tipsUpdateTime');
+  const matchesSection = document.getElementById('matchesSection');
+  const loadingState = document.getElementById('tipsLoadingState');
+  const loadingText = document.getElementById('tipsLoadingText');
+  const emptyState = document.getElementById('tipsEmptyState');
+  const roundBadge = document.getElementById('tipsRoundBadge');
+
+  dot.style.background = 'var(--amber)';
+  statusText.textContent = 'Meccsek betöltése...';
+  loadingText.textContent = 'Meccsek betöltése...';
+  loadingState.style.display = 'flex';
+  matchesSection.style.display = 'none';
+  emptyState.style.display = 'none';
+
+  try {
+    const data = await fetchNextMatches();
+    const fixtures = data.nextFixtures || [];
+    const round = data.nextRound;
+
+    if (fixtures.length === 0) {
+      loadingState.style.display = 'none';
+      emptyState.style.display = 'block';
+      dot.style.background = 'var(--text-muted)';
+      statusText.textContent = 'Nincs következő menet';
+      updateTime.textContent = nowStr();
+      return;
+    }
+
+    if (round === lastRound && !forceRefresh) {
+      loadingState.style.display = 'none';
+      matchesSection.style.display = 'block';
+      dot.style.background = 'var(--green)';
+      statusText.textContent = `${round}. menet – nincs változás`;
+      updateTime.textContent = nowStr();
+      return;
+    }
+
+    lastRound = round;
+    if (round) { roundBadge.textContent = `${round}. MENET`; roundBadge.style.display = 'inline-block'; }
+
+    // Meccsek megjelenítése
+    document.getElementById('matchesGrid').innerHTML = fixtures.map((m, i) => `
+      <div class="match-card" style="animation-delay:${i*0.04}s">
+        <div class="match-home">
+          <span class="match-team-name">${m.home}</span>
+          ${m.hid ? `<img class="match-logo" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/${m.hid}.png" alt="" onerror="this.style.display='none'">` : '<span class="match-logo-ph"></span>'}
+        </div>
+        <div class="match-center">
+          ${m.time ? `<div class="match-time">${m.time}</div>` : ''}
+          <div class="match-vs">VS</div>
+        </div>
+        <div class="match-away">
+          ${m.aid ? `<img class="match-logo" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/${m.aid}.png" alt="" onerror="this.style.display='none'">` : '<span class="match-logo-ph"></span>'}
+          <span class="match-team-name">${m.away}</span>
+        </div>
+      </div>`).join('');
+
+    matchesSection.style.display = 'block';
+    loadingState.style.display = 'none';
+
+    // AI tippek
+    statusText.textContent = 'AI tippek generálása...';
+    dot.style.background = 'var(--amber)';
+    document.getElementById('tipsGrid').innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+
+    if (realStandings.length === 0) {
+      try { const { standings } = await fetchRealStandings(); realStandings = standings; } catch(_) {}
+    }
+
+    const tips = await generateTips(fixtures, realStandings);
+
+    document.getElementById('tipsGrid').innerHTML = tips.slice(0, 4).map((tip, i) => {
+      const isOver = tip.type === 'over15';
+      const conf = Math.min(95, Math.max(50, parseInt(tip.confidence) || 70));
+      return `
+        <div class="tip-card ${tip.type}" style="animation-delay:${i*0.08}s">
+          <div class="tip-type ${tip.type}">
+            ${isOver
+              ? `<svg class="tip-type-icon" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+              : `<svg class="tip-type-icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M8 12s1-2 4-2 4 2 4 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`
+            }
+            ${isOver ? '1.5 GÓL FELETT' : 'MINDKÉT CSAPAT GÓLOZ'}
+          </div>
+          <div class="tip-match">${tip.match || ''}</div>
+          <div class="tip-confidence">
+            <div class="tip-conf-bar"><div class="tip-conf-fill" style="width:${conf}%"></div></div>
+            <span class="tip-conf-pct">${conf}%</span>
+          </div>
+          <div class="tip-reason">${tip.reason || ''}</div>
+        </div>`;
+    }).join('');
+
+    tips.forEach(tip => {
+      const matchName = tip.match || '';
+      document.querySelectorAll('.match-card').forEach(card => {
+        const home = card.querySelector('.match-home .match-team-name')?.textContent || '';
+        const away = card.querySelector('.match-away .match-team-name')?.textContent || '';
+        if (matchName.includes(home) || matchName.includes(away)) card.classList.add('has-tip');
+      });
+    });
+
+    dot.style.background = 'var(--green)';
+    statusText.textContent = `${round ? round + '. menet' : 'Következő menet'} – tippek kész`;
+    updateTime.textContent = nowStr();
+
+  } catch(e) {
+    console.error('Tips hiba:', e);
+    loadingState.style.display = 'none';
+    emptyState.style.display = 'block';
+    dot.style.background = 'var(--red)';
+    statusText.textContent = `Hiba: ${e.message}`;
+    updateTime.textContent = nowStr();
+  }
+}
+
+async function checkForNewRound() {
+  if (currentTab !== 'tips') return;
+  try {
+    const data = await fetchNextMatches();
+    const round = data.nextRound;
+    if (round && round !== lastRound) await loadTips(true);
+  } catch(_) {}
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // HELPERS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -762,8 +811,8 @@ function gd(gf, ga) {
   return `<span style="color:#2a2a2a">0</span>`;
 }
 function trendHtml(t) {
-  if (t === 'up')   return '<span class="trend-up">▲</span>';
-  if (t === 'down') return '<span class="trend-down">▼</span>';
+  if (t==='up')   return '<span class="trend-up">▲</span>';
+  if (t==='down') return '<span class="trend-down">▼</span>';
   return '<span class="trend-same">—</span>';
 }
 function logoHtml(logo) {
@@ -775,51 +824,34 @@ function rowClass(pos, total) {
   if (total && pos > total - 3) return 'lb-row relegation';
   return 'lb-row';
 }
-function nowStr() {
-  return new Date().toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-function showError(msg) {
-  document.getElementById('errorText').textContent = msg;
-  document.getElementById('errorBox').classList.add('show');
-}
-function hideError() {
-  document.getElementById('errorBox').classList.remove('show');
-}
+function nowStr() { return new Date().toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+function showError(msg) { document.getElementById('errorText').textContent=msg; document.getElementById('errorBox').classList.add('show'); }
+function hideError() { document.getElementById('errorBox').classList.remove('show'); }
 function detectSeasonReset(standings, serverSeasonId) {
-  const totalPoints = standings.reduce((s, t) => s + (t.pts || 0), 0);
+  const totalPoints = standings.reduce((s,t)=>s+(t.pts||0),0);
   let isReset = false;
-  if (serverSeasonId && lastSeasonId && serverSeasonId !== lastSeasonId) isReset = true;
-  if (lastTotalPoints !== null && lastTotalPoints > 100 && totalPoints < lastTotalPoints * 0.3) isReset = true;
+  if (serverSeasonId && lastSeasonId && serverSeasonId!==lastSeasonId) isReset=true;
+  if (lastTotalPoints!==null && lastTotalPoints>100 && totalPoints<lastTotalPoints*0.3) isReset=true;
   if (isReset) {
-    document.getElementById('seasonNoticeText').textContent = serverSeasonId
-      ? `Új szezon érzékelve (ID: ${serverSeasonId})`
-      : 'Szezonváltás érzékelve';
-    document.getElementById('seasonNotice').style.display = 'flex';
-    document.getElementById('aiTable').innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.72rem;font-family:\'DM Mono\',monospace">Új szezon! Kattints a "Generálás" gombra.</div>';
-    document.getElementById('aiPanel').style.display = 'none';
-    lastRound = null;
+    document.getElementById('seasonNoticeText').textContent = serverSeasonId ? `Új szezon (ID: ${serverSeasonId})` : 'Szezonváltás';
+    document.getElementById('seasonNotice').style.display='flex';
+    document.getElementById('aiTable').innerHTML='<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.72rem;font-family:\'DM Mono\',monospace">Új szezon! Kattints a "Generálás" gombra.</div>';
+    document.getElementById('aiPanel').style.display='none';
+    lastRound=null;
   }
-  lastTotalPoints = totalPoints;
-  if (serverSeasonId) lastSeasonId = serverSeasonId;
+  lastTotalPoints=totalPoints;
+  if (serverSeasonId) lastSeasonId=serverSeasonId;
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TAB VÁLTÁS
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function showTab(tab) {
   currentTab = tab;
-  ['real', 'ai', 'tips'].forEach(t => {
-    document.getElementById(t + 'Container').style.display = t === tab ? 'block' : 'none';
-    document.getElementById(t + 'Tab').classList.toggle('active', t === tab);
+  ['real','ai','tips'].forEach(t => {
+    document.getElementById(t+'Container').style.display = t===tab ? 'block' : 'none';
+    document.getElementById(t+'Tab').classList.toggle('active', t===tab);
   });
-  if (tab === 'tips' && lastRound === null) {
-    loadTips(true);
-  }
+  if (tab==='tips' && lastRound===null) loadTips(true);
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// INIT
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 document.addEventListener('DOMContentLoaded', () => {
   loadRealTable();
   document.getElementById('refreshRealBtn').addEventListener('click', loadRealTable);
