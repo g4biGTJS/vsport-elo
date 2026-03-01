@@ -1,4 +1,4 @@
-// api/matches.js – Vercel Edge Function – FINAL VERSION
+// api/matches.js – Vercel Edge Function
 
 export const config = { runtime: 'edge' };
 
@@ -15,13 +15,12 @@ const FETCH_HEADERS = {
 const corsHeaders = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
-  'Cache-Control': 's-maxage=8, stale-while-revalidate=16',
+  'Cache-Control': 'no-store',
 };
 
-// ── Season ID cache ──
 let currentSeasonId = '3061347';
 let lastSeasonCheck = 0;
-const SEASON_CHECK_INTERVAL = 10000; // 10 másodperc
+const SEASON_CHECK_INTERVAL = 10000;
 
 async function findCurrentSeasonId() {
   const now = Date.now();
@@ -35,199 +34,157 @@ async function findCurrentSeasonId() {
     lastSeasonCheck = now;
   } catch (e) {
     console.error('[SeasonCheck]', e.message);
-    lastSeasonCheck = now;
+    lastSeasonCheck = Date.now();
   }
   return currentSeasonId;
 }
 
-// ── HTML oldal lekérése ──
 async function fetchHtml(url) {
   const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(12000) });
   if (!res.ok) throw new Error(`HTTP ${res.status} @ ${url}`);
   return res.text();
 }
 
-// ── Aktív forduló kinyerése a tab listából ──
-// <li ... class="... active"><a ... aria-controls="subType-md-pane-21-12" ...>12</a>
 function getActiveRound(html) {
-  // Keressük az active tab-ot
-  const activeMatch = html.match(/class="[^"]*\bactive\b[^"]*">\s*<a[^>]+aria-controls="subType-md-pane-21-(\d+)"/);
-  if (activeMatch) return parseInt(activeMatch[1]);
-  // Fallback: aria-selected="true"
-  const selectedMatch = html.match(/aria-selected="true"[^>]*>(\d+)<\/a>/);
-  if (selectedMatch) return parseInt(selectedMatch[1]);
+  // Try all known patterns
+  // Pattern 1: class="... active ..."><a ... aria-controls="subType-md-pane-21-12"
+  const p1 = html.match(/class="[^"]*\bactive\b[^"]*"[^>]*>\s*<a[^>]+aria-controls="subType-md-pane-21-(\d+)"/);
+  if (p1) return parseInt(p1[1]);
+
+  // Pattern 2: aria-selected="true" href="#">12</a>
+  const p2 = html.match(/aria-selected="true"[^>]*>\s*(\d+)\s*<\/a>/);
+  if (p2) return parseInt(p2[1]);
+
+  // Pattern 3: active li with subType tab
+  const p3 = html.match(/subType-md-pane-21-(\d+)[^"]*"\s+aria-selected="true"/);
+  if (p3) return parseInt(p3[1]);
+
+  // Pattern 4: find "active" near subType tabs
+  const tabBlock = html.match(/subType-md-tab[\s\S]{0,5000}?aria-selected="true"/);
+  if (tabBlock) {
+    const n = tabBlock[0].match(/subType-md-pane-21-(\d+)/g);
+    if (n && n.length > 0) {
+      const last = n[n.length - 1].match(/(\d+)$/);
+      if (last) return parseInt(last[1]);
+    }
+  }
+
   return null;
 }
 
-// ── Összes elérhető forduló kinyerése ──
 function getAllRounds(html) {
   const rounds = [];
   const re = /aria-controls="subType-md-pane-21-(\d+)"/g;
   let m;
-  while ((m = re.exec(html)) !== null) {
-    rounds.push(parseInt(m[1]));
-  }
+  while ((m = re.exec(html)) !== null) rounds.push(parseInt(m[1]));
   return [...new Set(rounds)].sort((a, b) => a - b);
 }
 
-// ── Meccsek parse-olása a results/fixtures HTML-ből ──
-// A struktúra (results oldal, te küldted):
-//   <tr class="no-hover ..."><td ...>Forduló N</td></tr>  ← fejléc
-//   <tr class="cursor-pointer">
-//     <td ...><div><div>14:43</div></div></td>            ← idő
-//     <td class="divide ...">
-//       <div class="col-xs-5">
-//         <div class="hidden-xs-up visible-sm-up wrap">Tottenham</div>  ← hazai
-//       </div>
-//       <div class="col-xs-2">-</div>
-//       <div class="col-xs-5">
-//         <div class="hidden-xs-up visible-sm-up wrap">Brighton</div>   ← vendég
-//       </div>
-//     </td>
-//     <td ...>félide eredmény</td>
-//     <td ...>RJ eredmény</td>   ← ez kell nekünk
-//   </tr>
-//
-// Upcoming meccs: a score TD-ben csak "-" van (col-xs-2 tartalmaz "-")
-// Lejátszott meccs: a score TD-kben számok vannak
 function parseRoundHtml(html, round, isUpcoming) {
   const matches = [];
   const seen = new Set();
-
-  // Split a cursor-pointer TR-ekre
   const parts = html.split('<tr class="cursor-pointer">');
-
   for (let i = 1; i < parts.length; i++) {
     const chunk = parts[i].split('</tr>')[0];
-
-    // ── Csapatnevek ──
     const nameMatches = [...chunk.matchAll(/class="hidden-xs-up visible-sm-up wrap">\s*([^<]{2,60})\s*<\/div>/g)];
     if (nameMatches.length < 2) continue;
     const home = nameMatches[0][1].trim();
     const away = nameMatches[1][1].trim();
     if (!home || !away || home === away) continue;
-
-    // ── Logo ID-k ──
     const logoMatches = [...chunk.matchAll(/\/medium\/(\d{4,7})\.png/g)];
-    const logoIds = [];
-    const seenIds = new Set();
-    for (const m of logoMatches) {
-      if (!seenIds.has(m[1])) { seenIds.add(m[1]); logoIds.push(m[1]); }
-    }
-
-    // ── Idő ──
+    const logoIds = [...new Set(logoMatches.map(m => m[1]))];
     const timeM = chunk.match(/<div><div>(\d{1,2}:\d{2})<\/div><\/div>/);
     const time = timeM ? timeM[1] : null;
-
-    // ── Eredmény (RJ = utolsó TD) ──
-    // A chunk-ban több TD van: idő | meccs | félidő | RJ
-    // A RJ eredmény az utolsó osztályban van: class="text-center mobile-width-5..."
-    // Keressük a >N<sup></sup> mintázatot
     const allNums = [...chunk.matchAll(/>(\d+)<sup><\/sup>/g)].map(m => parseInt(m[1]));
-
-    let hs = null, as = null;
-    let detectedUpcoming = true;
-
+    let hs = null, as = null, detectedUpcoming = true;
     if (allNums.length >= 2) {
-      // Az utolsó két szám a RJ eredmény (van félidő is előtte, az első 2)
-      // Ha pontosan 2 szám van → csak RJ → hs, as
-      // Ha 4 szám van → [ht_h, ht_a, rj_h, rj_a]
-      if (allNums.length >= 4) {
-        hs = allNums[allNums.length - 2];
-        as = allNums[allNums.length - 1];
-      } else {
-        hs = allNums[0];
-        as = allNums[1];
-      }
+      if (allNums.length >= 4) { hs = allNums[allNums.length - 2]; as = allNums[allNums.length - 1]; }
+      else { hs = allNums[0]; as = allNums[1]; }
       detectedUpcoming = false;
     }
-
     const actualUpcoming = isUpcoming !== null ? isUpcoming : detectedUpcoming;
-
     const key = [home, away].sort().join('|||');
     if (seen.has(key)) continue;
     seen.add(key);
-
     const entry = { round, home, away, hid: logoIds[0] || null, aid: logoIds[1] || null, time };
-    if (actualUpcoming) {
-      matches.push({ ...entry, upcoming: true });
-    } else {
-      matches.push({ ...entry, upcoming: false, hs, as });
-    }
+    if (actualUpcoming) matches.push({ ...entry, upcoming: true });
+    else matches.push({ ...entry, upcoming: false, hs, as });
   }
-
   return matches;
 }
 
-// ── HANDLER ──
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'GET, OPTIONS' },
-    });
+    return new Response(null, { status: 204, headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'GET, OPTIONS' } });
   }
 
   const { searchParams } = new URL(req.url);
   const debug = searchParams.get('debug') === '1';
+  const raw   = searchParams.get('raw') === '1';
 
   try {
     const seasonId = await findCurrentSeasonId();
-
-    // ── 1. Fixtures főoldal lekérése → aktív forduló meghatározása ──
     const fixturesUrl = `${BASE_URL}/season/${seasonId}/fixtures`;
     const fixturesHtml = await fetchHtml(fixturesUrl);
 
+    // ?raw=1 → mutasd meg a tab lista HTML-t
+    if (raw) {
+      // Keressük a subType-md tab blokkot
+      const tabIdx = fixturesHtml.indexOf('subType-md-tab');
+      const activeIdx = fixturesHtml.indexOf('active');
+      const ariaIdx = fixturesHtml.indexOf('aria-selected="true"');
+
+      // Vegyük ki a tab lista körüli 3000 karaktert
+      const snippetIdx = tabIdx >= 0 ? Math.max(0, tabIdx - 200) : 0;
+      const tabSnippet = fixturesHtml.slice(snippetIdx, snippetIdx + 3000);
+
+      // Összes subType-md-pane referencia
+      const allPanes = [...fixturesHtml.matchAll(/subType-md-pane-21-(\d+)/g)].map(m => m[1]);
+      const allSelected = [...fixturesHtml.matchAll(/aria-selected="([^"]+)"/g)].map(m => m[1]);
+      const allActive = [...fixturesHtml.matchAll(/class="([^"]*active[^"]*)"/g)].map(m => m[1]);
+
+      return new Response(JSON.stringify({
+        seasonId,
+        htmlLength: fixturesHtml.length,
+        tabFound: tabIdx >= 0,
+        activeFound: activeIdx >= 0,
+        ariaSelectedFound: ariaIdx >= 0,
+        allPaneRounds: allPanes,
+        allAriaSelected: allSelected.slice(0, 20),
+        allActiveClasses: allActive.slice(0, 10),
+        tabSnippet,
+      }, null, 2), { status: 200, headers: corsHeaders });
+    }
+
     const activeRound = getActiveRound(fixturesHtml);
     const allRounds = getAllRounds(fixturesHtml);
-
-    console.log(`[matches] seasonId=${seasonId} activeRound=${activeRound} allRounds=${allRounds.join(',')}`);
+    console.log(`[matches] seasonId=${seasonId} activeRound=${activeRound} rounds=${allRounds.join(',')}`);
 
     if (!activeRound) throw new Error('Nem sikerült meghatározni az aktív fordulót');
 
-    // ── 2. Aktív forduló meccseit a fixtures oldalból parse-oljuk ──
-    // A fixtures oldalon már benne vannak az aktív forduló meccsek
-    const nextFixtures = parseRoundHtml(fixturesHtml, activeRound, true);
-    console.log(`[matches] nextFixtures from main page: ${nextFixtures.length}`);
-
-    // Ha a főoldalon nincs elég, próbáljuk a round-specifikus URL-t
-    let upcomingMatches = nextFixtures;
+    // Aktív forduló meccsek
+    let upcomingMatches = parseRoundHtml(fixturesHtml, activeRound, true);
     if (upcomingMatches.length === 0) {
       try {
-        const roundUrl = `${BASE_URL}/season/${seasonId}/fixtures/round/21-${activeRound}`;
-        const roundHtml = await fetchHtml(roundUrl);
+        const roundHtml = await fetchHtml(`${BASE_URL}/season/${seasonId}/fixtures/round/21-${activeRound}`);
         upcomingMatches = parseRoundHtml(roundHtml, activeRound, true);
-        console.log(`[matches] nextFixtures from round URL: ${upcomingMatches.length}`);
-      } catch (e) {
-        console.warn(`[matches] round URL failed: ${e.message}`);
-      }
+      } catch (e) { console.warn(`[matches] round URL failed: ${e.message}`); }
     }
 
-    // ── 3. Előző fordulók eredményei (max 5 visszafelé) ──
+    // Előző fordulók eredményei
     const recentResults = [];
     const pastRounds = [];
-    for (let r = activeRound - 1; r >= Math.max(1, activeRound - 5); r--) {
-      pastRounds.push(r);
-    }
+    for (let r = activeRound - 1; r >= Math.max(1, activeRound - 5); r--) pastRounds.push(r);
 
-    await Promise.allSettled(
-      pastRounds.map(async (r) => {
-        try {
-          const roundUrl = `${BASE_URL}/season/${seasonId}/fixtures/round/21-${r}`;
-          const roundHtml = await fetchHtml(roundUrl);
-          const matches = parseRoundHtml(roundHtml, r, false);
-          recentResults.push(...matches);
-          console.log(`[matches] round ${r}: ${matches.length} results`);
-        } catch (e) {
-          console.warn(`[matches] round ${r} failed: ${e.message}`);
-        }
-      })
-    );
+    await Promise.allSettled(pastRounds.map(async (r) => {
+      try {
+        const roundHtml = await fetchHtml(`${BASE_URL}/season/${seasonId}/fixtures/round/21-${r}`);
+        recentResults.push(...parseRoundHtml(roundHtml, r, false));
+      } catch (e) { console.warn(`[matches] round ${r} failed: ${e.message}`); }
+    }));
 
-    // Rendezés forduló szerint (legújabb először)
     recentResults.sort((a, b) => b.round - a.round);
 
-    // ── 4. Válasz összeállítása ──
     const payload = {
       nextFixtures: upcomingMatches,
       nextRound: activeRound,
@@ -239,21 +196,14 @@ export default async function handler(req) {
       totalResults: recentResults.length,
     };
 
-    if (debug) {
-      payload.allRounds = allRounds;
-      payload.activeRound = activeRound;
-    }
+    if (debug) { payload.allRounds = allRounds; payload.activeRound = activeRound; }
 
     return new Response(JSON.stringify(payload), { status: 200, headers: corsHeaders });
 
   } catch (error) {
     console.error('[matches] Fatal:', error.message);
     return new Response(
-      JSON.stringify({
-        nextFixtures: [], nextRound: null,
-        recentResults: [], lastRound: null,
-        error: error.message, seasonId: currentSeasonId,
-      }),
+      JSON.stringify({ nextFixtures: [], nextRound: null, recentResults: [], lastRound: null, error: error.message, seasonId: currentSeasonId }),
       { status: 200, headers: corsHeaders }
     );
   }
