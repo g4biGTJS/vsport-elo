@@ -286,10 +286,10 @@ animParticles();
 /* ═══ CONFIG ═══ */
 const LLM7_URL='https://api.llm7.io/v1/chat/completions';
 const LLM7_KEY='/WF1cs8NieiVJAvBfBR+n5Fb/vxRW1oSmv3EqtTSTRxWQBGMexqcI4Xivs+BqTXfNYMZI8OUFZpv5YAA0FOjcumYWgcG8AkhePVVO8zCVKQo3GMYfArXw2yPPKY7w3tRvofNvQ==';
-let realStandings=[],lastSeasonId=null,lastTotalPoints=null,currentTab='real';
+let realStandings=[],recentMatchData=null,lastSeasonId=null,lastTotalPoints=null,currentTab='real';
 
 async function callAI(prompt,temp=0.7){
-  const res=await fetch(LLM7_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${LLM7_KEY}`},body:JSON.stringify({model:'default',messages:[{role:'user',content:prompt}],temperature:temp,max_tokens:2048})});
+  const res=await fetch(LLM7_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${LLM7_KEY}`},body:JSON.stringify({model:'default',messages:[{role:'user',content:prompt}],temperature:temp,max_tokens:3000})});
   if(!res.ok)throw new Error(`LLM7 hiba: ${res.status}`);
   const d=await res.json();return d.choices?.[0]?.message?.content||'';
 }
@@ -301,11 +301,32 @@ async function fetchRealStandings(){
   return{standings:data.standings||[],seasonId:data.seasonId||null};
 }
 
+async function fetchMatchData(){
+  try{const res=await fetch('/api/matches');if(!res.ok)return null;return await res.json();}catch(e){return null;}
+}
+
+function buildTeamForm(recentResults){
+  const form={};
+  if(!recentResults||!recentResults.length)return form;
+  for(const m of recentResults){
+    const{home,away,hs,as}=m;
+    if(hs==null||as==null)continue;
+    if(!form[home])form[home]={w:0,d:0,l:0,gf:0,ga:0};
+    if(!form[away])form[away]={w:0,d:0,l:0,gf:0,ga:0};
+    form[home].gf+=hs;form[home].ga+=as;
+    form[away].gf+=as;form[away].ga+=hs;
+    if(hs>as){form[home].w++;form[away].l++;}
+    else if(hs<as){form[away].w++;form[home].l++;}
+    else{form[home].d++;form[away].d++;}
+  }
+  return form;
+}
+
 function renderRealTable(standings){
   const table=document.getElementById('realTable'),meta=document.getElementById('realMeta');
   if(!standings||standings.length===0){table.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:.7rem">Nincs adat</div>';return;}
   const total=standings.length;
-  table.innerHTML=standings.map((r,i)=>`<div class="${rowClass(r.pos,total)}" style="animation-delay:${i*.025}s"><span class="col-pos">${r.pos}</span><span class="col-trend">${trendHtml(r.trend??'same')}</span><span class="col-team">${logoHtml(r.logo)}<span class="team-name">${r.team}</span></span><span class="col-goals">${r.goalsFor??'–'}:${r.goalsAgainst??'–'}</span><span class="col-gd">${gd(r.goalsFor,r.goalsAgainst)}</span><span class="col-pts">${r.pts}</span></div>`).join('');
+  table.innerHTML=standings.map((r,i)=>`<div class="${rowClass(r.pos,total)}" style="animation-delay:${i*.025}s"><span class="col-pos">${r.pos}</span><span class="col-trend">${trendHtml(r.trend??'same')}</span><span class="col-team">${logoHtml(r.logo)}<span class="team-name">${r.team}</span></span><span class="col-goals">${r.goalsFor??'–'}:${r.goalsAgainst??'–'}</span><span class="col-gd">${gd(r.goalsFor,r.goalsAgainst)}</span><span class="col-pts">${r.pts??0}</span></div>`).join('');
   meta.className='lb-meta';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Élő adat';
   document.getElementById('realUpdateTime').textContent=nowStr();
 }
@@ -322,16 +343,59 @@ async function generateAITable(){
   meta.className='lb-meta loading';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI generálás...';
   aiTable.innerHTML='<div class="dots"><span></span><span></span><span></span></div>';
   aiPanel.style.display='none';hideError();
-  if(realStandings.length===0){try{const{standings,seasonId}=await fetchRealStandings();detectSeasonReset(standings,seasonId);realStandings=standings;}catch(e){showError('Valódi adatok betöltése sikertelen: '+e.message);meta.className='lb-meta error';return;}}
-  const allTeamsData=realStandings.map(t=>`${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n');
+
+  if(realStandings.length===0){
+    try{const{standings,seasonId}=await fetchRealStandings();detectSeasonReset(standings,seasonId);realStandings=standings;}
+    catch(e){showError('Valódi adatok betöltése sikertelen: '+e.message);meta.className='lb-meta error';return;}
+  }
+
+  // Meccs adatok + forma
+  if(!recentMatchData)recentMatchData=await fetchMatchData();
+  const matchInfo=recentMatchData;
+  const teamForm=buildTeamForm(matchInfo?.recentResults||[]);
+
+  const allTeamsData=realStandings.map(t=>{
+    const f=teamForm[t.team];
+    const formStr=f?` | Forma(${f.w+f.d+f.l}m): ${f.w}Gy ${f.d}D ${f.l}V ${f.gf}:${f.ga}g`:'';
+    return `${t.pos}. ${t.team}: ${t.pts??0}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}${formStr}`;
+  }).join('\n');
+
   const totalPts=realStandings.reduce((s,t)=>s+(t.pts||0),0);
-  const seasonNote=totalPts<50?'FONTOS: ÚJ szezon eleje. Becsüld a teljes szezon végét!':'Becsüld a szezon végét!';
-  const prompt=`Te egy virtuális futball liga profí elemzője vagy. A jelenlegi tabella alapján készíts SAJÁT, FÜGGETLEN előrejelzést a szezon végére!\n\nJELENLEGI TABELLA:\n${allTeamsData}\n\n${seasonNote}\n\nSZABÁLYOK:\n1. Sorrend VÁLTOZZON – legalább 5 csapat kerüljön más helyre!\n2. Pontok és gólok KÜLÖNBÖZZENEK a valóstól!\n3. Egy középcsapat kerüljön fel, egy top csapat essen vissza!\n4. trend: "up"/"down"/"same"\n5. TILOS a valós adatok másolása!\n\nVálaszolj KIZÁRÓLAG kompakt JSON tömbbel:\n[{"pos":1,"team":"Név","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},...]`;
+  const currentRound=matchInfo?.nextRound||matchInfo?.lastRound||'?';
+  const seasonNote=totalPts<50?`FONTOS: A szezon ELEJÉN vagyunk (${currentRound}. forduló). Becsüld a TELJES szezon végét!`:`Jelenleg a ${currentRound}. fordulónál járunk. Becsüld a szezon VÉGI végeredményt!`;
+
+  let recentRoundsText='';
+  if(matchInfo?.recentResults?.length){
+    const byRound={};
+    for(const m of matchInfo.recentResults){
+      if(!byRound[m.round])byRound[m.round]=[];
+      if(m.hs!=null&&m.as!=null)byRound[m.round].push(`${m.home} ${m.hs}-${m.as} ${m.away}`);
+    }
+    const rounds=Object.keys(byRound).sort((a,b)=>b-a).slice(0,3);
+    recentRoundsText='\n\nLEGUTÓBBI FORDULÓK:\n'+rounds.map(r=>`${r}. kör: ${byRound[r].join(' | ')}`).join('\n');
+  }
+
+  let upcomingText='';
+  if(matchInfo?.nextFixtures?.length){
+    upcomingText=`\n\nKÖVETKEZŐ (${currentRound}.) FORDULÓ: `+matchInfo.nextFixtures.slice(0,6).map(m=>`${m.home} vs ${m.away}`).join(', ');
+  }
+
+  const prompt=`Te egy profi virtuális futball elemző vagy. A VALÓS adatok + legutóbbi forma alapján készíts ELŐREJELZÉST a szezon VÉGÉRE!\n\nJELENLEGI TABELLA (pont, gól, forma):\n${allTeamsData}${recentRoundsText}${upcomingText}\n\n${seasonNote}\n\nSZABÁLYOK:\n1. MINDEN csapatnak legyen reális, NEM 0 pontszáma!\n2. Bajnok: 80-95pt, kieső: 20-35pt körül\n3. A FORMA döntő – aki most jól játszik, előre kerülhet!\n4. Legalább 5 csapat VÁLTOZTASSON pozíciót!\n5. trend: "up" ha előre lép, "down" ha visszaesik, "same" ha marad\n6. goalsFor és goalsAgainst legyen reális (30-90 közötti értékek)!\n\nVálaszolj KIZÁRÓLAG valid JSON tömbbel (semmi egyéb szöveg):\n[{"pos":1,"team":"Csapatnév","goalsFor":75,"goalsAgainst":28,"pts":90,"trend":"up"},...]`;
+
   try{
-    const text=await callAI(prompt,0.9);
-    const clean=text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    const start=clean.indexOf('[');if(start===-1)throw new Error('JSON nem található');
-    const aiStandings=JSON.parse(clean.slice(start)).map(r=>({pos:r.pos,team:r.team,goalsFor:r.goalsFor??0,goalsAgainst:r.goalsAgainst??0,pts:r.pts??0,trend:r.trend??'same'}));
+    const text=await callAI(prompt,0.85);
+    const clean=text.replace(/\`\`\`json\s*/gi,'').replace(/\`\`\`\s*/g,'').trim();
+    const start=clean.indexOf('[');
+    if(start===-1)throw new Error('JSON nem található a válaszban');
+    const rawArr=JSON.parse(clean.slice(start));
+    const aiStandings=rawArr.map((r,idx)=>({
+      pos:Number(r.pos)||idx+1,
+      team:String(r.team||'?'),
+      goalsFor:Number(r.goalsFor)||Math.floor(Math.random()*30)+40,
+      goalsAgainst:Number(r.goalsAgainst)||Math.floor(Math.random()*20)+25,
+      pts:Number(r.pts)||Math.max(10,Math.floor(85-(idx*4)+(Math.random()*6-3))),
+      trend:['up','down','same'].includes(r.trend)?r.trend:'same'
+    })).sort((a,b)=>a.pos-b.pos);
     if(!aiStandings||aiStandings.length===0)throw new Error('Üres tabella');
     const total=aiStandings.length;
     aiTable.innerHTML=aiStandings.map((r,i)=>`<div class="${rowClass(r.pos,total)}" style="animation-delay:${i*.025}s"><span class="col-pos">${r.pos}</span><span class="col-trend">${trendHtml(r.trend)}</span><span class="col-team"><span class="team-logo-placeholder"></span><span class="team-name">${r.team}</span></span><span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span><span class="col-gd">${gd(r.goalsFor,r.goalsAgainst)}</span><span class="col-pts">${r.pts}</span></div>`).join('');
@@ -339,7 +403,9 @@ async function generateAITable(){
     document.getElementById('aiUpdateTime').textContent=nowStr();
     const top3=aiStandings.slice(0,3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
     const bot3=aiStandings.slice(-3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
-    const analText=await callAI(`Rövid elemzés MAGYARUL (max 4 mondat):\nTop 3: ${top3}\nUtolsó 3: ${bot3}\nMiért lehetnek ilyen helyzetben?`);
+    const bigMovers=aiStandings.filter(ai=>{const real=realStandings.find(r=>r.team===ai.team);return real&&Math.abs(real.pos-ai.pos)>=4;}).map(ai=>{const real=realStandings.find(r=>r.team===ai.team);return `${ai.team} (${real.pos}→${ai.pos})`;}).join(', ')||'–';
+    const formSummary=Object.entries(teamForm).slice(0,6).map(([t,f])=>`${t}: ${f.w}Gy/${f.d}D/${f.l}V`).join(', ');
+    const analText=await callAI(`Rövid futball elemzés MAGYARUL (max 5 mondat), mint egy sport kommentátor:\nAI szezonvégi Top 3: ${top3}\nAI kiesők: ${bot3}\nNagy elmozdulások: ${bigMovers}\nLegutóbbi forma: ${formSummary||'nincs adat'}\nMagyarázd meg az előrejelzést!`,0.8);
     if(analText){document.getElementById('aiBody').innerHTML=analText.replace(/\n/g,'<br>');aiPanel.style.display='block';}
   }catch(e){
     showError(e.message);meta.className='lb-meta error';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Hiba';
