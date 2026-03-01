@@ -463,7 +463,12 @@ let realStandings=[],aiStandingsGlobal=[],lastSeasonId=null,lastTotalPoints=null
 async function callAI(prompt,temp=0.7){
   const res=await fetch(LLM7_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${LLM7_KEY}`},body:JSON.stringify({model:'default',messages:[{role:'user',content:prompt}],temperature:temp,max_tokens:2048})});
   if(!res.ok)throw new Error(`LLM7 hiba: ${res.status}`);
-  const d=await res.json();return d.choices?.[0]?.message?.content||'';
+  const d=await res.json();
+  console.log('[callAI] response keys:', Object.keys(d));
+  console.log('[callAI] choices[0]:', JSON.stringify(d.choices?.[0])?.slice(0,200));
+  const content = d.choices?.[0]?.message?.content || d.choices?.[0]?.text || d.result || d.response || d.content || '';
+  console.log('[callAI] extracted content length:', content.length);
+  return content;
 }
 
 async function fetchRealStandings(){
@@ -702,25 +707,80 @@ Válaszolj KIZÁRÓLAG valid JSON tömbbel, más szöveg NÉLKÜL:
 [{"pos":1,"team":"CsapatNév","goalsFor":87,"goalsAgainst":32,"pts":91,"trend":"up"},{"pos":2,...}]`;
   try{
     const text=await callAI(prompt,0.85);
+    console.log('[AI TABLE] Raw response length:', text.length);
+    console.log('[AI TABLE] First 500 chars:', text.slice(0,500));
+
+    // Robust JSON extraction - try multiple strategies
+    let aiStandings = null;
     const clean=text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-    const start=clean.indexOf('[');if(start===-1)throw new Error('JSON nem található');
-    const parsed=JSON.parse(clean.slice(start));
-    const aiStandings=parsed.map(r=>({
-      pos: parseInt(r.pos)||0,
-      team: String(r.team||''),
-      goalsFor: parseInt(r.goalsFor)||0,
-      goalsAgainst: parseInt(r.goalsAgainst)||0,
-      pts: parseInt(r.pts)||0,
+
+    // Strategy 1: find first [ ... ] block
+    const arrStart=clean.indexOf('[');
+    const arrEnd=clean.lastIndexOf(']');
+    if(arrStart!==-1&&arrEnd>arrStart){
+      try{
+        const parsed=JSON.parse(clean.slice(arrStart,arrEnd+1));
+        if(Array.isArray(parsed)&&parsed.length>0) aiStandings=parsed;
+        console.log('[AI TABLE] Strategy 1 result:', parsed?.length, 'items');
+      }catch(e){ console.log('[AI TABLE] Strategy 1 failed:', e.message); }
+    }
+
+    // Strategy 2: try the whole cleaned string
+    if(!aiStandings){
+      try{
+        const parsed=JSON.parse(clean);
+        if(Array.isArray(parsed)&&parsed.length>0) aiStandings=parsed;
+        console.log('[AI TABLE] Strategy 2 result:', parsed?.length, 'items');
+      }catch(e){ console.log('[AI TABLE] Strategy 2 failed:', e.message); }
+    }
+
+    // Strategy 3: regex extract each JSON object
+    if(!aiStandings){
+      const objs=[];
+      const re=/\{[^{}]*"team"[^{}]*\}/g;
+      let m2;
+      while((m2=re.exec(clean))!==null){
+        try{ objs.push(JSON.parse(m2[0])); }catch(e){}
+      }
+      console.log('[AI TABLE] Strategy 3 result:', objs.length, 'objects');
+      if(objs.length>0) aiStandings=objs;
+    }
+
+    if(!aiStandings||aiStandings.length===0){
+      // Show raw AI response in error for debugging
+      const preview = text.slice(0,200).replace(/</g,'&lt;');
+      document.getElementById('aiTable').innerHTML=`<div style="padding:16px;font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--red)">
+        AI válasz nem értelmezhető JSON-ként.<br><br>
+        <span style="color:var(--text-muted)">Nyers válasz eleje:</span><br>
+        <span style="color:var(--amber)">${preview}</span>
+      </div>`;
+      meta.className='lb-meta error';
+      meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Hiba';
+      return;
+    }
+
+    const normalized=aiStandings.map((r,idx)=>({
+      pos: parseInt(r.pos)||idx+1,
+      team: String(r.team||r.name||'').trim(),
+      goalsFor: parseInt(r.goalsFor||r.gf||r.goals_for||0)||0,
+      goalsAgainst: parseInt(r.goalsAgainst||r.ga||r.goals_against||0)||0,
+      pts: parseInt(r.pts||r.points||r.pt||0)||0,
       trend: r.trend||'same'
-    })).filter(r=>r.team&&r.pts>0);
-    if(!aiStandings||aiStandings.length<10)throw new Error('Hiányos tabella ('+aiStandings.length+' csapat)');
-    aiStandingsGlobal=aiStandings;
-    const total=aiStandings.length;
-    aiTable.innerHTML=aiStandings.map((r,i)=>`<div class="${rowClass(r.pos,total)}" style="animation-delay:${i*.025}s"><span class="col-pos">${r.pos}</span><span class="col-trend">${trendHtml(r.trend)}</span><span class="col-team"><span class="team-logo-placeholder"></span><span class="team-name">${r.team}</span></span><span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span><span class="col-gd">${gd(r.goalsFor,r.goalsAgainst)}</span><span class="col-pts">${r.pts}</span></div>`).join('');
+    })).filter(r=>r.team.length>0);
+
+    if(normalized.length<10) throw new Error(`Hiányos tabella (${normalized.length} csapat). Próbáld újra!`);
+
+    // Re-sort by pts desc if positions look wrong
+    normalized.sort((a,b)=>b.pts-a.pts||b.goalsFor-a.goalsFor);
+    normalized.forEach((r,i)=>r.pos=i+1);
+
+    aiStandingsGlobal=normalized;
+    const total=normalized.length;
+    aiTable.innerHTML=normalized.map((r,i)=>`<div class="${rowClass(r.pos,total)}" style="animation-delay:${i*.025}s"><span class="col-pos">${r.pos}</span><span class="col-trend">${trendHtml(r.trend)}</span><span class="col-team"><span class="team-logo-placeholder"></span><span class="team-name">${r.team}</span></span><span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span><span class="col-gd">${gd(r.goalsFor,r.goalsAgainst)}</span><span class="col-pts">${r.pts}</span></div>`).join('');
     meta.className='lb-meta';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI szezon becslés';
     document.getElementById('aiUpdateTime').textContent=nowStr();
-    const top3=aiStandings.slice(0,3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
-    const bot3=aiStandings.slice(-3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
+    const top3=normalized.slice(0,3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
+    const bot3=normalized.slice(-3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
     const analText=await callAI(`Rövid elemzés MAGYARUL (max 4 mondat):\nTop 3: ${top3}\nKiesők: ${bot3}\nMiért lehetnek ilyen helyzetben a szezon végén?`);
     if(analText){document.getElementById('aiBody').innerHTML=analText.replace(/\n/g,'<br>');aiPanel.style.display='block';}
   }catch(e){
