@@ -238,8 +238,39 @@
     .tip-card.highlighted .tip-card-conf{color:rgba(0,230,118,0.7);}
     .tip-card-stat{font-size:.5rem;color:var(--text-muted);margin-top:3px;font-family:'JetBrains Mono',monospace;opacity:.7;}
 
-    .tip-analysis{padding:0 14px 14px;font-size:.8rem;line-height:1.9;color:var(--text-dim);border-top:1px solid var(--border);padding-top:12px;}
-    .tip-analysis-label{font-family:'JetBrains Mono',monospace;font-size:.5rem;letter-spacing:2px;color:rgba(0,230,118,0.5);text-transform:uppercase;margin-bottom:7px;display:block;}
+    /* ═══ xG BANNER ═══ */
+    .tip-xg-banner{display:flex;align-items:stretch;gap:0;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(0,40,20,0.6),rgba(0,20,40,0.4));}
+    .tip-xg-side{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 12px;gap:2px;}
+    .tip-xg-right{background:rgba(0,20,40,0.2);}
+    .tip-xg-team{font-family:'Barlow Condensed',sans-serif;font-size:.85rem;font-weight:700;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;text-align:center;}
+    .tip-xg-val{font-family:'Barlow Condensed',sans-serif;font-size:2.4rem;font-weight:900;color:var(--green);text-shadow:0 0 20px rgba(0,230,118,0.3);line-height:1;}
+    .tip-xg-label{font-family:'JetBrains Mono',monospace;font-size:.48rem;letter-spacing:3px;color:rgba(0,230,118,0.5);text-transform:uppercase;}
+    .tip-xg-sub{font-family:'JetBrains Mono',monospace;font-size:.5rem;color:var(--text-muted);margin-top:3px;}
+    .tip-xg-center{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 16px;position:relative;}
+    .tip-xg-divider{width:1px;background:linear-gradient(to bottom,transparent,rgba(0,230,118,0.2),transparent);position:absolute;top:0;bottom:0;}
+    .tip-xg-total-wrap{display:flex;flex-direction:column;align-items:center;gap:2px;background:rgba(0,0,0,0.4);border:1px solid rgba(0,230,118,0.15);border-radius:3px;padding:8px 14px;position:relative;z-index:1;}
+    .tip-xg-total-val{font-family:'Barlow Condensed',sans-serif;font-size:1.5rem;font-weight:900;color:var(--amber);text-shadow:0 0 12px rgba(255,171,0,0.3);}
+    .tip-xg-total-lbl{font-family:'JetBrains Mono',monospace;font-size:.42rem;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;}
+
+    /* ═══ TIP CARD v2 ═══ */
+    .tip-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px;}
+    @media(max-width:600px){.tip-cards{grid-template-columns:repeat(2,1fr);}}
+    .tip-card2{background:var(--surface2);border:1px solid var(--border2);border-radius:3px;padding:12px 10px 10px;text-align:center;position:relative;overflow:hidden;animation:rowSlide .4s ease both;transition:border-color .2s,background .2s;}
+    .tip-card2.highlighted{border-color:rgba(0,230,118,0.4);background:rgba(0,40,20,0.5);box-shadow:0 0 20px rgba(0,230,118,0.08);}
+    .tip-card2-best-badge{position:absolute;top:0;left:0;right:0;background:linear-gradient(90deg,rgba(0,230,118,0.15),rgba(0,230,118,0.05));border-bottom:1px solid rgba(0,230,118,0.15);font-family:'JetBrains Mono',monospace;font-size:.38rem;letter-spacing:1.5px;color:var(--green);padding:3px 0;text-align:center;}
+    .tip-card2-code{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:900;letter-spacing:2px;color:var(--text-dim);margin-top:12px;}
+    .tip-card2.highlighted .tip-card2-code{color:var(--green);}
+    .tip-card2-name{font-family:'JetBrains Mono',monospace;font-size:.48rem;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin:4px 0 6px;line-height:1.5;}
+    .tip-card2-pick{font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:800;letter-spacing:3px;margin-bottom:8px;}
+    .tip-card2-ring-wrap{display:flex;justify-content:center;}
+    .tip-card2-stat{font-family:'JetBrains Mono',monospace;font-size:.45rem;color:var(--text-muted);margin-top:5px;letter-spacing:.5px;}
+
+    .tip-team-name{color:var(--text);}
+    .tip-name-top{color:var(--green);text-shadow:0 0 8px rgba(0,230,118,0.3);}
+
+    .tip-analysis{padding:12px 16px 14px;border-top:1px solid var(--border);}
+    .tip-analysis-label{font-family:'JetBrains Mono',monospace;font-size:.5rem;letter-spacing:2px;color:rgba(0,230,118,0.5);text-transform:uppercase;margin-bottom:7px;display:flex;align-items:center;}
+    .tip-analysis-text{font-size:.8rem;line-height:1.85;color:var(--text-dim);}
     .tip-stat-row{display:flex;gap:8px;padding:0 14px 14px;flex-wrap:wrap;}
     .tip-stat-chip{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:2px;padding:4px 10px;font-family:'JetBrains Mono',monospace;font-size:.52rem;color:var(--text-dim);}
     .tip-stat-chip span{color:var(--cyan);}
@@ -695,169 +726,332 @@ function swapMatch(idx) {
 }
 
 function buildStandingsContext() {
-  if (!realStandings || !realStandings.length) return 'Tabella adat nem elérhető.';
-  const totalMatches = realStandings.reduce((s,t)=>s+((t.goalsFor||0)+(t.goalsAgainst||0)),0)/2/realStandings.length;
+  if (!realStandings || !realStandings.length) return null;
+  const totalGls = realStandings.reduce((s,t)=>s+(t.goalsFor||0)+(t.goalsAgainst||0),0);
+  const estMatches = Math.round(totalGls / realStandings.length / 2.6); // ~2.6 gól/mérkőzés PL átlag
+  const played = Math.max(1, estMatches);
   const lines = realStandings.map(t => {
-    const gf = t.goalsFor||0, ga = t.goalsAgainst||0;
-    const gd = gf-ga;
-    const avgGf = realStandings.length>0 ? (gf/Math.max(1,totalMatches)).toFixed(2) : '?';
-    const avgGa = realStandings.length>0 ? (ga/Math.max(1,totalMatches)).toFixed(2) : '?';
-    return `${t.pos}. ${t.team}: ${t.pts}pt, ${gf}:${ga} (GD:${gd>0?'+':''}${gd}), avg_lőtt:${avgGf}/mérkőzés, avg_kapott:${avgGa}/mérkőzés${t.trend?', trend:'+t.trend:''}`;
+    const gf=t.goalsFor||0, ga=t.goalsAgainst||0;
+    const pts=t.pts||0;
+    const gd=gf-ga;
+    const avgGf=(gf/played).toFixed(2);
+    const avgGa=(ga/played).toFixed(2);
+    const avgPts=(pts/played).toFixed(2);
+    return `${t.pos}. ${t.team}: ${pts}pt (${avgPts}/m), Lőtt:${gf}(${avgGf}/m), Kapott:${ga}(${avgGa}/m), GD:${gd>0?'+':''}${gd}${t.trend?', trend:'+t.trend:''}`;
   });
-  const totalPts = realStandings.reduce((s,t)=>s+(t.pts||0),0);
-  const played = Math.round(totalPts / realStandings.length / 2.1);
-  return `PREMIER LIGA – kb. ${played}. forduló körül\nTeljes tabella gól/pont statisztikákkal:\n${lines.join('\n')}`;
+  const totalPts=realStandings.reduce((s,t)=>s+(t.pts||0),0);
+  return { ctx: `PREMIER LIGA – kb. ${played}. forduló\nLiga átlag gól/mérkőzés: ${(totalGls/Math.max(1,played*realStandings.length/2)).toFixed(2)}\n\nTELJES TABELLA (statisztikákkal):\n${lines.join('\n')}`, played };
+}
+
+// Poisson distribution P(X=k) = e^(-lambda) * lambda^k / k!
+function poisson(lambda, k) {
+  let p = Math.exp(-lambda);
+  for(let i=1;i<=k;i++) p *= lambda/i;
+  return p;
+}
+
+// Compute match probabilities using Dixon-Coles inspired model
+function calcMatchProbs(homeStats, awayStats, played) {
+  const PL_AVG_HOME = 1.53, PL_AVG_AWAY = 1.13; // PL historical averages
+  const p = Math.max(1, played);
+
+  const homeAttack  = homeStats ? (homeStats.goalsFor||0)/p/PL_AVG_HOME : 1.0;
+  const homeDefense = homeStats ? (homeStats.goalsAgainst||0)/p/PL_AVG_AWAY : 1.0;
+  const awayAttack  = awayStats ? (awayStats.goalsFor||0)/p/PL_AVG_AWAY : 1.0;
+  const awayDefense = awayStats ? (awayStats.goalsAgainst||0)/p/PL_AVG_HOME : 1.0;
+
+  const lambdaHome = homeAttack * awayDefense * PL_AVG_HOME;
+  const lambdaAway = awayAttack * homeDefense * PL_AVG_AWAY;
+
+  // Clamp to reasonable range
+  const lH = Math.min(Math.max(lambdaHome, 0.3), 4.0);
+  const lA = Math.min(Math.max(lambdaAway, 0.3), 4.0);
+
+  // Build score matrix up to 6 goals each
+  let probBTTS=0, probOver15=0, probOver25=0, probOver35=0, probOver45=0;
+  let totalProb=0;
+  for(let h=0;h<=6;h++){
+    for(let a=0;a<=6;a++){
+      const p2 = poisson(lH,h)*poisson(lA,a);
+      totalProb+=p2;
+      const tot=h+a;
+      if(h>0&&a>0) probBTTS+=p2;
+      if(tot>1) probOver15+=p2;
+      if(tot>2) probOver25+=p2;
+      if(tot>3) probOver35+=p2;
+      if(tot>4) probOver45+=p2;
+    }
+  }
+  // normalize
+  const n = totalProb || 1;
+  return {
+    lambdaHome: lH.toFixed(2),
+    lambdaAway: lA.toFixed(2),
+    expectedTotal: (lH+lA).toFixed(2),
+    btts: (probBTTS/n*100).toFixed(1),
+    over15: (probOver15/n*100).toFixed(1),
+    over25: (probOver25/n*100).toFixed(1),
+    over35: (probOver35/n*100).toFixed(1),
+    over45: (probOver45/n*100).toFixed(1),
+  };
+}
+
+function getTeamStats(name) {
+  if (!realStandings || !realStandings.length) return null;
+  const nl = name.toLowerCase().replace(/[áéíóöőúüű]/g, c=>({á:'a',é:'e',í:'i',ó:'o',ö:'o',ő:'o',ú:'u',ü:'u',ű:'u'}[c]||c));
+  return realStandings.find(t => {
+    const tl = t.team.toLowerCase().replace(/[áéíóöőúüű]/g, c=>({á:'a',é:'e',í:'i',ó:'o',ö:'o',ő:'o',ú:'u',ü:'u',ű:'u'}[c]||c));
+    return tl === nl || tl.includes(nl.split(' ')[0]) || nl.includes(tl.split(' ')[0]);
+  }) || null;
+}
+
+function teamDotClass(name) {
+  const s = getTeamStats(name);
+  if (!s) return '';
+  const total = realStandings.length;
+  if (s.pos <= 4) return 'top3-opt';
+  if (s.pos > total - 3) return 'rel-opt';
+  return '';
 }
 
 async function generateAllTips() {
   const rows = document.querySelectorAll('.tip-match-row');
   const matches = [];
-  let valid = true;
+  let hasEmpty = false;
   rows.forEach(row => {
     const idx = row.dataset.idx;
     const hw = document.getElementById(`tipHome_${idx}`);
     const aw = document.getElementById(`tipAway_${idx}`);
     const home = hw?.dataset.value || '';
     const away = aw?.dataset.value || '';
-    if (!home || !away) { valid=false; return; }
-    if (home===away) { valid=false; return; }
+    if (!home || !away || home===away) { hasEmpty=true; return; }
     matches.push({home, away});
   });
 
-  if (!matches.length) { showError('Adj hozzá legalább 1 mérkőzést!'); return; }
-  if (!valid) { showError('Minden mérkőzésnél válassz különböző hazai és vendég csapatot!'); return; }
+  if (!matches.length || hasEmpty) { showError('Minden mérkőzésnél válassz két különböző csapatot!'); return; }
   hideError();
 
   const btn = document.getElementById('tipGenBtn');
   const resultsList = document.getElementById('tipResultsList');
   btn.disabled = true;
-  btn.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
   resultsList.innerHTML = '';
 
-  const standingsCtx = buildStandingsContext();
+  // === AUTO-LOAD STANDINGS IF MISSING ===
+  if (!realStandings || realStandings.length === 0) {
+    btn.innerHTML = '<div class="dots"><span></span><span></span><span></span></div><span style="font-size:.55rem;letter-spacing:1px;opacity:.7">Tabella betöltése...</span>';
+    try {
+      const {standings, seasonId} = await fetchRealStandings();
+      detectSeasonReset(standings, seasonId);
+      realStandings = standings;
+      renderRealTable(standings);
+    } catch(e) {
+      showError('Tabella betöltés sikertelen. Kérlek frissítsd az oldalt!');
+      btn.disabled = false;
+      btn.innerHTML = GENBTN_HTML;
+      return;
+    }
+  }
+
+  btn.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+
+  const standingData = buildStandingsContext();
+  const standingsCtx = standingData?.ctx || 'Tabella nem elérhető.';
+  const played = standingData?.played || 20;
 
   // Generate all tips in parallel
-  const promises = matches.map((m, i) => generateOneTip(m.home, m.away, i+1, standingsCtx));
+  const promises = matches.map((m, i) => generateOneTip(m.home, m.away, i+1, standingsCtx, played));
   const results = await Promise.allSettled(promises);
 
   results.forEach((res, i) => {
+    const block = document.createElement('div');
+    block.style.animation=`rowSlide .4s ease ${i*.1}s both`;
     if (res.status === 'fulfilled') {
-      resultsList.appendChild(res.value);
+      block.className='tip-result-block';
+      block.innerHTML = res.value;
+      resultsList.appendChild(block);
+      setTimeout(() => {
+        block.querySelectorAll('.tip-card-conf-fill').forEach(bar => {
+          bar.style.width = bar.dataset.conf + '%';
+        });
+        // animate progress ring
+        block.querySelectorAll('.conf-ring-fill').forEach(ring => {
+          const v = parseFloat(ring.dataset.conf||0);
+          const circ = 2*Math.PI*20;
+          ring.style.strokeDashoffset = circ - (circ*v/100);
+        });
+      }, 150 + i*100);
     } else {
-      const errBlock = document.createElement('div');
-      errBlock.className='tip-result-block';
-      errBlock.style.padding='16px';
-      errBlock.innerHTML=`<span style="color:var(--red);font-family:'JetBrains Mono',monospace;font-size:.65rem">Mérkőzés #${i+1}: ${res.reason?.message||'Hiba'}</span>`;
-      resultsList.appendChild(errBlock);
+      block.className='tip-result-block';
+      block.style.padding='16px 20px';
+      block.innerHTML=`<span style="color:var(--red);font-family:'JetBrains Mono',monospace;font-size:.65rem">⚠ Mérkőzés #${i+1} hiba: ${res.reason?.message||'ismeretlen hiba'}</span>`;
+      resultsList.appendChild(block);
     }
   });
 
   btn.disabled = false;
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> AI Tippek Generálása';
+  btn.innerHTML = GENBTN_HTML;
 }
 
-async function generateOneTip(home, away, num, standingsCtx) {
+const GENBTN_HTML = `<svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> AI Tippek Generálása`;
+
+async function generateOneTip(home, away, num, standingsCtx, played) {
   const homeStats = getTeamStats(home);
   const awayStats = getTeamStats(away);
+  const probs = calcMatchProbs(homeStats, awayStats, played);
 
-  const totalMatches = realStandings.length>0 ? Math.round(realStandings.reduce((s,t)=>s+(t.pts||0),0)/realStandings.length/2.1) : 20;
+  // Determine pre-calculated picks based on Poisson model
+  const bttsProb  = parseFloat(probs.btts);
+  const o15Prob   = parseFloat(probs.over15);
+  const o25Prob   = parseFloat(probs.over25);
+  const o35Prob   = parseFloat(probs.over35);
 
-  const homeAvgGf = homeStats ? (homeStats.goalsFor||0)/Math.max(1,totalMatches) : 1.3;
-  const homeAvgGa = homeStats ? (homeStats.goalsAgainst||0)/Math.max(1,totalMatches) : 1.1;
-  const awayAvgGf = awayStats ? (awayStats.goalsFor||0)/Math.max(1,totalMatches) : 1.1;
-  const awayAvgGa = awayStats ? (awayStats.goalsAgainst||0)/Math.max(1,totalMatches) : 1.3;
+  const homeRank = homeStats?.pos || '?';
+  const awayRank = awayStats?.pos || '?';
+  const homeForm = homeStats?.trend || 'same';
+  const awayForm = awayStats?.trend || 'same';
 
-  // Expected goals using simple attack/defense model
-  const homeAttack = homeAvgGf; const awayDefense = awayAvgGa;
-  const awayAttack = awayAvgGf; const homeDefense = homeAvgGa;
-  const expectedHomeGoals = (homeAttack + awayDefense) / 2 * 1.1; // home advantage
-  const expectedAwayGoals = (awayAttack + homeDefense) / 2;
-  const expectedTotal = expectedHomeGoals + expectedAwayGoals;
-
-  const prompt = `Te egy profi Premier Liga fogadási kvant-elemző vagy. Kizárólag a valós statisztikai adatokra és a tabella alapján adj precíz tippeket.
+  const prompt = `Te egy profi sportfogadási quant-elemző vagy, aki Premier Liga adatokból Poisson-modellel számol valószínűségeket.
 
 ${standingsCtx}
 
-ELEMZENDŐ MÉRKŐZÉS: ${home} (hazai) vs ${away} (vendég)
-STATISZTIKAI ELŐBECSLÉS (xG modell):
-- ${home} várható gólok: ${expectedHomeGoals.toFixed(2)}
-- ${away} várható gólok: ${expectedAwayGoals.toFixed(2)}
-- Várható összes gól: ${expectedTotal.toFixed(2)}
-- ${home} tabella: ${homeStats?`${homeStats.pos}. hely, ${homeStats.pts}pt, ${homeStats.goalsFor}:${homeStats.goalsAgainst} gól`:'ismeretlen'}
-- ${away} tabella: ${awayStats?`${awayStats.pos}. hely, ${awayStats.pts}pt, ${awayStats.goalsFor}:${awayStats.goalsAgainst} gól`:'ismeretlen'}
+━━━ ELEMZENDŐ MÉRKŐZÉS ━━━
+${home} (hazai, ${homeRank}. hely, trend: ${homeForm}) vs ${away} (vendég, ${awayRank}. hely, trend: ${awayForm})
 
-FELADAT: Elemezd mélyen az adatokat és adj statisztikailag alátámasztott tippeket.
-- Vedd figyelembe: csapatok pozícióját, gól-átlagait, gólkülönbségét, trendeket
-- Hazai pályaelőny: +10-15% gól többlet a hazai csapatnak
-- BTTS (mindkét csapat gólt szerez): valószínűbb ha mindkét csapat legalább 1.2 gól/mérkőzés átlaggal támad
-- Over/Under: az xG modell alapján kalkulálj
+━━━ POISSON xG MODELL EREDMÉNY ━━━
+- ${home} várható gólok (λ): ${probs.lambdaHome}
+- ${away} várható gólok (λ): ${probs.lambdaAway}
+- Várható összes gól: ${probs.expectedTotal}
+- BTTS valószínűség: ${probs.btts}%
+- Over 1.5 valószínűség: ${probs.over15}%
+- Over 2.5 valószínűség: ${probs.over25}%
+- Over 3.5 valószínűség: ${probs.over35}%
 
-Válaszolj KIZÁRÓLAG érvényes JSON-nal, semmi más:
-{
-  "btts": {"pick": "Igen", "confidence": 72, "xg_reasoning": "xG alapján mindkét csapat várhatóan gólhoz jut"},
-  "over15": {"pick": true, "confidence": 88},
-  "over25": {"pick": true, "confidence": 61},
-  "over35": {"pick": false, "confidence": 42},
-  "best_tip": "over15",
-  "expected_goals_home": ${expectedHomeGoals.toFixed(1)},
-  "expected_goals_away": ${expectedAwayGoals.toFixed(1)},
-  "analysis": "3-4 mondatos részletes elemzés magyarul, konkrét számokkal alátámasztva, a tabella-adatokra hivatkozva"
-}`;
+━━━ FELADATOD ━━━
+A Poisson modell eredményei ALAPJÁN (ne ellentmondj nekik!):
+1. A confidence értékek legyenek KÖZEL a Poisson valószínűségekhez (±5-8%)
+2. A pick (Igen/Nem) feleljen meg a Poisson valószínűségnek: ha >50% akkor Igen, ha <50% akkor Nem
+3. best_tip: azt válaszd amelynek a legjobb value van (legmagasabb valószínűség és leginkább eltér az 50%-tól)
+4. Az elemzés hivatkozzon a konkrét tabella-számokra, gól-átlagokra, és a Poisson modell eredményére
 
-  const text = await callAI(prompt, 0.5); // lower temp = more deterministic, data-driven
-  const clean = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
-  const start = clean.indexOf('{');
-  if (start===-1) throw new Error('JSON nem található');
-  const data = JSON.parse(clean.slice(start));
+Válaszolj CSAK valid JSON-nal, pontosan ebben a struktúrában:
+{"btts":{"pick":"Igen","confidence":${Math.round(bttsProb)},"stat":"${probs.btts}%"},"over15":{"pick":${o15Prob>50},"confidence":${Math.round(o15Prob)},"stat":"${probs.over15}%"},"over25":{"pick":${o25Prob>50},"confidence":${Math.round(o25Prob)},"stat":"${probs.over25}%"},"over35":{"pick":${o35Prob>50},"confidence":${Math.round(o35Prob)},"stat":"${probs.over35}%"},"best_tip":"${['btts','over15','over25','over35'][([bttsProb,o15Prob,o25Prob,o35Prob].indexOf(Math.max(...([bttsProb,o15Prob,o25Prob,o35Prob].filter((_,i)=>[bttsProb,o15Prob,o25Prob,o35Prob][i]>50))))]}","expected_home":${probs.lambdaHome},"expected_away":${probs.lambdaAway},"analysis":"3 mondatos MAGYAR elemzés: 1) mindkét csapat góltermeléséről és védelméről konkrét számokkal (gól-átlag/mérkőzés), 2) a Poisson modell mit mutat, 3) melyik a legbiztosabb fogadási opció és miért"}`;
 
-  // Build result block
-  const block = document.createElement('div');
-  block.className = 'tip-result-block';
-  block.style.animation = 'rowSlide .4s ease both';
+  let data;
+  try {
+    const text = await callAI(prompt, 0.3);
+    const clean = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+    const start = clean.indexOf('{');
+    if (start===-1) throw new Error('JSON parse hiba');
+    data = JSON.parse(clean.slice(start));
+  } catch(e) {
+    // Fallback: use pure Poisson values if AI fails
+    data = {
+      btts: { pick: bttsProb>50?'Igen':'Nem', confidence: Math.round(bttsProb) },
+      over15: { pick: o15Prob>50, confidence: Math.round(o15Prob) },
+      over25: { pick: o25Prob>50, confidence: Math.round(o25Prob) },
+      over35: { pick: o35Prob>50, confidence: Math.round(o35Prob) },
+      best_tip: ['btts','over15','over25','over35'][[bttsProb,o15Prob,o25Prob,o35Prob].indexOf(Math.max(bttsProb,o15Prob,o25Prob,o35Prob))],
+      expected_home: probs.lambdaHome,
+      expected_away: probs.lambdaAway,
+      analysis: `A Poisson-modell alapján: ${home} várható ${probs.lambdaHome} gól, ${away} ${probs.lambdaAway} gól. Összesen ${probs.expectedTotal} gól várható.`
+    };
+  }
 
-  const xgHome = data.expected_goals_home || expectedHomeGoals.toFixed(1);
-  const xgAway = data.expected_goals_away || expectedAwayGoals.toFixed(1);
+  // Safety: override confidence with Poisson values if AI went off-rails
+  const safeConf = (aiConf, poissonVal) => {
+    const diff = Math.abs(aiConf - poissonVal);
+    return diff > 15 ? Math.round((aiConf + poissonVal)/2) : aiConf;
+  };
+  const bttsConf  = safeConf(data.btts?.confidence||bttsProb, bttsProb);
+  const o15Conf   = safeConf(data.over15?.confidence||o15Prob, o15Prob);
+  const o25Conf   = safeConf(data.over25?.confidence||o25Prob, o25Prob);
+  const o35Conf   = safeConf(data.over35?.confidence||o35Prob, o35Prob);
 
-  block.innerHTML = `
+  const bttsYes   = (data.btts?.pick||'').toString().toLowerCase().includes('igen') || bttsProb>50;
+  const o15Yes    = data.over15?.pick===true || data.over15?.pick==='true' || o15Prob>50;
+  const o25Yes    = data.over25?.pick===true || data.over25?.pick==='true' || o25Prob>50;
+  const o35Yes    = data.over35?.pick===true || data.over35?.pick==='true' || o35Prob>50;
+
+  const bestTip   = data.best_tip || 'over15';
+  const xgH = data.expected_home || probs.lambdaHome;
+  const xgA = data.expected_away || probs.lambdaAway;
+  const xgTot = (parseFloat(xgH)+parseFloat(xgA)).toFixed(2);
+
+  // Confidence color
+  const confColor = (c) => c>=70?'var(--green)':c>=50?'var(--amber)':'var(--red)';
+
+  return `
     <div class="tip-result-hdr">
       <span class="tip-match-idx">#${num}</span>
-      <span class="tip-vs-label">
-        ${home} <span class="tip-vs-sep">vs</span> ${away}
-      </span>
-      <span class="ai-badge-pill" style="margin-left:auto">AI TIPP</span>
+      <div class="tip-vs-label">
+        <span class="tip-team-name ${homeStats&&homeStats.pos<=4?'tip-name-top':''}">${home}</span>
+        <span class="tip-vs-sep">VS</span>
+        <span class="tip-team-name ${awayStats&&awayStats.pos<=4?'tip-name-top':''}">${away}</span>
+      </div>
+      <span class="ai-badge-pill" style="margin-left:auto">POISSON · AI</span>
     </div>
-    <div class="tip-stat-row">
-      <div class="tip-stat-chip">xG hazai: <span>${xgHome}</span></div>
-      <div class="tip-stat-chip">xG vendég: <span>${xgAway}</span></div>
-      <div class="tip-stat-chip">xG össz: <span>${(parseFloat(xgHome)+parseFloat(xgAway)).toFixed(1)}</span></div>
-      ${homeStats?`<div class="tip-stat-chip">${home}: <span>${homeStats.pos}. / ${homeStats.pts}pt</span></div>`:''}
-      ${awayStats?`<div class="tip-stat-chip">${away}: <span>${awayStats.pos}. / ${awayStats.pts}pt</span></div>`:''}
+
+    <div class="tip-xg-banner">
+      <div class="tip-xg-side">
+        <span class="tip-xg-team">${home}</span>
+        <span class="tip-xg-val">${xgH}</span>
+        <span class="tip-xg-label">xG</span>
+        ${homeStats?`<span class="tip-xg-sub">${homeStats.pos}. hely · ${((homeStats.goalsFor||0)/Math.max(1,played)).toFixed(2)} gól/m</span>`:''}
+      </div>
+      <div class="tip-xg-center">
+        <div class="tip-xg-total-wrap">
+          <span class="tip-xg-total-val">${xgTot}</span>
+          <span class="tip-xg-total-lbl">várható gól</span>
+        </div>
+        <div class="tip-xg-divider"></div>
+      </div>
+      <div class="tip-xg-side tip-xg-right">
+        <span class="tip-xg-team">${away}</span>
+        <span class="tip-xg-val">${xgA}</span>
+        <span class="tip-xg-label">xG</span>
+        ${awayStats?`<span class="tip-xg-sub">${awayStats.pos}. hely · ${((awayStats.goalsFor||0)/Math.max(1,played)).toFixed(2)} gól/m</span>`:''}
+      </div>
     </div>
+
     <div class="tip-cards">
-      ${buildCard('btts','Mindkét csapat gólt szerez', data.btts?.pick||'?', data.btts?.confidence||0, data.best_tip==='btts', 0)}
-      ${buildCard('over15','Over 1.5 gól', data.over15?.pick?'IGEN':'NEM', data.over15?.confidence||0, data.best_tip==='over15', 1)}
-      ${buildCard('over25','Over 2.5 gól', data.over25?.pick?'IGEN':'NEM', data.over25?.confidence||0, data.best_tip==='over25', 2)}
-      ${buildCard('over35','Over 3.5 gól', data.over35?.pick?'IGEN':'NEM', data.over35?.confidence||0, data.best_tip==='over35', 3)}
+      ${buildCard2('BTTS', 'Mindkét csapat gólt szerez', bttsYes?'IGEN':'NEM', bttsConf, bestTip==='btts', probs.btts+'%', 0)}
+      ${buildCard2('O1.5', 'Over 1.5 gól', o15Yes?'IGEN':'NEM', o15Conf, bestTip==='over15', probs.over15+'%', 1)}
+      ${buildCard2('O2.5', 'Over 2.5 gól', o25Yes?'IGEN':'NEM', o25Conf, bestTip==='over25', probs.over25+'%', 2)}
+      ${buildCard2('O3.5', 'Over 3.5 gól', o35Yes?'IGEN':'NEM', o35Conf, bestTip==='over35', probs.over35+'%', 3)}
     </div>
-    ${data.analysis ? `<div class="tip-analysis"><span class="tip-analysis-label">AI Statisztikai Elemzés</span>${data.analysis}</div>` : ''}
+
+    ${data.analysis ? `
+    <div class="tip-analysis">
+      <span class="tip-analysis-label">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style="margin-right:4px"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="currentColor"/></svg>
+        AI Elemzés
+      </span>
+      <div class="tip-analysis-text">${data.analysis}</div>
+    </div>` : ''}
   `;
-
-  // animate confidence bars
-  setTimeout(() => {
-    block.querySelectorAll('.tip-card-conf-fill').forEach(bar => {
-      bar.style.width = bar.dataset.conf + '%';
-    });
-  }, 100);
-
-  return block;
 }
 
-function buildCard(id, name, val, conf, highlighted, delay) {
-  return `<div class="tip-card ${highlighted?'highlighted':''}" style="animation-delay:${delay*.08}s">
-    <div class="tip-card-name">${name}</div>
-    <div class="tip-card-val">${val}</div>
-    <div class="tip-card-conf-bar"><div class="tip-card-conf-fill" data-conf="${conf}" style="width:0%"></div></div>
-    <div class="tip-card-conf">${conf}% bizalom</div>
+function buildCard2(code, name, val, conf, highlighted, poissonStat, delay) {
+  const isYes = val==='IGEN';
+  const valColor = isYes ? 'var(--green)' : 'var(--red)';
+  const confPct = Math.min(100, Math.max(0, conf));
+  const circ = 2*Math.PI*20;
+  return `<div class="tip-card2 ${highlighted?'highlighted':''}" style="animation-delay:${delay*.07}s">
+    ${highlighted?'<div class="tip-card2-best-badge">★ LEGJOBB TIPP</div>':''}
+    <div class="tip-card2-code">${code}</div>
+    <div class="tip-card2-name">${name}</div>
+    <div class="tip-card2-pick" style="color:${valColor}">${val}</div>
+    <div class="tip-card2-ring-wrap">
+      <svg width="48" height="48" viewBox="0 0 48 48">
+        <circle cx="24" cy="24" r="20" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="3"/>
+        <circle class="conf-ring-fill" cx="24" cy="24" r="20" fill="none" stroke="${highlighted?'var(--green)':'var(--cyan)'}" stroke-width="3"
+          stroke-dasharray="${circ}" stroke-dashoffset="${circ}"
+          stroke-linecap="round" transform="rotate(-90 24 24)"
+          data-conf="${confPct}" style="transition:stroke-dashoffset .9s cubic-bezier(.16,1,.3,1)"/>
+        <text x="24" y="28" text-anchor="middle" fill="${highlighted?'var(--green)':'#d4e8f0'}" font-family="JetBrains Mono" font-size="9" font-weight="700">${confPct}%</text>
+      </svg>
+    </div>
+    <div class="tip-card2-stat">Poisson: ${poissonStat}</div>
   </div>`;
 }
 
