@@ -132,6 +132,10 @@
     .btn:hover { background:#1a1a1a; border-color:#555; color:#fff; }
     .btn-icon { width:13px; height:13px; }
 
+    /* Debug panel */
+    .debug-panel { background:#0a0a0a; border:1px solid #1a1a1a; border-radius:2px; padding:12px; margin-top:12px; font-family:'DM Mono',monospace; font-size:.6rem; color:#444; display:none; }
+    .debug-panel.show { display:block; }
+
     @media (max-width:600px) {
       .tips-grid { grid-template-columns:1fr; }
       .match-card { grid-template-columns:1fr; gap:6px; text-align:center; }
@@ -247,6 +251,10 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <span id="tipsRoundBadge" class="round-badge" style="display:none"></span>
+        <button class="btn" id="refreshTipsBtn" onclick="loadTips(true)">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Frissítés
+        </button>
       </div>
     </div>
 
@@ -298,9 +306,10 @@ let lastSeasonId = null;
 let lastTotalPoints = null;
 let lastRound = null;
 let currentTab = 'real';
+let tipsLoaded = false; // megjelöli hogy már betöltöttük a tippeket
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// LLM7 (AI tippek + tabella előrejelzés)
+// LLM7
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 async function callAI(prompt, temp = 0.7) {
   const res = await fetch(LLM7_URL, {
@@ -314,214 +323,27 @@ async function callAI(prompt, temp = 0.7) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// HTML PARSER – a /api/matches proxy nyers HTML-jét dolgozza fel
-// A sportradar oldal struktúrája a képből:
-//
-// Táblázat soronként:
-//   TD[0]: "VLLM\n14"  ← liga + forduló
-//   TD[1]: "Crystal Palace"  ← hazai csapat
-//   TD[2]: "03:59\n- : -"   ← idő + eredmény
-//   TD[3]: "Wolverhampton"   ← vendég csapat
-//
-// Megközelítés: DOMParser-rel valódi DOM-ot építünk,
-// így nem kell fragilis regex – egyszerű querySelector!
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function parseMatchesFromHTML(html) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-
-  const upcoming = [];
-  const results  = [];
-  const seen = new Set();
-
-  function matchKey(a, b) { return [a, b].sort().join('|||'); }
-
-  // Minden TR-t megvizsgálunk
-  const rows = doc.querySelectorAll('tr');
-
-  rows.forEach(tr => {
-    const tds = tr.querySelectorAll('td');
-    if (tds.length < 3) return;
-
-    // Keressük azt a TD-t ami VLLM-et tartalmaz
-    let roundTdIdx = -1;
-    let round = null;
-
-    for (let i = 0; i < tds.length; i++) {
-      const txt = tds[i].textContent.trim();
-      if (txt.includes('VLLM')) {
-        // Forduló szám: szám az ugyanebben a cellában
-        const numMatch = txt.match(/(\d+)/);
-        if (numMatch) {
-          round = parseInt(numMatch[1]);
-          roundTdIdx = i;
-          break;
-        }
-      }
-    }
-
-    if (roundTdIdx === -1 || !round) return;
-
-    // Az idő/eredmény TD: az amelyik HH:MM formátumú időt tartalmaz
-    let centerIdx = -1;
-    for (let i = 0; i < tds.length; i++) {
-      if (/\d{1,2}:\d{2}/.test(tds[i].textContent)) {
-        centerIdx = i;
-        break;
-      }
-    }
-    if (centerIdx === -1) return;
-
-    // Hazai = centerIdx - 1, Vendég = centerIdx + 1
-    const homeIdx = centerIdx - 1;
-    const awayIdx = centerIdx + 1;
-    if (homeIdx < 0 || awayIdx >= tds.length) return;
-
-    const home = tds[homeIdx].textContent.trim();
-    const away = tds[awayIdx].textContent.trim();
-
-    if (!home || !away || home.length < 2 || away.length < 2) return;
-    // Kiszűrjük a fejléc sorokat
-    if (/^(BAJ|Mérkőzés|#|Pont|Csapat)/i.test(home)) return;
-
-    const centerText = tds[centerIdx].textContent.trim();
-    const timeMatch = centerText.match(/(\d{1,2}:\d{2})/);
-    const time = timeMatch ? timeMatch[1] : null;
-
-    // Logo ID-k a sorból
-    const imgs = tr.querySelectorAll('img[src*="medium"]');
-    const logoIds = [];
-    imgs.forEach(img => {
-      const m = img.src.match(/\/medium\/(\d{5,7})\.png/);
-      if (m && !logoIds.includes(m[1])) logoIds.push(m[1]);
-    });
-
-    // Eredmény detektálás:
-    // upcoming: "- : -" vagy csak "-" az eredmény részben
-    // played: "2 : 1" vagy "2:1"
-    // Az időt levágjuk, a maradék az eredmény
-    const afterTime = time ? centerText.replace(time, '').trim() : centerText;
-    const isDash = /^\s*-\s*[:\s]*-\s*$/.test(afterTime) || afterTime.trim() === '-';
-    const scoreMatch = afterTime.match(/(\d+)\s*:\s*(\d+)/);
-
-    const key = matchKey(home, away);
-    if (seen.has(key)) return;
-    seen.add(key);
-
-    const entry = { round, home, away, hid: logoIds[0]||null, aid: logoIds[1]||null, time };
-
-    if (isDash && !scoreMatch) {
-      upcoming.push({ ...entry, upcoming: true });
-    } else if (scoreMatch) {
-      results.push({ ...entry, upcoming: false, hs: parseInt(scoreMatch[1]), as: parseInt(scoreMatch[2]) });
-    }
-  });
-
-  // Fallback: ha a DOM parser nem működött (pl. nagyon tört HTML),
-  // egyszerű szöveges regex kinyerés
-  if (upcoming.length === 0 && results.length === 0) {
-    return parseMatchesRegexFallback(html);
-  }
-
-  return { upcoming, results };
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// FALLBACK: regex alapú parser ha a DOM nem megy
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function parseMatchesRegexFallback(html) {
-  const upcoming = [], results = [], seen = new Set();
-  function matchKey(a, b) { return [a, b].sort().join('|||'); }
-
-  // Minden TR ami tartalmazza a VLLM szót
-  const trRegex = /<tr[\s>][\s\S]*?<\/tr>/gi;
-  let trMatch;
-
-  while ((trMatch = trRegex.exec(html)) !== null) {
-    const tr = trMatch[0];
-    if (!tr.includes('VLLM')) continue;
-
-    // Forduló
-    const roundM = tr.match(/VLLM[\s\S]{0,50}?(\d+)/);
-    if (!roundM) continue;
-    const round = parseInt(roundM[1]);
-    if (round < 1 || round > 999) continue;
-
-    // TD tartalmak szövegként
-    const tdTexts = [...tr.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)]
-      .map(m => m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-
-    if (tdTexts.length < 3) continue;
-
-    // Idő TD keresése
-    let centerIdx = tdTexts.findIndex(t => /\d{1,2}:\d{2}/.test(t));
-    if (centerIdx === -1) continue;
-
-    const home = tdTexts[centerIdx - 1];
-    const away = tdTexts[centerIdx + 1];
-    if (!home || !away || home.length < 2) continue;
-
-    const centerText = tdTexts[centerIdx];
-    const timeMatch = centerText.match(/(\d{1,2}:\d{2})/);
-    const time = timeMatch ? timeMatch[1] : null;
-    const afterTime = time ? centerText.replace(time, '').trim() : centerText;
-
-    // Logo ID-k
-    const logoIds = [];
-    for (const m of tr.matchAll(/\/medium\/(\d{5,7})\.png/g)) {
-      if (!logoIds.includes(m[1])) logoIds.push(m[1]);
-    }
-
-    const isDash = /^\s*-\s*[:\s]*-\s*$/.test(afterTime) || afterTime.trim() === '-';
-    const scoreMatch = afterTime.match(/(\d+)\s*:\s*(\d+)/);
-
-    const key = matchKey(home, away);
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    const entry = { round, home, away, hid: logoIds[0]||null, aid: logoIds[1]||null, time };
-    if (isDash && !scoreMatch) upcoming.push({ ...entry, upcoming: true });
-    else if (scoreMatch) results.push({ ...entry, upcoming: false, hs: parseInt(scoreMatch[1]), as: parseInt(scoreMatch[2]) });
-  }
-
-  return { upcoming, results };
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MECCSEK LEKÉRÉSE – /api/matches proxy-n keresztül
+// MECCSEK LEKÉRÉSE – /api/matches JSON választ ad vissza
+// A matches.js edge function közvetlenül a sportradar-ból scrape-el
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 async function fetchNextMatches() {
   const res = await fetch('/api/matches');
-  if (!res.ok) throw new Error(`Proxy hiba: ${res.status}`);
+  if (!res.ok) throw new Error(`Matches API hiba: ${res.status}`);
 
-  const contentType = res.headers.get('content-type') || '';
+  const data = await res.json();
+  console.log('[fetchNextMatches] API válasz:', data);
 
-  // Ha JSON hibaüzenetet kaptunk
-  if (contentType.includes('application/json')) {
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    // Ha már feldolgozott adatot ad vissza (régi matches.js kompatibilitás)
-    if (data.nextFixtures) return data;
-    return { nextFixtures: [], nextRound: null };
+  if (data.error && (!data.nextFixtures || data.nextFixtures.length === 0)) {
+    throw new Error(data.error);
   }
 
-  // Nyers HTML – mi parsoljuk
-  const html = await res.text();
-  console.log(`[matches] HTML kapott: ${html.length} karakter, VLLM: ${html.includes('VLLM')}`);
-
-  const { upcoming, results } = parseMatchesFromHTML(html);
-  console.log(`[matches] Parsed: ${upcoming.length} upcoming, ${results.length} results`);
-
-  // Következő forduló
-  const upRounds = [...new Set(upcoming.map(m => m.round))].sort((a, b) => a - b);
-  const nextRound = upRounds[0] ?? null;
-  const nextFixtures = upcoming.filter(m => m.round === nextRound);
-
-  // Utolsó fordulók
-  const doneRounds = [...new Set(results.map(m => m.round))].sort((a, b) => b - a);
-  const recentResults = results.filter(m => doneRounds.slice(0, 3).includes(m.round));
-
-  return { nextFixtures, nextRound, recentResults, lastRound: doneRounds[0] ?? null, source: 'html-parsed' };
+  return {
+    nextFixtures: data.nextFixtures || [],
+    nextRound: data.nextRound || null,
+    recentResults: data.recentResults || [],
+    lastRound: data.lastRound || null,
+    source: data.source || 'unknown',
+  };
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -635,44 +457,52 @@ async function generateAITable() {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// AI TIPPEK
+// AI TIPPEK GENERÁLÁSA
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-async function generateTips(fixtures, standings) {
+async function generateTips(fixtures, standings, recentResults) {
   const matchList = fixtures.map(m => `${m.home} vs ${m.away}`).join('\n');
+
   const standingsSummary = standings.length > 0
-    ? standings.slice(0, 8).map(t => `${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n')
+    ? standings.slice(0, 10).map(t => `${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n')
     : 'Nincs tabella adat';
+
+  // Legutóbbi eredmények hozzáadása a kontextushoz
+  const recentStr = recentResults && recentResults.length > 0
+    ? '\n\nLEGUTÓBBI EREDMÉNYEK:\n' + recentResults.slice(0, 10).map(m => `${m.home} ${m.hs}:${m.as} ${m.away}`).join('\n')
+    : '';
 
   const prompt = `Te egy virtuális futball liga profí tipp-elemzője vagy. A következő menet meccseiből adj 4 tippet MAGYARUL.
 
-MECCSEK:
+KÖVETKEZŐ MENET MECCSEK:
 ${matchList}
 
-TABELLA (top 8):
-${standingsSummary}
+JELENLEGI TABELLA (top 10):
+${standingsSummary}${recentStr}
 
 SZABÁLYOK:
-- Adj pontosan 2 db "1.5 gól felett" (over 1.5) tippet
-- Adj pontosan 2 db "mindkét csapat góloz" (BTTS) tippet
-- Megbízhatóság: 50-95%
-- 1 mondatos MAGYAR indoklás
+- Adj pontosan 2 db "1.5 gól felett" (over 1.5) tippet – olyan meccsekre ahol várhatóan több gól esik
+- Adj pontosan 2 db "mindkét csapat góloz" (BTTS) tippet – ahol mindkét csapat valószínűleg betalál
+- Megbízhatóság: 55-92% között adj meg
+- Rövid, tömör MAGYAR indoklás (max 1 mondat)
+- Különböző meccsekre adj tippeket ha lehetséges
 
-Válaszolj KIZÁRÓLAG kompakt JSON tömbként:
-[{"type":"over15","match":"Hazai vs Vendég","confidence":78,"reason":"..."},
- {"type":"over15","match":"Hazai vs Vendég","confidence":72,"reason":"..."},
- {"type":"btts","match":"Hazai vs Vendég","confidence":68,"reason":"..."},
- {"type":"btts","match":"Hazai vs Vendég","confidence":65,"reason":"..."}]`;
+Válaszolj KIZÁRÓLAG kompakt JSON tömbként, semmi más szöveg:
+[{"type":"over15","match":"Hazai vs Vendég","confidence":78,"reason":"Mindkét csapat sokat lő, várható gólzápor."},
+ {"type":"over15","match":"Hazai vs Vendég","confidence":72,"reason":"A hazai top formában van, sok gólt szerez."},
+ {"type":"btts","match":"Hazai vs Vendég","confidence":68,"reason":"Mindkét csapat gyenge védelemmel rendelkezik."},
+ {"type":"btts","match":"Hazai vs Vendég","confidence":65,"reason":"Kiegyenlített meccs várható, mindkét oldal betalál."}]`;
 
   const text = await callAI(prompt, 0.8);
+  // JSON tisztítás: mindent kivágunk a [ és ] között
   const clean = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
   const start = clean.indexOf('[');
   const end = clean.lastIndexOf(']');
-  if (start === -1) throw new Error('Tipp JSON nem található');
+  if (start === -1 || end === -1) throw new Error('Tipp JSON nem található az AI válaszban');
   return JSON.parse(clean.slice(start, end + 1));
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// TIPPEK TAB
+// TIPPEK TAB – fő betöltő funkció
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 async function loadTips(forceRefresh = false) {
   const dot = document.getElementById('tipsDot');
@@ -683,71 +513,103 @@ async function loadTips(forceRefresh = false) {
   const loadingText = document.getElementById('tipsLoadingText');
   const emptyState = document.getElementById('tipsEmptyState');
   const roundBadge = document.getElementById('tipsRoundBadge');
+  const refreshBtn = document.getElementById('refreshTipsBtn');
 
+  // UI reset
   dot.style.background = 'var(--amber)';
   statusText.textContent = 'Meccsek betöltése...';
-  loadingText.textContent = 'Meccsek betöltése...';
+  loadingText.textContent = 'Meccsek betöltése a sportradar-ból...';
   loadingState.style.display = 'flex';
   matchesSection.style.display = 'none';
   emptyState.style.display = 'none';
+  if (refreshBtn) refreshBtn.disabled = true;
+  hideError();
 
   try {
+    // 1. Meccsek lekérése az /api/matches végpontból
     const data = await fetchNextMatches();
     const fixtures = data.nextFixtures || [];
     const round = data.nextRound;
+    const recentResults = data.recentResults || [];
 
+    console.log(`[loadTips] Fixtures: ${fixtures.length}, Round: ${round}, Source: ${data.source}`);
+
+    // Ha nincs következő menet
     if (fixtures.length === 0) {
       loadingState.style.display = 'none';
       emptyState.style.display = 'block';
       dot.style.background = 'var(--text-muted)';
-      statusText.textContent = 'Nincs következő menet';
+      statusText.textContent = 'Nincs következő menet az adatforrásban';
       updateTime.textContent = nowStr();
+      if (refreshBtn) refreshBtn.disabled = false;
       return;
     }
 
-    if (round === lastRound && !forceRefresh) {
+    // Ha ugyanaz a forduló és nem kényszer frissítés → csak megmutatjuk a meglévő tartalmat
+    if (round === lastRound && !forceRefresh && tipsLoaded) {
       loadingState.style.display = 'none';
       matchesSection.style.display = 'block';
       dot.style.background = 'var(--green)';
       statusText.textContent = `${round}. menet – nincs változás`;
       updateTime.textContent = nowStr();
+      if (refreshBtn) refreshBtn.disabled = false;
       return;
     }
 
     lastRound = round;
-    if (round) { roundBadge.textContent = `${round}. MENET`; roundBadge.style.display = 'inline-block'; }
+    tipsLoaded = false;
 
-    // Meccsek megjelenítése
+    // Forduló badge
+    if (round) {
+      roundBadge.textContent = `${round}. MENET`;
+      roundBadge.style.display = 'inline-block';
+    }
+
+    // 2. Meccsek megjelenítése
     document.getElementById('matchesGrid').innerHTML = fixtures.map((m, i) => `
       <div class="match-card" style="animation-delay:${i*0.04}s">
         <div class="match-home">
-          <span class="match-team-name">${m.home}</span>
-          ${m.hid ? `<img class="match-logo" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/${m.hid}.png" alt="" onerror="this.style.display='none'">` : '<span class="match-logo-ph"></span>'}
+          <span class="match-team-name">${escHtml(m.home)}</span>
+          ${m.hid
+            ? `<img class="match-logo" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/${m.hid}.png" alt="" onerror="this.style.display='none'">`
+            : '<span class="match-logo-ph"></span>'}
         </div>
         <div class="match-center">
-          ${m.time ? `<div class="match-time">${m.time}</div>` : ''}
+          ${m.time ? `<div class="match-time">${escHtml(m.time)}</div>` : ''}
           <div class="match-vs">VS</div>
         </div>
         <div class="match-away">
-          ${m.aid ? `<img class="match-logo" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/${m.aid}.png" alt="" onerror="this.style.display='none'">` : '<span class="match-logo-ph"></span>'}
-          <span class="match-team-name">${m.away}</span>
+          ${m.aid
+            ? `<img class="match-logo" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/${m.aid}.png" alt="" onerror="this.style.display='none'">`
+            : '<span class="match-logo-ph"></span>'}
+          <span class="match-team-name">${escHtml(m.away)}</span>
         </div>
       </div>`).join('');
 
     matchesSection.style.display = 'block';
     loadingState.style.display = 'none';
 
-    // AI tippek
+    // 3. AI tippek generálása
     statusText.textContent = 'AI tippek generálása...';
     dot.style.background = 'var(--amber)';
-    document.getElementById('tipsGrid').innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+    document.getElementById('tipsGrid').innerHTML = `
+      <div style="grid-column:1/-1">
+        <div class="dots"><span></span><span></span><span></span></div>
+      </div>`;
 
+    // Tabella betöltése ha nincs
     if (realStandings.length === 0) {
-      try { const { standings } = await fetchRealStandings(); realStandings = standings; } catch(_) {}
+      try {
+        const { standings } = await fetchRealStandings();
+        realStandings = standings;
+      } catch(e) {
+        console.warn('[loadTips] Tabella betöltés sikertelen:', e.message);
+      }
     }
 
-    const tips = await generateTips(fixtures, realStandings);
+    const tips = await generateTips(fixtures, realStandings, recentResults);
 
+    // 4. Tipp kártyák megjelenítése
     document.getElementById('tipsGrid').innerHTML = tips.slice(0, 4).map((tip, i) => {
       const isOver = tip.type === 'over15';
       const conf = Math.min(95, Math.max(50, parseInt(tip.confidence) || 70));
@@ -760,50 +622,74 @@ async function loadTips(forceRefresh = false) {
             }
             ${isOver ? '1.5 GÓL FELETT' : 'MINDKÉT CSAPAT GÓLOZ'}
           </div>
-          <div class="tip-match">${tip.match || ''}</div>
+          <div class="tip-match">${escHtml(tip.match || '')}</div>
           <div class="tip-confidence">
             <div class="tip-conf-bar"><div class="tip-conf-fill" style="width:${conf}%"></div></div>
             <span class="tip-conf-pct">${conf}%</span>
           </div>
-          <div class="tip-reason">${tip.reason || ''}</div>
+          <div class="tip-reason">${escHtml(tip.reason || '')}</div>
         </div>`;
     }).join('');
 
+    // Has-tip highlight a meccskártyákon
     tips.forEach(tip => {
       const matchName = tip.match || '';
       document.querySelectorAll('.match-card').forEach(card => {
         const home = card.querySelector('.match-home .match-team-name')?.textContent || '';
         const away = card.querySelector('.match-away .match-team-name')?.textContent || '';
-        if (matchName.includes(home) || matchName.includes(away)) card.classList.add('has-tip');
+        if (matchName.toLowerCase().includes(home.toLowerCase()) ||
+            matchName.toLowerCase().includes(away.toLowerCase())) {
+          card.classList.add('has-tip');
+        }
       });
     });
 
+    tipsLoaded = true;
     dot.style.background = 'var(--green)';
     statusText.textContent = `${round ? round + '. menet' : 'Következő menet'} – tippek kész`;
     updateTime.textContent = nowStr();
 
   } catch(e) {
-    console.error('Tips hiba:', e);
+    console.error('[loadTips] Hiba:', e);
     loadingState.style.display = 'none';
-    emptyState.style.display = 'block';
-    dot.style.background = 'var(--red)';
-    statusText.textContent = `Hiba: ${e.message}`;
-    updateTime.textContent = nowStr();
+
+    // Ha volt már adat és csak frissítés sikertelen, ne tűnjön el a tartalom
+    if (tipsLoaded) {
+      dot.style.background = 'var(--red)';
+      statusText.textContent = `Frissítés sikertelen: ${e.message}`;
+      updateTime.textContent = nowStr();
+    } else {
+      emptyState.style.display = 'block';
+      dot.style.background = 'var(--red)';
+      statusText.textContent = `Hiba: ${e.message}`;
+      updateTime.textContent = nowStr();
+      showError(`Meccs betöltés sikertelen: ${e.message}`);
+    }
+  } finally {
+    if (refreshBtn) refreshBtn.disabled = false;
   }
 }
 
 async function checkForNewRound() {
-  if (currentTab !== 'tips') return;
+  if (currentTab !== 'tips' || !tipsLoaded) return;
   try {
     const data = await fetchNextMatches();
     const round = data.nextRound;
-    if (round && round !== lastRound) await loadTips(true);
-  } catch(_) {}
+    if (round && round !== lastRound) {
+      console.log(`[checkForNewRound] Új menet: ${lastRound} → ${round}`);
+      await loadTips(true);
+    }
+  } catch(e) {
+    console.warn('[checkForNewRound] Hiba:', e.message);
+  }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // HELPERS
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 function gd(gf, ga) {
   const d = (gf||0) - (ga||0);
   if (d > 0) return `<span style="color:#4caf50">+${d}</span>`;
@@ -827,6 +713,7 @@ function rowClass(pos, total) {
 function nowStr() { return new Date().toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
 function showError(msg) { document.getElementById('errorText').textContent=msg; document.getElementById('errorBox').classList.add('show'); }
 function hideError() { document.getElementById('errorBox').classList.remove('show'); }
+
 function detectSeasonReset(standings, serverSeasonId) {
   const totalPoints = standings.reduce((s,t)=>s+(t.pts||0),0);
   let isReset = false;
@@ -837,7 +724,7 @@ function detectSeasonReset(standings, serverSeasonId) {
     document.getElementById('seasonNotice').style.display='flex';
     document.getElementById('aiTable').innerHTML='<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.72rem;font-family:\'DM Mono\',monospace">Új szezon! Kattints a "Generálás" gombra.</div>';
     document.getElementById('aiPanel').style.display='none';
-    lastRound=null;
+    lastRound=null; tipsLoaded=false;
   }
   lastTotalPoints=totalPoints;
   if (serverSeasonId) lastSeasonId=serverSeasonId;
@@ -849,9 +736,13 @@ function showTab(tab) {
     document.getElementById(t+'Container').style.display = t===tab ? 'block' : 'none';
     document.getElementById(t+'Tab').classList.toggle('active', t===tab);
   });
-  if (tab==='tips' && lastRound===null) loadTips(true);
+  // Tippek tab: automatikusan tölt ha még nem volt betöltve
+  if (tab === 'tips' && !tipsLoaded) loadTips(true);
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INIT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 document.addEventListener('DOMContentLoaded', () => {
   loadRealTable();
   document.getElementById('refreshRealBtn').addEventListener('click', loadRealTable);
