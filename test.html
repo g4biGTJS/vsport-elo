@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VSPORT – Utolsó Mérkőzések</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#030507;--surface:#070c10;--surface2:#0b1218;--surface3:#0f1820;
+      --border:#0e1e28;--border2:#162535;
+      --text:#d4e8f0;--text-dim:#4a7a99;--text-muted:#1e3d52;
+      --green:#00e676;--red:#ff3d3d;--amber:#ffab00;--cyan:#00b8d4;
+    }
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+    html,body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;}
+
+    .bg-layer{position:fixed;inset:0;z-index:0;pointer-events:none;}
+    .bg-mesh{background:radial-gradient(ellipse 80% 60% at 20% 30%,rgba(0,80,40,0.18) 0%,transparent 60%),radial-gradient(ellipse 60% 80% at 80% 70%,rgba(0,40,80,0.2) 0%,transparent 60%),#030507;}
+    .bg-grid{background-image:linear-gradient(rgba(0,180,100,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,180,100,0.02) 1px,transparent 1px);background-size:60px 60px;}
+    .bg-vignette{background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 40%,rgba(0,0,0,0.6) 100%);}
+
+    header{position:sticky;top:0;z-index:100;background:rgba(3,5,7,0.92);backdrop-filter:blur(20px);border-bottom:1px solid rgba(0,230,118,0.1);padding:0 28px;height:58px;display:flex;align-items:center;gap:16px;}
+    header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,230,118,0.8) 50%,transparent);background-size:200% 100%;animation:lineSlide 4s linear infinite;}
+    @keyframes lineSlide{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+    .live-pulse-wrap{position:relative;display:flex;align-items:center;justify-content:center;width:28px;height:28px;}
+    .live-pulse-ring{position:absolute;width:28px;height:28px;border-radius:50%;border:1px solid rgba(0,230,118,0.4);animation:ringPulse 2s ease-out infinite;}
+    .live-pulse-ring:nth-child(2){animation-delay:.5s;}
+    @keyframes ringPulse{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.4);opacity:0}}
+    .live-dot-core{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);position:relative;z-index:1;animation:corePulse 2s ease-in-out infinite;}
+    @keyframes corePulse{0%,100%{box-shadow:0 0 8px var(--green)}50%{box-shadow:0 0 20px var(--green)}}
+    .site-title{font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:900;letter-spacing:6px;color:#fff;text-transform:uppercase;}
+    .header-sep{width:1px;height:24px;background:linear-gradient(to bottom,transparent,var(--border2),transparent);}
+    .back-btn{display:flex;align-items:center;gap:8px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;font-size:.58rem;text-decoration:none;letter-spacing:1.5px;padding:6px 14px;border:1px solid rgba(0,230,118,0.15);border-radius:2px;transition:all .25s;background:rgba(0,230,118,0.04);}
+    .back-btn:hover{color:var(--green);border-color:rgba(0,230,118,0.4);}
+
+    .page{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:32px 20px 80px;}
+
+    /* ── SECTION ── */
+    .section-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+    .section-title{font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:4px;color:var(--text);display:flex;align-items:center;gap:12px;text-transform:uppercase;}
+    .round-pill{background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.2);color:var(--green);font-family:'JetBrains Mono',monospace;font-size:.52rem;padding:3px 10px;border-radius:2px;letter-spacing:1.5px;}
+
+    .btn{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text-dim);font-size:.58rem;font-family:'JetBrains Mono',monospace;letter-spacing:1.5px;padding:8px 16px;border-radius:2px;cursor:pointer;transition:all .2s;text-transform:uppercase;}
+    .btn:hover{border-color:rgba(0,230,118,0.3);color:var(--green);box-shadow:0 0 16px rgba(0,230,118,0.08);}
+
+    /* ── STATUS BAR ── */
+    .status-bar{background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:2px;padding:6px 14px;margin-bottom:20px;font-family:'JetBrains Mono',monospace;font-size:.56rem;color:var(--text-muted);display:flex;align-items:center;gap:8px;}
+    .status-dot{width:5px;height:5px;border-radius:50%;background:var(--amber);animation:corePulse 2s infinite;flex-shrink:0;}
+    .status-bar.ok .status-dot{background:var(--green);}
+    .status-bar.err .status-dot{background:var(--red);}
+
+    /* ── ROUND BLOCK ── */
+    .round-block{margin-bottom:24px;animation:fadeUp .4s ease both;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+    .round-header{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+    .round-label{font-family:'JetBrains Mono',monospace;font-size:.55rem;letter-spacing:2px;color:rgba(0,230,118,0.5);text-transform:uppercase;}
+    .round-num{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:800;color:var(--green);letter-spacing:2px;}
+    .round-divider{flex:1;height:1px;background:linear-gradient(90deg,rgba(0,230,118,0.15),transparent);}
+
+    /* ── MATCH CARD ── */
+    .matches-list{display:flex;flex-direction:column;gap:4px;}
+    .match-card{background:var(--surface);border:1px solid var(--border);border-radius:3px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:10px 14px;gap:8px;transition:background .15s,border-color .15s;position:relative;overflow:hidden;animation:slideIn .35s ease both;}
+    @keyframes slideIn{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:translateX(0)}}
+    .match-card:hover{background:var(--surface2);border-color:var(--border2);}
+    .match-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;}
+    .match-card.home-win::before{background:linear-gradient(to bottom,var(--green),transparent);}
+    .match-card.away-win::before{background:linear-gradient(to bottom,transparent,var(--red));}
+    .match-card.draw::before{background:linear-gradient(to bottom,var(--amber),transparent);}
+
+    /* Result indicator glow */
+    .match-card.home-win{background:linear-gradient(90deg,rgba(0,230,118,0.04) 0%,transparent 40%);}
+    .match-card.away-win{background:linear-gradient(90deg,transparent 60%,rgba(255,61,61,0.04) 100%);}
+    .match-card.draw{background:linear-gradient(90deg,rgba(255,171,0,0.03),transparent 50%,rgba(255,171,0,0.03));}
+
+    .match-team{display:flex;align-items:center;gap:10px;}
+    .match-team.home{justify-content:flex-end;flex-direction:row-reverse;}
+    .match-team.away{justify-content:flex-start;}
+
+    .team-logo{width:20px;height:20px;object-fit:contain;flex-shrink:0;}
+    .team-logo-ph{width:20px;height:20px;flex-shrink:0;border-radius:50%;background:var(--border2);}
+
+    .team-name-full{font-size:.8rem;font-weight:600;color:#aac5d4;white-space:nowrap;}
+    .team-name-short{display:none;font-size:.72rem;font-weight:700;color:#aac5d4;font-family:'JetBrains Mono',monospace;}
+    @media(max-width:520px){.team-name-full{display:none;}.team-name-short{display:block;}}
+
+    .match-team.winner .team-name-full,
+    .match-team.winner .team-name-short{color:var(--text);}
+
+    .score-block{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;min-width:68px;}
+    .score{font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:900;letter-spacing:3px;color:var(--text);}
+    .score .home-score{color:var(--green);}
+    .score .away-score{color:var(--red);}
+    .score.draw-score{color:var(--amber);}
+    .score-sep{color:var(--text-muted);margin:0 3px;}
+    .match-meta{font-family:'JetBrains Mono',monospace;font-size:.48rem;color:var(--text-muted);letter-spacing:1px;}
+    .result-tag{font-family:'JetBrains Mono',monospace;font-size:.44rem;padding:1px 6px;border-radius:1px;letter-spacing:1px;}
+    .result-tag.h{background:rgba(0,230,118,0.1);color:var(--green);}
+    .result-tag.a{background:rgba(255,61,61,0.1);color:var(--red);}
+    .result-tag.d{background:rgba(255,171,0,0.1);color:var(--amber);}
+
+    /* ── STATS SUMMARY ── */
+    .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
+    @media(max-width:500px){.stats-row{grid-template-columns:repeat(2,1fr);}}
+    .stat-mini{background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:12px 14px;text-align:center;}
+    .stat-mini-val{font-family:'Barlow Condensed',sans-serif;font-size:1.6rem;font-weight:900;color:var(--text);display:block;}
+    .stat-mini-lbl{font-family:'JetBrains Mono',monospace;font-size:.46rem;letter-spacing:1.5px;color:var(--text-muted);text-transform:uppercase;margin-top:3px;display:block;}
+
+    /* ── EMPTY/ERROR ── */
+    .empty-msg{padding:40px;text-align:center;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:.7rem;line-height:2.2;}
+
+    /* ── DEBUG BOX ── */
+    .debug-box{background:var(--surface);border:1px solid var(--border2);border-radius:3px;padding:14px;margin-top:24px;font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--text-dim);display:none;}
+    .debug-box.show{display:block;}
+    .debug-box pre{white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;}
+  </style>
+</head>
+<body>
+<div class="bg-layer bg-mesh"></div>
+<div class="bg-layer bg-grid"></div>
+<div class="bg-layer bg-vignette"></div>
+
+<header>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="live-pulse-wrap">
+      <div class="live-pulse-ring"></div><div class="live-pulse-ring"></div>
+      <div class="live-dot-core"></div>
+    </div>
+    <div class="header-sep"></div>
+    <span class="site-title">VSPORT</span>
+    <div class="header-sep"></div>
+    <a class="back-btn" href="/">
+      <svg style="width:11px;height:11px" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Vissza
+    </a>
+  </div>
+</header>
+
+<div class="page">
+  <div class="section-hdr">
+    <div class="section-title">
+      <svg style="width:18px;height:18px" viewBox="0 0 24 24" fill="none"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Utolsó Mérkőzések
+      <span class="round-pill" id="roundPill">–</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="debugBtn">
+        <svg style="width:12px;height:12px" viewBox="0 0 24 24" fill="none"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Debug
+      </button>
+      <button class="btn" id="refreshBtn">
+        <svg style="width:12px;height:12px" viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Frissítés
+      </button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar">
+    <span class="status-dot"></span>
+    <span id="statusText">Betöltés...</span>
+  </div>
+
+  <div class="stats-row" id="statsRow" style="display:none"></div>
+  <div id="matchesContainer">
+    <div class="empty-msg">Betöltés folyamatban...</div>
+  </div>
+
+  <div class="debug-box" id="debugBox">
+    <div style="color:var(--amber);margin-bottom:8px;letter-spacing:1px">── DEBUG: PARSED MATCHES ──</div>
+    <pre id="debugPre"></pre>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════
+   PARSER – ugyanolyan logika mint parsePL
+   HTML string split + regex
+══════════════════════════════════════ */
+function parseMatches(html) {
+  const matches = [];
+
+  // Feldaraboljuk a <tr class="cursor-pointer"> tageknél
+  // (pontosan ugyanígy csinálja a parsePL a <tr> tageknél)
+  const rows = html.split(/<tr class="cursor-pointer">/);
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i].split('</tr>')[0];
+
+    // ── Forduló száma ──
+    // <div title="Virtuális...">VLLM</div><div title="">12</div>
+    const roundMatch = row.match(/<div title="">\s*(\d+)\s*<\/div>/);
+    if (!roundMatch) continue;
+    const round = parseInt(roundMatch[1]);
+
+    // ── Csapatnevek (teljes és rövid) ──
+    // A "hidden-xs-up visible-sm-up wrap" div tartalmazza a teljes nevet
+    const fullNames = [...row.matchAll(/class="hidden-xs-up visible-sm-up wrap">([^<]+)<\/div>/g)];
+    // A "hidden-sm-up wrap" div tartalmazza a rövid kódot
+    const shortNames = [...row.matchAll(/class="hidden-sm-up wrap">([^<]+)<\/div>/g)];
+
+    if (fullNames.length < 2) continue;
+    const homeTeam  = fullNames[0][1].trim();
+    const awayTeam  = fullNames[1][1].trim();
+    const homeShort = shortNames[0]?.[1]?.trim() || homeTeam.slice(0,3).toUpperCase();
+    const awayShort = shortNames[1]?.[1]?.trim() || awayTeam.slice(0,3).toUpperCase();
+
+    // ── Csapat logók ──
+    // src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/XXXXX.png"
+    const logos = [...row.matchAll(/src="(https:\/\/vgls\.betradar\.com\/ls\/s5_crest\/scigamingvirtuals\/medium\/\d+\.png)"/g)];
+    const homeLogo = logos[0]?.[1] || null;
+    const awayLogo = logos[1]?.[1] || null;
+
+    // ── Eredmény ──
+    // aria-label="Eredm." blokkban keressük a számokat
+    // <div class="inline-block">1<sup></sup></div> ... <div class="inline-block win-color">3<sup></sup></div>
+    const scoreSection = row.match(/aria-label="Eredm\.">([\s\S]*?)<div class="inline-block margin-left">/);
+    if (!scoreSection) continue;
+
+    const goalNums = [...scoreSection[1].matchAll(/<div class="inline-block[^"]*">\s*(\d+)<sup>/g)];
+    if (goalNums.length < 2) continue;
+    const homeGoals = parseInt(goalNums[0][1]);
+    const awayGoals = parseInt(goalNums[1][1]);
+
+    // ── Nyertes meghatározása ──
+    // A nyertes csapat col-xs-4 divje tartalmaz "win-color" osztályt
+    // Első col-xs-4 = hazai, második = gól blokk, harmadik = vendég
+    // Ellenőrizzük melyiken van win-color az első col-xs-4-en
+    const firstColMatch = row.match(/class="col-xs-4 (win-color)"/);
+    // Ha az első col-xs-4-en van win-color -> hazai nyert
+    // Ha az utolsó col-xs-4-en -> vendég nyert
+    let winner = 'draw';
+    if (homeGoals > awayGoals) winner = 'home';
+    else if (awayGoals > homeGoals) winner = 'away';
+
+    // ── Idő ──
+    const timeMatch = row.match(/<div class="text-center">(\d{1,2}:\d{2})<\/div>/);
+    const time = timeMatch?.[1] || '–';
+
+    matches.push({ round, homeTeam, awayTeam, homeShort, awayShort, homeLogo, awayLogo, homeGoals, awayGoals, winner, time });
+  }
+
+  // Rendezés: legújabb forduló elöl
+  return matches.sort((a, b) => b.round - a.round || a.homeTeam.localeCompare(b.homeTeam));
+}
+
+/* ══════════════════════════════════════
+   RENDER
+══════════════════════════════════════ */
+function renderMatches(matches) {
+  const container = document.getElementById('matchesContainer');
+
+  if (!matches.length) {
+    container.innerHTML = '<div class="empty-msg">Nem sikerült meccsadatot kiszedni.<br><span style="font-size:.58rem;color:#0e1e28">Ellenőrizd a Debug panelt a részletekért.</span></div>';
+    return;
+  }
+
+  // ── Összefoglaló stat-ok ──
+  const totalGoals = matches.reduce((s, m) => s + m.homeGoals + m.awayGoals, 0);
+  const homeWins   = matches.filter(m => m.winner === 'home').length;
+  const awayWins   = matches.filter(m => m.winner === 'away').length;
+  const draws      = matches.filter(m => m.winner === 'draw').length;
+  const avgGoals   = (totalGoals / matches.length).toFixed(1);
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-mini"><span class="stat-mini-val">${matches.length}</span><span class="stat-mini-lbl">Mérkőzés</span></div>
+    <div class="stat-mini"><span class="stat-mini-val" style="color:var(--green)">${homeWins}</span><span class="stat-mini-lbl">Hazai győzelem</span></div>
+    <div class="stat-mini"><span class="stat-mini-val" style="color:var(--amber)">${draws}</span><span class="stat-mini-lbl">Döntetlen</span></div>
+    <div class="stat-mini"><span class="stat-mini-val" style="color:var(--red)">${awayWins}</span><span class="stat-mini-lbl">Vendég győzelem</span></div>
+  `;
+  document.getElementById('statsRow').style.display = 'grid';
+
+  // ── Fordulónként csoportosítás ──
+  const byRound = {};
+  for (const m of matches) {
+    if (!byRound[m.round]) byRound[m.round] = [];
+    byRound[m.round].push(m);
+  }
+  const rounds = Object.keys(byRound).sort((a, b) => b - a); // legújabb elöl
+
+  // Frissítjük a Round pill-t
+  document.getElementById('roundPill').textContent = `${rounds[0]}. FORDULÓ`;
+
+  container.innerHTML = rounds.map((round, ri) => {
+    const roundMatches = byRound[round];
+    const matchCards = roundMatches.map((m, mi) => {
+      const cardClass = m.winner === 'home' ? 'home-win' : m.winner === 'away' ? 'away-win' : 'draw';
+      const homeWinnerClass = m.winner === 'home' ? 'winner' : '';
+      const awayWinnerClass = m.winner === 'away' ? 'winner' : '';
+
+      const homeScoreStyle = m.winner === 'home' ? 'color:var(--green)' : m.winner === 'away' ? 'color:var(--text-muted)' : 'color:var(--amber)';
+      const awayScoreStyle = m.winner === 'away' ? 'color:var(--red)' : m.winner === 'home' ? 'color:var(--text-muted)' : 'color:var(--amber)';
+
+      const resultTagHtml = m.winner === 'home' ? '<span class="result-tag h">H</span>' :
+                            m.winner === 'away' ? '<span class="result-tag a">V</span>' :
+                            '<span class="result-tag d">D</span>';
+
+      const homeLogo = m.homeLogo
+        ? `<img class="team-logo" src="${m.homeLogo}" alt="" onerror="this.style.display='none'">`
+        : `<div class="team-logo-ph"></div>`;
+      const awayLogo = m.awayLogo
+        ? `<img class="team-logo" src="${m.awayLogo}" alt="" onerror="this.style.display='none'">`
+        : `<div class="team-logo-ph"></div>`;
+
+      return `
+        <div class="match-card ${cardClass}" style="animation-delay:${(ri*8+mi)*0.03}s">
+          <div class="match-team home ${homeWinnerClass}">
+            ${homeLogo}
+            <span class="team-name-full">${m.homeTeam}</span>
+            <span class="team-name-short">${m.homeShort}</span>
+          </div>
+          <div class="score-block">
+            <div class="score">
+              <span style="${homeScoreStyle}">${m.homeGoals}</span>
+              <span class="score-sep">:</span>
+              <span style="${awayScoreStyle}">${m.awayGoals}</span>
+            </div>
+            <div style="display:flex;gap:5px;align-items:center">
+              <span class="match-meta">${m.time}</span>
+              ${resultTagHtml}
+            </div>
+          </div>
+          <div class="match-team away ${awayWinnerClass}">
+            ${awayLogo}
+            <span class="team-name-full">${m.awayTeam}</span>
+            <span class="team-name-short">${m.awayShort}</span>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="round-block" style="animation-delay:${ri*0.08}s">
+        <div class="round-header">
+          <span class="round-label">Forduló</span>
+          <span class="round-num">${round}</span>
+          <div class="round-divider"></div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.5rem;color:var(--text-muted)">${roundMatches.length} mérkőzés</span>
+        </div>
+        <div class="matches-list">${matchCards}</div>
+      </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════
+   STATUS HELPERS
+══════════════════════════════════════ */
+function setStatus(msg, type='loading') {
+  const bar = document.getElementById('statusBar');
+  bar.className = 'status-bar ' + type;
+  document.getElementById('statusText').textContent = msg;
+}
+
+/* ══════════════════════════════════════
+   FETCH & LOAD
+   A szezon oldalt kérjük le ugyanúgy
+   ahogy a standings.js is csinálja
+══════════════════════════════════════ */
+const SEASON_ID = '3061057'; // alapértelmezett – ugyanaz mint standings.js-ben
+const SRC_URL = `https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/${SEASON_ID}`;
+const PROXY_URL = `/api/standings?liga=pl`; // Vercel API proxyn keresztül
+
+async function loadMatches() {
+  setStatus('Betöltés...', 'loading');
+  document.getElementById('matchesContainer').innerHTML = '<div class="empty-msg">Adatok lekérése...</div>';
+  document.getElementById('statsRow').style.display = 'none';
+
+  try {
+    // Megpróbáljuk a saját Vercel API-n keresztül lekérni a nyers HTML-t
+    // debug=1 paraméterrel a standings.js visszaadja a htmlSnippet-et + standings-t
+    const res = await fetch(`${PROXY_URL}&debug=1`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+
+    // A debug válasz tartalmaz egy htmlSnippet mezőt
+    // De az teljes results oldalt kellenék – próbáljuk a standings-ból kitalálni
+    // hogy van-e meccs adat, vagy a nyers html-ből szedjük ki
+    let html = '';
+
+    if (json.htmlSnippet) {
+      // Ha van snippet, kipróbáljuk abból
+      html = json.htmlSnippet;
+      setStatus(`Snippet alapú parse (${html.length} karakter)`, 'ok');
+    }
+
+    // Parseoljuk
+    let matches = parseMatches(html);
+
+    // Ha nem jött elég adat a snippetből, jelzünk
+    if (matches.length === 0 && json.standings && json.standings.length > 0) {
+      // Fallback: standings-ból szimuláljuk a megjelenítést
+      setStatus(`Nincs közvetlen meccsadat – ${json.standings.length} csapat a tabellán | Forrás: ${json.source}`, 'ok');
+      showStandingsFallback(json.standings, json.usedUrl);
+      showDebug({ note: 'Meccsadat nem érhető el a snippet-ben. A standings.js a tabella URL-t scrape-eli, nem a results oldalt.', standings_count: json.standings.length, html_length: html.length, suggestion: 'Kellenék: /season/SEASONID/results végpont' });
+      return;
+    }
+
+    if (matches.length === 0) {
+      setStatus('Parse sikertelen – nincs cursor-pointer sor a HTML-ben', 'err');
+      showDebug({ html_length: html.length, snippet: html.slice(0, 500) });
+      document.getElementById('matchesContainer').innerHTML = '<div class="empty-msg">Nem sikerült meccsadatot kiszedni.<br><br><span style="color:#0e1e28;font-size:.58rem">Nyisd meg a Debug panelt a részletekért.</span></div>';
+      return;
+    }
+
+    setStatus(`${matches.length} mérkőzés betöltve · ${[...new Set(matches.map(m => m.round))].length} forduló · Forrás: ${json.source}`, 'ok');
+    renderMatches(matches);
+    showDebug(matches);
+
+  } catch (err) {
+    setStatus(`Hiba: ${err.message}`, 'err');
+    document.getElementById('matchesContainer').innerHTML = `<div class="empty-msg">Lekérési hiba: ${err.message}<br><br><span style="font-size:.58rem;color:#0e1e28">Ellenőrizd, hogy a Vercel API elérhető-e.</span></div>`;
+    console.error('[Results]', err);
+  }
+}
+
+/* ══════════════════════════════════════
+   STANDINGS FALLBACK MEGJELENÍTŐ
+   Ha nincs közvetlen results adat, megmutatjuk
+   hogy mit lehetne csinálni
+══════════════════════════════════════ */
+function showStandingsFallback(standings, usedUrl) {
+  const container = document.getElementById('matchesContainer');
+  container.innerHTML = `
+    <div style="background:var(--surface);border:1px solid rgba(255,171,0,0.2);border-radius:3px;padding:20px;margin-bottom:16px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--amber);letter-spacing:1.5px;margin-bottom:12px">⚠ MECCSADAT NEM ELÉRHETŐ A JELENLEGI API VÉGPONTON</div>
+      <div style="font-size:.78rem;color:var(--text-dim);line-height:1.8;margin-bottom:14px">
+        A <code style="background:var(--surface2);padding:1px 6px;border-radius:2px;color:var(--cyan)">/api/standings?liga=pl</code> végpont csak a tabellát scrape-eli.<br>
+        A mérkőzés eredményekhez a <strong style="color:var(--text)">results</strong> oldalt kell lekérni ugyanerről a szerverről.
+      </div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:.56rem;color:var(--text-muted);padding:12px;background:var(--surface2);border-radius:2px;line-height:2">
+        Jelenlegi URL: <span style="color:var(--cyan)">${usedUrl || SRC_URL}</span><br>
+        Results URL lenne: <span style="color:var(--green)">${(usedUrl || SRC_URL)}/results</span><br>
+        <br>
+        <span style="color:var(--amber)">→ A standings.js-be be kell adni egy parseResults() függvényt</span><br>
+        <span style="color:var(--amber)">→ És egy külön handler ágat: ?liga=pl&view=results</span>
+      </div>
+    </div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:.56rem;color:var(--text-muted);margin-bottom:8px;letter-spacing:1px">DEMO – BEKÜLDÖTT HTML ALAPJÁN PARSOLT ADATOK:</div>
+  `;
+
+  // Demo: a beküldött sample HTML-t parseoljuk
+  const sampleMatches = parseMatches(SAMPLE_HTML);
+  if (sampleMatches.length > 0) {
+    const demoDiv = document.createElement('div');
+    container.appendChild(demoDiv);
+
+    const tempContainer = document.createElement('div');
+    document.body.appendChild(tempContainer);
+    tempContainer.id = '__tempContainer';
+    document.getElementById('matchesContainer').appendChild(demoDiv);
+
+    // Rendereljük a sample adatokat
+    const origContainer = document.getElementById('matchesContainer');
+    const demoWrapper = document.createElement('div');
+    origContainer.appendChild(demoWrapper);
+
+    const totalGoals = sampleMatches.reduce((s,m)=>s+m.homeGoals+m.awayGoals,0);
+    const hw = sampleMatches.filter(m=>m.winner==='home').length;
+    const aw = sampleMatches.filter(m=>m.winner==='away').length;
+    const dw = sampleMatches.filter(m=>m.winner==='draw').length;
+
+    document.getElementById('statsRow').innerHTML = `
+      <div class="stat-mini"><span class="stat-mini-val">${sampleMatches.length}</span><span class="stat-mini-lbl">Demo mérkőzés</span></div>
+      <div class="stat-mini"><span class="stat-mini-val" style="color:var(--green)">${hw}</span><span class="stat-mini-lbl">Hazai győzelem</span></div>
+      <div class="stat-mini"><span class="stat-mini-val" style="color:var(--amber)">${dw}</span><span class="stat-mini-lbl">Döntetlen</span></div>
+      <div class="stat-mini"><span class="stat-mini-val" style="color:var(--red)">${aw}</span><span class="stat-mini-lbl">Vendég győzelem</span></div>
+    `;
+    document.getElementById('statsRow').style.display = 'grid';
+
+    const byRound = {};
+    for (const m of sampleMatches) {
+      if (!byRound[m.round]) byRound[m.round] = [];
+      byRound[m.round].push(m);
+    }
+    const rounds = Object.keys(byRound).sort((a,b)=>b-a);
+    document.getElementById('roundPill').textContent = `${rounds[0]}. FORDULÓ (DEMO)`;
+
+    demoWrapper.innerHTML = rounds.map((round, ri) => {
+      const rm = byRound[round];
+      const cards = rm.map((m, mi) => {
+        const cc = m.winner==='home'?'home-win':m.winner==='away'?'away-win':'draw';
+        const hs = m.winner==='home'?'color:var(--green)':m.winner==='away'?'color:var(--text-muted)':'color:var(--amber)';
+        const as = m.winner==='away'?'color:var(--red)':m.winner==='home'?'color:var(--text-muted)':'color:var(--amber)';
+        const rt = m.winner==='home'?'<span class="result-tag h">H</span>':m.winner==='away'?'<span class="result-tag a">V</span>':'<span class="result-tag d">D</span>';
+        const hl = m.homeLogo?`<img class="team-logo" src="${m.homeLogo}" alt="" onerror="this.style.display='none'">`:`<div class="team-logo-ph"></div>`;
+        const al = m.awayLogo?`<img class="team-logo" src="${m.awayLogo}" alt="" onerror="this.style.display='none'">`:`<div class="team-logo-ph"></div>`;
+        return `<div class="match-card ${cc}" style="animation-delay:${(ri*8+mi)*0.03}s">
+          <div class="match-team home ${m.winner==='home'?'winner':''}">${hl}<span class="team-name-full">${m.homeTeam}</span><span class="team-name-short">${m.homeShort}</span></div>
+          <div class="score-block">
+            <div class="score"><span style="${hs}">${m.homeGoals}</span><span class="score-sep">:</span><span style="${as}">${m.awayGoals}</span></div>
+            <div style="display:flex;gap:5px;align-items:center"><span class="match-meta">${m.time}</span>${rt}</div>
+          </div>
+          <div class="match-team away ${m.winner==='away'?'winner':''}">${al}<span class="team-name-full">${m.awayTeam}</span><span class="team-name-short">${m.awayShort}</span></div>
+        </div>`;
+      }).join('');
+      return `<div class="round-block" style="animation-delay:${ri*0.08}s"><div class="round-header"><span class="round-label">Forduló</span><span class="round-num">${round}</span><div class="round-divider"></div><span style="font-family:'JetBrains Mono',monospace;font-size:.5rem;color:var(--text-muted)">${rm.length} mérkőzés</span></div><div class="matches-list">${cards}</div></div>`;
+    }).join('');
+
+    showDebug(sampleMatches);
+  }
+}
+
+function showDebug(data) {
+  document.getElementById('debugPre').textContent = JSON.stringify(data, null, 2);
+}
+
+/* ══════════════════════════════════════
+   SAMPLE HTML – a beküldött adat
+   (ez futtatható offline demóként is)
+══════════════════════════════════════ */
+const SAMPLE_HTML = `<tbody class=" "><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">12</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Wolverhampton</div><div class="hidden-sm-up wrap">WOL</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276514.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276514.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276514.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276514.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276514.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:32</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block">1<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block win-color">3<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 win-color"><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276516.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276516.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276516.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276516.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276516.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Nottingham</div><div class="hidden-sm-up wrap">NOT</div></div></div></div></div></div></div></td></tr><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">12</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Crystal Palace</div><div class="hidden-sm-up wrap">CRY</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276509.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276509.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276509.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276509.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276509.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:32</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block">1<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block win-color">3<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 win-color"><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276502.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276502.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276502.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276502.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276502.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Vörös Ördögök</div><div class="hidden-sm-up wrap">VOR</div></div></div></div></div></div></div></td></tr><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">12</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 win-color"><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Fulham</div><div class="hidden-sm-up wrap">FUL</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276503.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276503.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276503.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276503.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276503.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:32</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block win-color">2<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block">0<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276504.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276504.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276504.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276504.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276504.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Aston Oroszlán</div><div class="hidden-sm-up wrap">ASO</div></div></div></div></div></div></div></td></tr><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">12</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 win-color"><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Everton</div><div class="hidden-sm-up wrap">EVE</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276501.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276501.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276501.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276501.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276501.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:32</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block win-color">2<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block">0<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276512.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276512.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276512.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276512.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276512.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Newcastle</div><div class="hidden-sm-up wrap">NEW</div></div></div></div></div></div></div></td></tr><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">12</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">West Ham</div><div class="hidden-sm-up wrap">WHU</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276515.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276515.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276515.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276515.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276515.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:32</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block">2<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block">2<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276507.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276507.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276507.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276507.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276507.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Liverpool</div><div class="hidden-sm-up wrap">LIV</div></div></div></div></div></div></div></td></tr><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">12</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">London Ágyúk</div><div class="hidden-sm-up wrap">LON</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276513.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276513.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276513.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276513.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276513.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:32</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block">1<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block">1<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276505.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276505.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276505.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276505.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276505.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Tottenham</div><div class="hidden-sm-up wrap">TOT</div></div></div></div></div></div></div></td></tr><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">12</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 win-color"><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Brentford</div><div class="hidden-sm-up wrap">BRE</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276506.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276506.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276506.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276506.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276506.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:32</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block win-color">5<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block">1<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276511.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276511.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276511.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276511.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276511.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Brighton</div><div class="hidden-sm-up wrap">BRI</div></div></div></div></div></div></div></td></tr><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">12</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 win-color"><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Chelsea</div><div class="hidden-sm-up wrap">CHE</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276508.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276508.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276508.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276508.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276508.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:32</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block win-color">4<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block">0<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276510.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276510.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276510.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276510.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276510.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Manchester Kék</div><div class="hidden-sm-up wrap">MAK</div></div></div></div></div></div></div></td></tr><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">11</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 win-color"><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Aston Oroszlán</div><div class="hidden-sm-up wrap">ASO</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276504.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276504.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276504.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276504.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276504.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:25</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block win-color">1<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block">0<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276514.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276514.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276514.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276514.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276514.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Wolverhampton</div><div class="hidden-sm-up wrap">WOL</div></div></div></div></div></div></div></td></tr><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">11</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Vörös Ördögök</div><div class="hidden-sm-up wrap">VOR</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276502.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276502.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276502.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276502.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276502.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:25</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block">0<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block">0<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276508.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276508.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276508.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276508.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276508.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Chelsea</div><div class="hidden-sm-up wrap">CHE</div></div></div></div></div></div></div></td></tr><tr class="cursor-pointer"><td class="text-center" data-form-cell=""><span><div title="Virtuális Labdarúgás Liga Mód Retail">VLLM</div><div title="">11</div></span></td><td class="divide text-center" data-form-cell=""><div class="row flex-items-xs-middle"><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto wrap text-right "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Tottenham</div><div class="hidden-sm-up wrap">TOT</div></div></div></div><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-left flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276505.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276505.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276505.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276505.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276505.png" alt=""></picture></span></div></div></div></div></div><div class="col-xs-4"><div class="text-center">11:25</div><div class="text-center"><div class=" no-wrap" aria-label="Eredm."><div class="inline-block">1<sup></sup></div><div class="inline-block"><span class="margin-right margin-left">:</span></div><div class="inline-block">1<sup></sup></div><div class="inline-block margin-left"> (RJ)</div></div></div></div><div class="col-xs-4 "><div class="row flex-items-xs-middle flex-xs-nowrap "><div class="col-xs flex-xs-basis-auto flex-xs-no-grow no-padding-right flex-xs-center "><div class=""><div><span class="image-medium"><picture title=""><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276506.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/big/276506.png 2x" media="(min-width: 565px)"><source srcset="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/small/276506.png, https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276506.png 2x" media=""><img class="" src="https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/276506.png" alt=""></picture></span></div></div></div><div class="col-xs flex-xs-basis-auto wrap text-left "><div class="row"><div class="col-xs-12"><div class="hidden-xs-up visible-sm-up wrap">Brentford</div><div class="hidden-sm-up wrap">BRE</div></div></div></div></div></div></div></td></tr></tbody>`;
+
+/* ══════════════════════════════════════
+   INIT
+══════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  // Debug gomb
+  document.getElementById('debugBtn').addEventListener('click', () => {
+    const box = document.getElementById('debugBox');
+    box.classList.toggle('show');
+  });
+
+  // Frissítés gomb
+  document.getElementById('refreshBtn').addEventListener('click', loadMatches);
+
+  // Betöltés: próbáljuk az API-t, ha nem megy → sample HTML demó
+  loadMatches().catch(() => {
+    // Ha az API hívás teljesen sikertelen (pl. localhost-on futtatják)
+    setStatus('API nem elérhető – DEMO módban fut (beküldött HTML alapján)', 'ok');
+    const sampleMatches = parseMatches(SAMPLE_HTML);
+    if (sampleMatches.length > 0) {
+      renderMatches(sampleMatches);
+      document.getElementById('roundPill').textContent = `${sampleMatches[0].round}. FORDULÓ (DEMO)`;
+      showDebug(sampleMatches);
+    }
+  });
+});
+</script>
+</body>
+</html>
