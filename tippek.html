@@ -149,6 +149,100 @@
     .footer-line{position:fixed;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(0,230,118,0.2) 20%,rgba(0,230,118,0.6) 50%,rgba(0,230,118,0.2) 80%,transparent 100%);z-index:50;}
 
     @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+    /* ═══ CUSTOM DROPDOWN ═══ */
+    .custom-select-wrap{position:relative;flex:1;z-index:1;}
+    .custom-select-wrap.open{z-index:500;}
+    .custom-select-wrap.open .custom-select-trigger{border-color:rgba(0,230,118,0.5);box-shadow:0 0 20px rgba(0,230,118,0.1);}
+    .custom-select-wrap.open .cs-arrow{transform:rotate(180deg);color:var(--green);}
+    .custom-select-trigger{display:flex;align-items:center;gap:10px;width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'Barlow',sans-serif;font-size:.82rem;font-weight:600;padding:11px 14px;border-radius:3px;cursor:pointer;transition:all .2s;user-select:none;position:relative;}
+    .custom-select-trigger:hover{border-color:rgba(0,230,118,0.3);background:rgba(0,230,118,0.03);}
+    .cs-team-dot{width:8px;height:8px;border-radius:50%;background:var(--text-muted);flex-shrink:0;transition:all .2s;}
+    .cs-val{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .cs-val.placeholder{color:var(--text-muted);font-weight:400;font-size:.75rem;}
+    .cs-arrow{margin-left:auto;color:var(--text-muted);transition:transform .2s,color .2s;flex-shrink:0;}
+    .cs-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface2);border:1px solid rgba(0,230,118,0.25);border-radius:3px;z-index:9999;box-shadow:0 8px 40px rgba(0,0,0,0.9),0 0 0 1px rgba(0,230,118,0.08);max-height:220px;overflow-y:auto;display:none;animation:dropIn .15s ease both;}
+    .cs-dropdown::-webkit-scrollbar{width:4px;}.cs-dropdown::-webkit-scrollbar-track{background:transparent;}.cs-dropdown::-webkit-scrollbar-thumb{background:rgba(0,230,118,0.2);border-radius:2px;}
+    .custom-select-wrap.open .cs-dropdown{display:block;}
+    @keyframes dropIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+    .cs-search{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(0,0,0,0.3);}
+    .cs-search-input{background:none;border:none;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.65rem;outline:none;flex:1;letter-spacing:.5px;}
+    .cs-search-input::placeholder{color:var(--text-muted);}
+    .cs-option{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background .1s;font-size:.8rem;font-family:'Barlow',sans-serif;font-weight:500;color:#aac5d4;border-bottom:1px solid rgba(255,255,255,0.02);}
+    .cs-option:last-child{border-bottom:none;}
+    .cs-option:hover,.cs-option.focused{background:rgba(0,230,118,0.07);color:var(--text);}
+    .cs-option.selected{color:var(--green);background:rgba(0,230,118,0.05);}
+    .cs-option.selected .cs-opt-dot{background:var(--green);box-shadow:0 0 6px rgba(0,230,118,0.5);}
+    .cs-opt-dot{width:7px;height:7px;border-radius:50%;background:var(--text-muted);flex-shrink:0;}
+    .cs-opt-pos{font-family:'JetBrains Mono',monospace;font-size:.55rem;color:var(--text-muted);margin-left:auto;min-width:30px;text-align:right;}
+    .cs-option.top3-opt .cs-opt-dot{background:var(--green);}
+    .cs-option.rel-opt .cs-opt-dot{background:var(--red);}
+    .cs-option.top3-opt .cs-opt-pos{color:var(--green);}
+    .cs-option.rel-opt .cs-opt-pos{color:var(--red);}
+
+    /* ═══ TIPP GENERATOR ═══ */
+    .tip-section{margin-top:32px;position:relative;}
+    .tip-section-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+    .tip-section-title{font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:800;letter-spacing:4px;color:var(--text);text-transform:uppercase;display:flex;align-items:center;gap:12px;}
+    .tip-badge{background:rgba(255,171,0,0.1);border:1px solid rgba(255,171,0,0.3);color:var(--amber);font-size:.52rem;font-family:'JetBrains Mono',monospace;padding:3px 10px;border-radius:2px;letter-spacing:1.5px;animation:corePulse 2s infinite;}
+
+    .tip-matches-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+    .tip-match-row{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:3px;padding:12px 14px;position:relative;transition:border-color .2s;animation:rowSlide .3s ease both;overflow:visible;}
+    .tip-match-row:hover{border-color:var(--border2);}
+    .tip-match-num{font-family:'JetBrains Mono',monospace;font-size:.55rem;color:var(--text-muted);letter-spacing:1px;flex-shrink:0;min-width:22px;}
+    .tip-label{font-family:'JetBrains Mono',monospace;font-size:.52rem;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:5px;}
+    .tip-team-wrap{flex:1;display:flex;flex-direction:column;min-width:0;}
+
+    .tip-swap-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;}
+    .tip-swap-btn{width:38px;height:38px;background:linear-gradient(135deg,rgba(0,230,118,0.08),rgba(0,100,200,0.08));border:1px solid rgba(0,230,118,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;}
+    .tip-swap-btn::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(0,230,118,0.12),transparent);opacity:0;transition:opacity .2s;}
+    .tip-swap-btn:hover::before{opacity:1;}
+    .tip-swap-btn:hover{border-color:rgba(0,230,118,0.5);box-shadow:0 0 20px rgba(0,230,118,0.15);transform:scale(1.08);}
+    .tip-swap-btn svg{transition:transform .4s cubic-bezier(.34,1.56,.64,1);}
+    .tip-swap-btn.spinning svg{transform:rotate(180deg);}
+
+    .tip-remove-btn{width:30px;height:30px;background:rgba(255,61,61,0.05);border:1px solid rgba(255,61,61,0.15);border-radius:2px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;flex-shrink:0;color:var(--red);opacity:.5;}
+    .tip-remove-btn:hover{opacity:1;background:rgba(255,61,61,0.1);border-color:rgba(255,61,61,0.4);}
+
+    .tip-add-row{display:flex;gap:10px;margin-bottom:20px;}
+    .tip-add-btn{display:flex;align-items:center;gap:8px;background:rgba(0,230,118,0.04);border:1px dashed rgba(0,230,118,0.2);color:rgba(0,230,118,0.5);font-family:'JetBrains Mono',monospace;font-size:.6rem;letter-spacing:2px;padding:10px 18px;border-radius:3px;cursor:pointer;transition:all .2s;text-transform:uppercase;}
+    .tip-add-btn:hover{background:rgba(0,230,118,0.08);border-color:rgba(0,230,118,0.4);color:var(--green);}
+
+    .tip-gen-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:13px 0;background:linear-gradient(135deg,rgba(0,80,40,0.5),rgba(0,50,25,0.8));border:1px solid rgba(0,230,118,0.3);color:var(--green);font-family:'JetBrains Mono',monospace;font-size:.65rem;letter-spacing:2.5px;text-transform:uppercase;cursor:pointer;border-radius:3px;transition:all .25s;margin-bottom:20px;position:relative;overflow:hidden;}
+    .tip-gen-btn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(0,230,118,0.06),transparent);transform:translateX(-100%);transition:transform .4s;}
+    .tip-gen-btn:hover::after{transform:translateX(100%);}
+    .tip-gen-btn:hover{border-color:rgba(0,230,118,0.6);box-shadow:0 0 32px rgba(0,230,118,0.15);background:linear-gradient(135deg,rgba(0,100,50,0.5),rgba(0,60,30,0.8));}
+    .tip-gen-btn:disabled{opacity:.4;cursor:not-allowed;}
+    .tip-gen-btn svg{width:15px;height:15px;}
+
+    /* result */
+    .tip-results-list{display:flex;flex-direction:column;gap:14px;}
+    .tip-result-block{background:var(--surface);border:1px solid rgba(0,230,118,0.12);border-radius:3px;overflow:hidden;position:relative;}
+    .tip-result-block::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,230,118,0.6),transparent);}
+    .tip-result-hdr{background:linear-gradient(90deg,rgba(0,50,25,0.8),rgba(0,20,10,0.5));border-bottom:1px solid rgba(0,230,118,0.08);padding:10px 16px;display:flex;align-items:center;gap:10px;}
+    .tip-vs-label{font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:800;letter-spacing:2px;color:var(--text);text-transform:uppercase;display:flex;align-items:center;gap:8px;flex:1;flex-wrap:wrap;}
+    .tip-vs-sep{color:rgba(0,230,118,0.5);font-size:.9rem;}
+    .tip-match-idx{font-family:'JetBrains Mono',monospace;font-size:.52rem;color:var(--text-muted);background:rgba(0,0,0,0.3);border:1px solid var(--border);padding:2px 7px;border-radius:2px;}
+
+    .tip-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;padding:14px;}
+    .tip-card{background:var(--surface2);border:1px solid var(--border2);border-radius:3px;padding:13px 12px;text-align:center;transition:all .25s;position:relative;overflow:hidden;animation:rowSlide .4s ease both;}
+    .tip-card.highlighted{border-color:rgba(0,230,118,0.5);background:rgba(0,50,25,0.4);box-shadow:0 0 24px rgba(0,230,118,0.1);}
+    .tip-card.highlighted::after{content:'★ TOP';position:absolute;top:5px;right:5px;font-family:'JetBrains Mono',monospace;font-size:.38rem;letter-spacing:1px;color:var(--green);background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.25);padding:2px 5px;border-radius:2px;}
+    .tip-card-name{font-family:'JetBrains Mono',monospace;font-size:.55rem;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:7px;line-height:1.4;}
+    .tip-card-val{font-family:'Barlow Condensed',sans-serif;font-size:1.5rem;font-weight:800;color:var(--text);letter-spacing:2px;}
+    .tip-card.highlighted .tip-card-val{color:var(--green);text-shadow:0 0 16px rgba(0,230,118,0.4);}
+    .tip-card-conf-bar{height:3px;background:var(--border);border-radius:2px;margin-top:8px;overflow:hidden;}
+    .tip-card-conf-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--text-muted),var(--cyan));transition:width .8s cubic-bezier(.16,1,.3,1);}
+    .tip-card.highlighted .tip-card-conf-fill{background:linear-gradient(90deg,var(--green2),var(--green));}
+    .tip-card-conf{font-size:.53rem;color:var(--text-muted);margin-top:4px;font-family:'JetBrains Mono',monospace;}
+    .tip-card.highlighted .tip-card-conf{color:rgba(0,230,118,0.7);}
+    .tip-card-stat{font-size:.5rem;color:var(--text-muted);margin-top:3px;font-family:'JetBrains Mono',monospace;opacity:.7;}
+
+    .tip-analysis{padding:0 14px 14px;font-size:.8rem;line-height:1.9;color:var(--text-dim);border-top:1px solid var(--border);padding-top:12px;}
+    .tip-analysis-label{font-family:'JetBrains Mono',monospace;font-size:.5rem;letter-spacing:2px;color:rgba(0,230,118,0.5);text-transform:uppercase;margin-bottom:7px;display:block;}
+    .tip-stat-row{display:flex;gap:8px;padding:0 14px 14px;flex-wrap:wrap;}
+    .tip-stat-chip{background:rgba(0,0,0,0.3);border:1px solid var(--border);border-radius:2px;padding:4px 10px;font-family:'JetBrains Mono',monospace;font-size:.52rem;color:var(--text-dim);}
+    .tip-stat-chip span{color:var(--cyan);}
   </style>
 </head>
 <body>
@@ -265,6 +359,29 @@
       </div>
       <div class="aibody" id="aiBody"></div>
     </div>
+
+    <!-- TIPP GENERÁTOR – csak AI fül alatt -->
+    <div class="tip-section">
+      <div class="tip-section-hdr">
+        <div class="tip-section-title">
+          <svg style="width:18px;height:18px;opacity:.9" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          AI Tipp Generátor
+          <span class="tip-badge">v2 · LIVE DATA</span>
+        </div>
+      </div>
+      <div class="tip-matches-list" id="tipMatchesList"></div>
+      <div class="tip-add-row">
+        <button class="tip-add-btn" onclick="addMatch()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Mérkőzés hozzáadása
+        </button>
+      </div>
+      <button class="tip-gen-btn" id="tipGenBtn" onclick="generateAllTips()">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        AI Tippek Generálása
+      </button>
+      <div class="tip-results-list" id="tipResultsList"></div>
+    </div>
   </div>
 
   <div class="error-box" id="errorBox">
@@ -375,6 +492,376 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('generateAIBtn').addEventListener('click',generateAITable);
   setInterval(loadRealTable,30000);
 });
+/* ═══ TIP GENERATOR v2 ═══ */
+const TEAM_LIST = [
+  'Manchester Kék','Liverpool','Chelsea','Vörös Ördögök','London Ágyúk',
+  'Fulham','Tottenham','West Ham','Newcastle','Everton',
+  'Brighton','Brentford','Crystal Palace','Wolverhampton','Aston Oroszlán','Nottingham'
+];
+
+let matchCount = 0;
+
+function getTeamStats(name) {
+  if (!realStandings || !realStandings.length) return null;
+  return realStandings.find(t =>
+    t.team === name ||
+    t.team.toLowerCase().replace(/[^a-z]/g,'').includes(name.toLowerCase().replace(/[^a-z]/g,'').slice(0,5))
+  ) || null;
+}
+
+function teamDotClass(name) {
+  const s = getTeamStats(name);
+  if (!s) return '';
+  const total = realStandings.length;
+  if (s.pos <= 3) return 'top3-opt';
+  if (s.pos > total - 3) return 'rel-opt';
+  return '';
+}
+
+function buildDropdown(id, labelText, align='left') {
+  const wrap = document.createElement('div');
+  wrap.className = 'tip-team-wrap';
+
+  const lbl = document.createElement('span');
+  lbl.className = 'tip-label';
+  lbl.textContent = labelText;
+  if (align === 'right') lbl.style.textAlign = 'right';
+  wrap.appendChild(lbl);
+
+  const selWrap = document.createElement('div');
+  selWrap.className = 'custom-select-wrap';
+  selWrap.dataset.value = '';
+
+  const trigger = document.createElement('div');
+  trigger.className = 'custom-select-trigger';
+  trigger.innerHTML = `<span class="cs-team-dot"></span><span class="cs-val placeholder">— Válassz csapatot —</span><svg class="cs-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+  const dropdown = document.createElement('div');
+  dropdown.className = 'cs-dropdown';
+
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'cs-search';
+  searchWrap.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" style="color:var(--text-muted);flex-shrink:0"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input class="cs-search-input" placeholder="Keresés..." autocomplete="off">`;
+  dropdown.appendChild(searchWrap);
+
+  function buildOptions(filter='') {
+    const existing = dropdown.querySelectorAll('.cs-option');
+    existing.forEach(e=>e.remove());
+    const fl = filter.toLowerCase();
+    TEAM_LIST.filter(t => !fl || t.toLowerCase().includes(fl)).forEach(team => {
+      const opt = document.createElement('div');
+      opt.className = 'cs-option ' + teamDotClass(team);
+      const stats = getTeamStats(team);
+      const posText = stats ? `${stats.pos}. hely` : '';
+      const statsExtra = stats ? ` · ${stats.goalsFor||0}:${stats.goalsAgainst||0} · ${stats.pts}pt` : '';
+      opt.innerHTML = `<span class="cs-opt-dot"></span><span>${team}</span><span class="cs-opt-pos" title="${statsExtra}">${posText}</span>`;
+      if (selWrap.dataset.value === team) opt.classList.add('selected');
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selWrap.dataset.value = team;
+        const valEl = trigger.querySelector('.cs-val');
+        valEl.textContent = team;
+        valEl.classList.remove('placeholder');
+        const dot = trigger.querySelector('.cs-team-dot');
+        const dc = teamDotClass(team);
+        dot.style.background = dc==='top3-opt'?'var(--green)':dc==='rel-opt'?'var(--red)':'var(--text-muted)';
+        dot.style.boxShadow = dc==='top3-opt'?'0 0 6px rgba(0,230,118,0.5)':'';
+        closeDropdown();
+      });
+      dropdown.appendChild(opt);
+    });
+  }
+
+  function openDropdown() {
+    document.querySelectorAll('.custom-select-wrap.open').forEach(w=>{ if(w!==selWrap) w.classList.remove('open'); });
+    // lower z-index of all rows, raise this one
+    document.querySelectorAll('.tip-match-row').forEach(r=>r.style.zIndex='1');
+    const parentRow = selWrap.closest('.tip-match-row');
+    if(parentRow) parentRow.style.zIndex='100';
+    selWrap.classList.toggle('open');
+    if (selWrap.classList.contains('open')) {
+      buildOptions();
+      const inp = searchWrap.querySelector('input');
+      inp.value = '';
+      setTimeout(()=>inp.focus(),50);
+    }
+  }
+  function closeDropdown() {
+    selWrap.classList.remove('open');
+    const parentRow = selWrap.closest('.tip-match-row');
+    if(parentRow) parentRow.style.zIndex='1';
+  }
+
+  trigger.addEventListener('click', e => { e.stopPropagation(); openDropdown(); });
+  searchWrap.querySelector('input').addEventListener('input', e => buildOptions(e.target.value));
+  searchWrap.querySelector('input').addEventListener('keydown', e => { if(e.key==='Escape') closeDropdown(); });
+
+  buildOptions();
+  selWrap.appendChild(trigger);
+  selWrap.appendChild(dropdown);
+  selWrap.id = id;
+  wrap.appendChild(selWrap);
+  return wrap;
+}
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.custom-select-wrap.open').forEach(w=>w.classList.remove('open'));
+  document.querySelectorAll('.tip-match-row').forEach(r=>r.style.zIndex='1');
+});
+
+function addMatch(homeVal='', awayVal='') {
+  matchCount++;
+  const idx = matchCount;
+  const row = document.createElement('div');
+  row.className = 'tip-match-row';
+  row.dataset.idx = idx;
+  row.style.animationDelay = '0s';
+
+  const numEl = document.createElement('span');
+  numEl.className = 'tip-match-num';
+  numEl.textContent = `#${idx}`;
+  row.appendChild(numEl);
+
+  const homeWrap = buildDropdown(`tipHome_${idx}`, 'Hazai csapat', 'left');
+  row.appendChild(homeWrap);
+
+  // swap btn
+  const swapWrap = document.createElement('div');
+  swapWrap.className = 'tip-swap-wrap';
+  swapWrap.innerHTML = `<button class="tip-swap-btn" onclick="swapMatch(${idx})" title="Csere"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 16V4m0 0L3 8m4-4l4 4" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 8v12m0 0l4-4m-4 4l-4-4" stroke="var(--cyan)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`;
+  row.appendChild(swapWrap);
+
+  const awayWrap = buildDropdown(`tipAway_${idx}`, 'Vendég csapat', 'right');
+  row.appendChild(awayWrap);
+
+  // remove btn (only show if more than 1 row)
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'tip-remove-btn';
+  removeBtn.title = 'Törlés';
+  removeBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`;
+  removeBtn.onclick = () => {
+    row.style.transition='opacity .2s,transform .2s';
+    row.style.opacity='0';row.style.transform='translateX(-8px)';
+    setTimeout(()=>{row.remove();updateMatchNums();},200);
+  };
+  row.appendChild(removeBtn);
+
+  document.getElementById('tipMatchesList').appendChild(row);
+
+  // set initial values if provided
+  if (homeVal) {
+    const hw = document.getElementById(`tipHome_${idx}`);
+    if(hw){ hw.dataset.value=homeVal; const v=hw.querySelector('.cs-val'); v.textContent=homeVal; v.classList.remove('placeholder'); }
+  }
+  if (awayVal) {
+    const aw = document.getElementById(`tipAway_${idx}`);
+    if(aw){ aw.dataset.value=awayVal; const v=aw.querySelector('.cs-val'); v.textContent=awayVal; v.classList.remove('placeholder'); }
+  }
+}
+
+function updateMatchNums() {
+  document.querySelectorAll('.tip-match-row').forEach((row,i)=>{
+    row.querySelector('.tip-match-num').textContent=`#${i+1}`;
+  });
+}
+
+function swapMatch(idx) {
+  const hw = document.getElementById(`tipHome_${idx}`);
+  const aw = document.getElementById(`tipAway_${idx}`);
+  if (!hw || !aw) return;
+  const tmp = hw.dataset.value;
+  const tmpHtml = hw.querySelector('.cs-val').textContent;
+  const tmpClass = hw.querySelector('.cs-val').classList.contains('placeholder');
+
+  const setVal = (wrap, val) => {
+    wrap.dataset.value = val;
+    const v = wrap.querySelector('.cs-val');
+    if (!val) { v.textContent='— Válassz csapatot —'; v.classList.add('placeholder'); }
+    else { v.textContent=val; v.classList.remove('placeholder'); }
+    const dot = wrap.querySelector('.cs-team-dot');
+    const dc = teamDotClass(val);
+    dot.style.background = dc==='top3-opt'?'var(--green)':dc==='rel-opt'?'var(--red)':'var(--text-muted)';
+    dot.style.boxShadow = dc==='top3-opt'?'0 0 6px rgba(0,230,118,0.5)':'';
+  };
+
+  const awayVal = aw.dataset.value;
+  setVal(hw, awayVal);
+  setVal(aw, tmp);
+
+  // spin animation
+  const btn = hw.closest('.tip-match-row').querySelector('.tip-swap-btn');
+  btn.classList.add('spinning');
+  setTimeout(()=>btn.classList.remove('spinning'),450);
+}
+
+function buildStandingsContext() {
+  if (!realStandings || !realStandings.length) return 'Tabella adat nem elérhető.';
+  const totalMatches = realStandings.reduce((s,t)=>s+((t.goalsFor||0)+(t.goalsAgainst||0)),0)/2/realStandings.length;
+  const lines = realStandings.map(t => {
+    const gf = t.goalsFor||0, ga = t.goalsAgainst||0;
+    const gd = gf-ga;
+    const avgGf = realStandings.length>0 ? (gf/Math.max(1,totalMatches)).toFixed(2) : '?';
+    const avgGa = realStandings.length>0 ? (ga/Math.max(1,totalMatches)).toFixed(2) : '?';
+    return `${t.pos}. ${t.team}: ${t.pts}pt, ${gf}:${ga} (GD:${gd>0?'+':''}${gd}), avg_lőtt:${avgGf}/mérkőzés, avg_kapott:${avgGa}/mérkőzés${t.trend?', trend:'+t.trend:''}`;
+  });
+  const totalPts = realStandings.reduce((s,t)=>s+(t.pts||0),0);
+  const played = Math.round(totalPts / realStandings.length / 2.1);
+  return `PREMIER LIGA – kb. ${played}. forduló körül\nTeljes tabella gól/pont statisztikákkal:\n${lines.join('\n')}`;
+}
+
+async function generateAllTips() {
+  const rows = document.querySelectorAll('.tip-match-row');
+  const matches = [];
+  let valid = true;
+  rows.forEach(row => {
+    const idx = row.dataset.idx;
+    const hw = document.getElementById(`tipHome_${idx}`);
+    const aw = document.getElementById(`tipAway_${idx}`);
+    const home = hw?.dataset.value || '';
+    const away = aw?.dataset.value || '';
+    if (!home || !away) { valid=false; return; }
+    if (home===away) { valid=false; return; }
+    matches.push({home, away});
+  });
+
+  if (!matches.length) { showError('Adj hozzá legalább 1 mérkőzést!'); return; }
+  if (!valid) { showError('Minden mérkőzésnél válassz különböző hazai és vendég csapatot!'); return; }
+  hideError();
+
+  const btn = document.getElementById('tipGenBtn');
+  const resultsList = document.getElementById('tipResultsList');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
+  resultsList.innerHTML = '';
+
+  const standingsCtx = buildStandingsContext();
+
+  // Generate all tips in parallel
+  const promises = matches.map((m, i) => generateOneTip(m.home, m.away, i+1, standingsCtx));
+  const results = await Promise.allSettled(promises);
+
+  results.forEach((res, i) => {
+    if (res.status === 'fulfilled') {
+      resultsList.appendChild(res.value);
+    } else {
+      const errBlock = document.createElement('div');
+      errBlock.className='tip-result-block';
+      errBlock.style.padding='16px';
+      errBlock.innerHTML=`<span style="color:var(--red);font-family:'JetBrains Mono',monospace;font-size:.65rem">Mérkőzés #${i+1}: ${res.reason?.message||'Hiba'}</span>`;
+      resultsList.appendChild(errBlock);
+    }
+  });
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> AI Tippek Generálása';
+}
+
+async function generateOneTip(home, away, num, standingsCtx) {
+  const homeStats = getTeamStats(home);
+  const awayStats = getTeamStats(away);
+
+  const totalMatches = realStandings.length>0 ? Math.round(realStandings.reduce((s,t)=>s+(t.pts||0),0)/realStandings.length/2.1) : 20;
+
+  const homeAvgGf = homeStats ? (homeStats.goalsFor||0)/Math.max(1,totalMatches) : 1.3;
+  const homeAvgGa = homeStats ? (homeStats.goalsAgainst||0)/Math.max(1,totalMatches) : 1.1;
+  const awayAvgGf = awayStats ? (awayStats.goalsFor||0)/Math.max(1,totalMatches) : 1.1;
+  const awayAvgGa = awayStats ? (awayStats.goalsAgainst||0)/Math.max(1,totalMatches) : 1.3;
+
+  // Expected goals using simple attack/defense model
+  const homeAttack = homeAvgGf; const awayDefense = awayAvgGa;
+  const awayAttack = awayAvgGf; const homeDefense = homeAvgGa;
+  const expectedHomeGoals = (homeAttack + awayDefense) / 2 * 1.1; // home advantage
+  const expectedAwayGoals = (awayAttack + homeDefense) / 2;
+  const expectedTotal = expectedHomeGoals + expectedAwayGoals;
+
+  const prompt = `Te egy profi Premier Liga fogadási kvant-elemző vagy. Kizárólag a valós statisztikai adatokra és a tabella alapján adj precíz tippeket.
+
+${standingsCtx}
+
+ELEMZENDŐ MÉRKŐZÉS: ${home} (hazai) vs ${away} (vendég)
+STATISZTIKAI ELŐBECSLÉS (xG modell):
+- ${home} várható gólok: ${expectedHomeGoals.toFixed(2)}
+- ${away} várható gólok: ${expectedAwayGoals.toFixed(2)}
+- Várható összes gól: ${expectedTotal.toFixed(2)}
+- ${home} tabella: ${homeStats?`${homeStats.pos}. hely, ${homeStats.pts}pt, ${homeStats.goalsFor}:${homeStats.goalsAgainst} gól`:'ismeretlen'}
+- ${away} tabella: ${awayStats?`${awayStats.pos}. hely, ${awayStats.pts}pt, ${awayStats.goalsFor}:${awayStats.goalsAgainst} gól`:'ismeretlen'}
+
+FELADAT: Elemezd mélyen az adatokat és adj statisztikailag alátámasztott tippeket.
+- Vedd figyelembe: csapatok pozícióját, gól-átlagait, gólkülönbségét, trendeket
+- Hazai pályaelőny: +10-15% gól többlet a hazai csapatnak
+- BTTS (mindkét csapat gólt szerez): valószínűbb ha mindkét csapat legalább 1.2 gól/mérkőzés átlaggal támad
+- Over/Under: az xG modell alapján kalkulálj
+
+Válaszolj KIZÁRÓLAG érvényes JSON-nal, semmi más:
+{
+  "btts": {"pick": "Igen", "confidence": 72, "xg_reasoning": "xG alapján mindkét csapat várhatóan gólhoz jut"},
+  "over15": {"pick": true, "confidence": 88},
+  "over25": {"pick": true, "confidence": 61},
+  "over35": {"pick": false, "confidence": 42},
+  "best_tip": "over15",
+  "expected_goals_home": ${expectedHomeGoals.toFixed(1)},
+  "expected_goals_away": ${expectedAwayGoals.toFixed(1)},
+  "analysis": "3-4 mondatos részletes elemzés magyarul, konkrét számokkal alátámasztva, a tabella-adatokra hivatkozva"
+}`;
+
+  const text = await callAI(prompt, 0.5); // lower temp = more deterministic, data-driven
+  const clean = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  const start = clean.indexOf('{');
+  if (start===-1) throw new Error('JSON nem található');
+  const data = JSON.parse(clean.slice(start));
+
+  // Build result block
+  const block = document.createElement('div');
+  block.className = 'tip-result-block';
+  block.style.animation = 'rowSlide .4s ease both';
+
+  const xgHome = data.expected_goals_home || expectedHomeGoals.toFixed(1);
+  const xgAway = data.expected_goals_away || expectedAwayGoals.toFixed(1);
+
+  block.innerHTML = `
+    <div class="tip-result-hdr">
+      <span class="tip-match-idx">#${num}</span>
+      <span class="tip-vs-label">
+        ${home} <span class="tip-vs-sep">vs</span> ${away}
+      </span>
+      <span class="ai-badge-pill" style="margin-left:auto">AI TIPP</span>
+    </div>
+    <div class="tip-stat-row">
+      <div class="tip-stat-chip">xG hazai: <span>${xgHome}</span></div>
+      <div class="tip-stat-chip">xG vendég: <span>${xgAway}</span></div>
+      <div class="tip-stat-chip">xG össz: <span>${(parseFloat(xgHome)+parseFloat(xgAway)).toFixed(1)}</span></div>
+      ${homeStats?`<div class="tip-stat-chip">${home}: <span>${homeStats.pos}. / ${homeStats.pts}pt</span></div>`:''}
+      ${awayStats?`<div class="tip-stat-chip">${away}: <span>${awayStats.pos}. / ${awayStats.pts}pt</span></div>`:''}
+    </div>
+    <div class="tip-cards">
+      ${buildCard('btts','Mindkét csapat gólt szerez', data.btts?.pick||'?', data.btts?.confidence||0, data.best_tip==='btts', 0)}
+      ${buildCard('over15','Over 1.5 gól', data.over15?.pick?'IGEN':'NEM', data.over15?.confidence||0, data.best_tip==='over15', 1)}
+      ${buildCard('over25','Over 2.5 gól', data.over25?.pick?'IGEN':'NEM', data.over25?.confidence||0, data.best_tip==='over25', 2)}
+      ${buildCard('over35','Over 3.5 gól', data.over35?.pick?'IGEN':'NEM', data.over35?.confidence||0, data.best_tip==='over35', 3)}
+    </div>
+    ${data.analysis ? `<div class="tip-analysis"><span class="tip-analysis-label">AI Statisztikai Elemzés</span>${data.analysis}</div>` : ''}
+  `;
+
+  // animate confidence bars
+  setTimeout(() => {
+    block.querySelectorAll('.tip-card-conf-fill').forEach(bar => {
+      bar.style.width = bar.dataset.conf + '%';
+    });
+  }, 100);
+
+  return block;
+}
+
+function buildCard(id, name, val, conf, highlighted, delay) {
+  return `<div class="tip-card ${highlighted?'highlighted':''}" style="animation-delay:${delay*.08}s">
+    <div class="tip-card-name">${name}</div>
+    <div class="tip-card-val">${val}</div>
+    <div class="tip-card-conf-bar"><div class="tip-card-conf-fill" data-conf="${conf}" style="width:0%"></div></div>
+    <div class="tip-card-conf">${conf}% bizalom</div>
+  </div>`;
+}
+
+// Initialize with one match row
+addMatch();
 </script>
-</body>
 </html>
