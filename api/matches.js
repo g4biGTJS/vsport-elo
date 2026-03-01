@@ -1,4 +1,4 @@
-// api/matches.js – Vercel Edge Function – DIAGNOSTIC v4
+// api/matches.js – Vercel Edge Function – DIAGNOSTIC v5
 
 export const config = { runtime: 'edge' };
 
@@ -7,10 +7,9 @@ const CATEGORY_URL = `${BASE_URL}/category/1111`;
 
 const FETCH_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
+  'Accept': 'text/html,application/xhtml+xml,*/*',
   'Accept-Language': 'hu-HU,hu;q=0.9',
   'Referer': 'https://s5.sir.sportradar.com/',
-  'X-Requested-With': 'XMLHttpRequest',
 };
 
 const corsHeaders = {
@@ -27,20 +26,37 @@ async function findCurrentSeasonId() {
   const now = Date.now();
   if (now - lastCategoryCheck < CHECK_INTERVAL) return currentSeasonId;
   try {
-    const res = await fetch(CATEGORY_URL, {
-      headers: { ...FETCH_HEADERS, Accept: 'text/html,*/*' },
-      signal: AbortSignal.timeout(8000),
-    });
+    const res = await fetch(CATEGORY_URL, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const html = await res.text();
     const m = html.match(/"currentseasonid"\s*:\s*(\d+)/);
     if (m?.[1]) currentSeasonId = m[1];
     lastCategoryCheck = now;
-  } catch (e) {
-    console.error('[SeasonCheck]', e.message);
-    lastCategoryCheck = now;
-  }
+  } catch (e) { console.error('[SeasonCheck]', e.message); lastCategoryCheck = Date.now(); }
   return currentSeasonId;
+}
+
+// Brace-matched JSON object kinyerése adott kulcs után
+function extractJsonBlock(html, searchStr) {
+  const idx = html.indexOf(searchStr);
+  if (idx < 0) return null;
+  const start = html.indexOf('{', idx + searchStr.length);
+  if (start < 0) return null;
+  let depth = 0;
+  for (let i = start; i < Math.min(start + 1000000, html.length); i++) {
+    if (html[i] === '{') depth++;
+    else if (html[i] === '}') { depth--; if (depth === 0) { try { return JSON.parse(html.slice(start, i + 1)); } catch { return null; } } }
+  }
+  return null;
+}
+
+// Az összes top-level fetchedData kulcs kinyerése
+function getFetchedDataKeys(html) {
+  const keys = [];
+  const re = /"([^"]{3,100})":\{"event"/g;
+  let m;
+  while ((m = re.exec(html)) !== null) { keys.push(m[1]); if (keys.length > 50) break; }
+  return keys;
 }
 
 export default async function handler(req) {
@@ -49,100 +65,75 @@ export default async function handler(req) {
   }
 
   const { searchParams } = new URL(req.url);
-  const mode = searchParams.get('mode') ?? 'probe';
+  const mode = searchParams.get('mode') ?? 'fixtures';
 
   try {
     const seasonId = await findCurrentSeasonId();
 
-    // ── MODE: probe ──
-    // Próbáljuk meg a különböző sportradar JSON API végpontokat
-    if (mode === 'probe') {
-      const endpoints = [
-        // Ismert gismo endpointok virtual sports-hoz
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_season_fixtures/${seasonId}`,
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_season_results/${seasonId}`,
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_season_fixtures2/${seasonId}`,
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_season_matches/${seasonId}`,
-        // Round-based
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_round_matchlist/${seasonId}`,
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_season_matchlist/${seasonId}`,
-        // Tournament-based (tid=56369 a leagueSummaryból)
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_season_fixtures/56369`,
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_season_results/56369`,
-        // Fixtures a season page-ről más path-szal
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/${seasonId}/fixtures`,
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/1/season/${seasonId}/results`,
-        // Egy ismert matchid alapján (1398008817 a formtable-ből)
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_match_get/1398008817`,
-      ];
+    // ── MODE: fixtures ──
+    // A /season/ID/fixtures oldal fetchedData kulcsait és mintáit mutatja
+    if (mode === 'fixtures') {
+      const url = `${BASE_URL}/season/${seasonId}/fixtures`;
+      const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(12000) });
+      const html = await res.text();
 
-      const results = {};
-      await Promise.allSettled(
-        endpoints.map(async (url) => {
-          const key = url.replace('https://s5.sir.sportradar.com/scigamingvirtuals/hu/', '');
-          try {
-            const r = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(5000) });
-            results[key] = { status: r.status };
-            if (r.ok) {
-              const text = await r.text();
-              results[key].length = text.length;
-              results[key].sample = text.slice(0, 400);
-            }
-          } catch (e) {
-            results[key] = { error: e.message };
-          }
-        })
-      );
+      const keys = getFetchedDataKeys(html);
+      const matchIds = [...new Set([...html.matchAll(/"matchid"\s*:\s*(\d{8,12})/g)].map(m => m[1]))];;
 
-      return new Response(JSON.stringify({ seasonId, mode: 'probe', results }, null, 2), {
-        status: 200, headers: corsHeaders,
-      });
+      // Minden kulcshoz vegyük ki az első 500 karaktert
+      const samples = {};
+      for (const key of keys) {
+        const block = extractJsonBlock(html, `"${key}":`);
+        if (block) samples[key] = JSON.stringify(block).slice(0, 600);
+      }
+
+      return new Response(JSON.stringify({
+        seasonId, url, htmlLength: html.length,
+        feedKeys: keys,
+        matchIdCount: matchIds.length,
+        matchIds: matchIds.slice(0, 20),
+        feedSamples: samples,
+      }, null, 2), { status: 200, headers: corsHeaders });
     }
 
-    // ── MODE: matchid ──
-    // Egy konkrét meccs adatainak lekérése (matchid a formtable-ből)
-    if (mode === 'matchid') {
-      const matchId = searchParams.get('id') ?? '1398008817';
-      const urls = [
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_match_get/${matchId}`,
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/stats_match_info/${matchId}`,
-        `https://s5.sir.sportradar.com/scigamingvirtuals/hu/gismo/match_infopage/${matchId}`,
-      ];
-      const results = {};
-      for (const url of urls) {
-        const key = url.split('/gismo/')[1];
-        try {
-          const r = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(5000) });
-          results[key] = { status: r.status };
-          if (r.ok) {
-            const text = await r.text();
-            results[key].length = text.length;
-            results[key].sample = text.slice(0, 800);
-          }
-        } catch (e) {
-          results[key] = { error: e.message };
-        }
+    // ── MODE: results ──
+    // A /season/ID/results oldal
+    if (mode === 'results') {
+      const url = `${BASE_URL}/season/${seasonId}/results`;
+      const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(12000) });
+      const html = await res.text();
+
+      const keys = getFetchedDataKeys(html);
+      const matchIds = [...new Set([...html.matchAll(/"matchid"\s*:\s*(\d{8,12})/g)].map(m => m[1]))];
+
+      const samples = {};
+      for (const key of keys) {
+        const block = extractJsonBlock(html, `"${key}":`);
+        if (block) samples[key] = JSON.stringify(block).slice(0, 600);
       }
-      return new Response(JSON.stringify({ matchId, results }, null, 2), {
-        status: 200, headers: corsHeaders,
-      });
+
+      return new Response(JSON.stringify({
+        seasonId, url, htmlLength: html.length,
+        feedKeys: keys,
+        matchIdCount: matchIds.length,
+        matchIds: matchIds.slice(0, 20),
+        feedSamples: samples,
+      }, null, 2), { status: 200, headers: corsHeaders });
     }
 
     // ── MODE: formtable ──
-    // A formtable-ből kinyert matchidek listája
+    // A season főoldalból kinyert matchidek
     if (mode === 'formtable') {
-      const pageRes = await fetch(`${BASE_URL}/season/${seasonId}`, {
-        headers: { ...FETCH_HEADERS, Accept: 'text/html,*/*' },
-        signal: AbortSignal.timeout(12000),
-      });
-      const html = await pageRes.text();
-      const matchIds = [...new Set([...html.matchAll(/"matchid"\s*:\s*(\d{9,12})/g)].map(m => m[1]))];
-      return new Response(JSON.stringify({ seasonId, matchIdCount: matchIds.length, matchIds: matchIds.slice(0, 30) }), {
-        status: 200, headers: corsHeaders,
-      });
+      const url = `${BASE_URL}/season/${seasonId}`;
+      const res = await fetch(url, { headers: FETCH_HEADERS, signal: AbortSignal.timeout(12000) });
+      const html = await res.text();
+      const matchIds = [...new Set([...html.matchAll(/"matchid"\s*:\s*(\d{8,12})/g)].map(m => m[1]))];
+      return new Response(JSON.stringify({
+        seasonId, matchIdCount: matchIds.length, matchIds
+      }, null, 2), { status: 200, headers: corsHeaders });
     }
 
-    return new Response(JSON.stringify({ error: 'Ismeretlen mode. Használj: ?mode=probe, ?mode=matchid, ?mode=formtable' }), {
+    return new Response(JSON.stringify({ error: 'Használj: ?mode=fixtures | ?mode=results | ?mode=formtable' }), {
       status: 400, headers: corsHeaders,
     });
 
