@@ -1,5 +1,7 @@
-// api/matches.js – Vercel Edge Function
-// Javított parser: kezeli a tényleges HTML struktúrát
+// api/matches.js – Vercel Edge Function v4
+// JAVÍTÁS: data-form-cell = tabella forma oszlop cellák
+// Minden csapatsorban az upcoming cella = következő meccs
+// Deduplikáció: hazai+vendég csapat sora is tartalmazza ugyanazt
 
 export const config = { runtime: 'edge' };
 
@@ -20,7 +22,16 @@ const BROWSER_HEADERS = {
   'Pragma': 'no-cache',
 };
 
-// ─── HELPER: logo ID kinyerése URL-ből ───────────────────────────
+// ─── HELPERS ──────────────────────────────────────────────────────
+
+function extractTeamNames(chunk) {
+  const names = [...chunk.matchAll(/class="hidden-xs-up visible-sm-up wrap">\s*([^<]+?)\s*<\/div>/g)]
+    .map(m => m[1].trim()).filter(Boolean);
+  if (names.length >= 2) return names;
+  return [...chunk.matchAll(/class="hidden-sm-up wrap">\s*([^<]+?)\s*<\/div>/g)]
+    .map(m => m[1].trim()).filter(Boolean);
+}
+
 function extractLogoIds(chunk) {
   const ids = [];
   for (const m of chunk.matchAll(/\/medium\/(\d{5,7})\.png/g)) {
@@ -29,54 +40,90 @@ function extractLogoIds(chunk) {
   return ids;
 }
 
-// ─── HELPER: csapatnevek kinyerése ───────────────────────────────
-function extractTeamNames(chunk) {
-  // Elsődleges: teljes név (visible-sm-up)
-  const names = [...chunk.matchAll(/class="hidden-xs-up visible-sm-up wrap">\s*([^<]+?)\s*<\/div>/g)]
-    .map(m => m[1].trim()).filter(Boolean);
-  if (names.length >= 2) return names;
-
-  // Fallback: rövidített név (hidden-sm-up)
-  const short = [...chunk.matchAll(/class="hidden-sm-up wrap">\s*([^<]+?)\s*<\/div>/g)]
-    .map(m => m[1].trim()).filter(Boolean);
-  return short;
+function parseTime(chunk) {
+  const m = chunk.match(/<div class="text-center">\s*(\d{1,2}:\d{2})\s*<\/div>/);
+  return m ? m[1] : null;
 }
 
-// ─── HELPER: eredmény parse ───────────────────────────────────────
-// Visszaad: { upcoming: true } VAGY { upcoming: false, hs, as }
+// Közvetlen dash/szám keresés – NEM függ a scoreSection regex-tól
 function parseScore(chunk) {
-  const scoreSection = chunk.match(/aria-label="Eredm\."([\s\S]*?)(?:<\/div>\s*){3}/);
-  const section = scoreSection ? scoreSection[1] : chunk;
-
-  // Dash = upcoming
-  const dashCount = (section.match(/<div class="inline-block[^"]*">\s*-\s*<sup>/g) || []).length;
+  const dashCount = (chunk.match(/<div class="inline-block[^"]*">\s*-\s*<sup>/g) || []).length;
   if (dashCount >= 2) return { upcoming: true };
 
-  // Számok = eredmény
-  const nums = [...section.matchAll(/<div class="inline-block[^"]*">\s*(\d+)\s*<sup>/g)]
+  const nums = [...chunk.matchAll(/<div class="inline-block[^"]*">\s*(\d+)\s*<sup>/g)]
     .map(m => parseInt(m[1]));
   if (nums.length >= 2) return { upcoming: false, hs: nums[0], as: nums[1] };
 
   return null;
 }
 
-// ─── HELPER: idő kinyerése ────────────────────────────────────────
-function parseTime(chunk) {
-  const m = chunk.match(/<div class="text-center">\s*(\d{1,2}:\d{2})\s*<\/div>/);
-  return m ? m[1] : null;
+// Deduplikációs kulcs: home+away alfabetikus sorban
+function matchKey(home, away) {
+  return [home, away].sort().join('|||');
 }
 
-// ─── PARSER STRATÉGIA 1: TR alapú (eredeti) ───────────────────────
-function parseByTR(html) {
-  const results = [], upcoming = [];
+// ─── PARSER 1: FORMA CELLÁK (tabella nézethez) ────────────────────
+// A tabella soraiban minden csapathoz tartoznak form-cell TD-k.
+// Az upcoming (- : -) cellák = következő menet.
+// Ugyanaz a meccs kétszer jelenik meg → deduplikáció szükséges.
+function parseFormCells(html) {
+  const upcoming = [];
+  const results = [];
+  const seenKeys = new Set();
 
-  // Forduló szám keresése a sorban – többféle minta
+  // TR soronként feldolgozás
+  const trParts = html.split(/<tr[^>]*>/);
+
+  for (const trRaw of trParts) {
+    const tr = trRaw.split('</tr>')[0];
+    if (!tr.includes('data-form-cell')) continue;
+
+    // Form cellák ebből a TR-ből
+    const tdParts = tr.split('<td class="divide text-center" data-form-cell="">');
+
+    for (let j = 1; j < tdParts.length; j++) {
+      const cell = tdParts[j].split('</td>')[0];
+
+      const names = extractTeamNames(cell);
+      if (names.length < 2) continue;
+
+      const score = parseScore(cell);
+      if (!score) continue;
+
+      const key = matchKey(names[0], names[1]);
+      if (seenKeys.has(key)) continue;
+      seenKeys.add(key);
+
+      const logoIds = extractLogoIds(cell);
+      const time = parseTime(cell);
+
+      const entry = {
+        home: names[0],
+        away: names[1],
+        hid: logoIds[0] || null,
+        aid: logoIds[1] || null,
+        time,
+      };
+
+      if (score.upcoming) {
+        upcoming.push({ ...entry, upcoming: true });
+      } else {
+        results.push({ ...entry, upcoming: false, hs: score.hs, as: score.as });
+      }
+    }
+  }
+
+  return { results, upcoming };
+}
+
+// ─── PARSER 2: cursor-pointer TR (fixtures/schedule nézet) ────────
+function parseCursorTR(html) {
+  const results = [], upcoming = [];
   const roundPatterns = [
-    />VLLM<\/div>\s*<div[^>]*>(\d+)<\/div>/,           // eredeti
-    /title="VLLM"[^>]*>\s*(\d+)\s*</,                   // title attribútum
-    />VLLM\s*(\d+)</,                                     // közvetlen
-    /data-roundnumber="(\d+)"/,                           // data attribútum
-    /round[^"]*"[^>]*>(\d+)<\/div>/i,                    // általános round
+    />VLLM<\/div>\s*<div[^>]*>(\d+)<\/div>/,
+    /title="VLLM"[^>]*>\s*(\d+)\s*</,
+    />VLLM\s*(\d+)</,
+    /data-roundnumber="(\d+)"/,
   ];
 
   const parts = html.split('<tr class="cursor-pointer">');
@@ -105,88 +152,30 @@ function parseByTR(html) {
   return { results, upcoming };
 }
 
-// ─── PARSER STRATÉGIA 2: TD.divide alapú (az általad mutatott HTML) ───
-// A meccsek <td class="divide text-center" data-form-cell=""> cellákban vannak
-// Több TD = egy sor menetben (pl. 5 meccs egymás után)
-// A forduló számot a legközelebbi >VLLM</div> vagy hasonló szülő elem tartalmazza
-function parseByTD(html) {
-  const results = [], upcoming = [];
-
-  // Forduló számok keresése – a TD-k előtt/körül
-  // Struktúra: <div>VLLM</div><div title="">21</div> → de lehet más helyen is
-  const roundBlocks = [...html.matchAll(/>VLLM<\/div>[\s\S]{0,200}?<div[^>]*>(\d+)<\/div>/g)];
-
-  // TD cellák kinyerése
-  const tdParts = html.split('<td class="divide text-center" data-form-cell="">');
-
-  for (let i = 1; i < tdParts.length; i++) {
-    const cell = tdParts[i].split('</td>')[0];
-
-    const names = extractTeamNames(cell);
-    if (names.length < 2) continue;
-
-    const logoIds = extractLogoIds(cell);
-    const time = parseTime(cell);
-    const score = parseScore(cell);
-    if (!score) continue;
-
-    // Forduló keresése: visszafelé nézünk a HTML-ben az i. TD előtt
-    const beforeCell = tdParts.slice(0, i).join('<td class="divide text-center" data-form-cell="">');
-    let round = null;
-
-    // Több minta a forduló számhoz
-    const roundPats = [
-      />VLLM<\/div>\s*<div[^>]*>(\d+)<\/div>/g,
-      /title="VLLM"\s*>\s*(\d+)\s*</g,
-      /roundnumber[^>]*>(\d+)</g,
-    ];
-
-    for (const pat of roundPats) {
-      const allMatches = [...beforeCell.matchAll(pat)];
-      if (allMatches.length > 0) {
-        const lastMatch = allMatches[allMatches.length - 1];
-        const candidate = parseInt(lastMatch[1]);
-        if (candidate >= 1 && candidate <= 999) { round = candidate; break; }
-      }
-    }
-
-    // Ha nem találtunk forduló számot, próbáljunk generikusabb módszerrel
-    if (!round) {
-      // Keresünk bármilyen forduló-szerű számot a közvetlen kontextusban
-      const contextBefore = beforeCell.slice(-500);
-      const anyRound = contextBefore.match(/<div[^>]*title="[^"]*"[^>]*>\s*(\d{1,3})\s*<\/div>/g);
-      if (anyRound) {
-        const nums = anyRound.map(s => parseInt(s.match(/(\d+)/)[1])).filter(n => n>=1 && n<=999);
-        if (nums.length) round = nums[nums.length-1];
-      }
-    }
-
-    // Ha még mindig nincs, becsüljük: hányadik cella ez a TD-k között?
-    // 5 meccs/menet logika: az i. TD → Math.ceil(i/5). menet
-    // Ez durva becslés, de jobb mint null
-    if (!round) round = Math.ceil(i / 5);
-
-    const entry = { round, home: names[0], away: names[1], hid: logoIds[0]||null, aid: logoIds[1]||null, time };
-    if (score.upcoming) upcoming.push({ ...entry, upcoming: true });
-    else results.push({ ...entry, upcoming: false, hs: score.hs, as: score.as });
-  }
-
-  return { results, upcoming };
+// ─── FORDULÓ SZÁM BECSLÉS ─────────────────────────────────────────
+function inferRound(html) {
+  const m = html.match(/>VLLM<\/div>\s*<div[^>]*>(\d+)<\/div>/);
+  return m ? parseInt(m[1]) : null;
 }
 
 // ─── KOMBINÁLT PARSER ─────────────────────────────────────────────
 function parseMatches(html) {
-  // Először TR-alapú parsert próbálunk
-  const trResult = parseByTR(html);
-  if (trResult.results.length + trResult.upcoming.length > 0) {
-    console.log(`[Parser] TR strategy: ${trResult.results.length} results, ${trResult.upcoming.length} upcoming`);
-    return trResult;
+  // 1. cursor-pointer TR (fixtures nézet)
+  const tr = parseCursorTR(html);
+  if (tr.results.length + tr.upcoming.length >= 3) {
+    return { ...tr, method: 'cursor-tr' };
   }
 
-  // Ha TR nem hozott semmit, TD-alapút próbálunk
-  const tdResult = parseByTD(html);
-  console.log(`[Parser] TD strategy: ${tdResult.results.length} results, ${tdResult.upcoming.length} upcoming`);
-  return tdResult;
+  // 2. Forma cellák (tabella nézet – a mi esetünk)
+  const fc = parseFormCells(html);
+  if (fc.results.length + fc.upcoming.length > 0) {
+    const estimatedRound = inferRound(html);
+    fc.upcoming = fc.upcoming.map(m => ({ ...m, round: estimatedRound || 1 }));
+    fc.results  = fc.results.map(m  => ({ ...m, round: estimatedRound ? estimatedRound - 1 : 1 }));
+    return { ...fc, method: 'form-cells' };
+  }
+
+  return { results: [], upcoming: [], method: 'none' };
 }
 
 // ─── HANDLER ──────────────────────────────────────────────────────
@@ -217,64 +206,60 @@ export default async function handler(req) {
     const htmlLen = html.length;
     const hasVLLM = html.includes('VLLM');
     const hasCursorTR = html.includes('<tr class="cursor-pointer">');
-    const hasDivideTD = html.includes('data-form-cell=""');
+    const hasFormCell = html.includes('data-form-cell=""');
 
     if (debug) {
-      const { results, upcoming } = parseMatches(html);
+      const parsed = parseMatches(html);
 
-      // Extra debug: megmutatjuk az első TD-t ha van
-      let tdSnippet = null;
-      if (hasDivideTD) {
-        const tdIdx = html.indexOf('<td class="divide text-center" data-form-cell="">');
-        tdSnippet = html.slice(tdIdx, tdIdx + 1500);
+      let formSnippet = null;
+      if (hasFormCell) {
+        const idx = html.indexOf('<td class="divide text-center" data-form-cell="">');
+        formSnippet = html.slice(idx, idx + 1200);
       }
-
-      // Extra debug: megmutatjuk az első TR-t ha van
       let trSnippet = null;
       if (hasCursorTR) {
-        const trIdx = html.indexOf('<tr class="cursor-pointer">');
-        trSnippet = html.slice(trIdx, trIdx + 2000);
+        const idx = html.indexOf('<tr class="cursor-pointer">');
+        trSnippet = html.slice(idx, idx + 1500);
       }
 
       return new Response(JSON.stringify({
-        htmlLen, hasVLLM, hasCursorTR, hasDivideTD,
-        totalResults: results.length,
-        totalUpcoming: upcoming.length,
-        results: results.slice(0, 5),
-        upcoming: upcoming.slice(0, 5),
+        htmlLen, hasVLLM, hasCursorTR, hasFormCell,
+        method: parsed.method,
+        totalResults: parsed.results.length,
+        totalUpcoming: parsed.upcoming.length,
+        results: parsed.results.slice(0, 3),
+        upcoming: parsed.upcoming.slice(0, 5),
+        formSnippet,
         trSnippet,
-        tdSnippet,
-        htmlStart: html.slice(0, 500),
+        htmlStart: html.slice(0, 400),
       }), { status: 200, headers: corsHeaders });
     }
 
-    if (!hasVLLM && !hasDivideTD) {
+    if (!hasVLLM && !hasFormCell && !hasCursorTR) {
       return new Response(JSON.stringify({
-        error: `Got JS bundle instead of HTML (len=${htmlLen}, hasVLLM=${hasVLLM}, hasCursorTR=${hasCursorTR}, hasDivideTD=${hasDivideTD})`,
+        error: `JS bundle vagy üres válasz (len=${htmlLen})`,
         hint: 'Try /api/matches?debug=1',
         recentResults: [], nextFixtures: [], nextRound: null, lastRound: null, source: 'error',
       }), { status: 200, headers: corsHeaders });
     }
 
-    const { results, upcoming } = parseMatches(html);
+    const parsed = parseMatches(html);
 
-    if (results.length === 0 && upcoming.length === 0) {
+    if (parsed.results.length === 0 && parsed.upcoming.length === 0) {
       return new Response(JSON.stringify({
-        error: `Parsed 0 matches (htmlLen=${htmlLen}, hasCursorTR=${hasCursorTR}, hasDivideTD=${hasDivideTD})`,
-        hint: 'Try /api/matches?debug=1 to see HTML snippets',
+        error: `0 meccs (len=${htmlLen}, method=${parsed.method}, formCell=${hasFormCell}, cursorTR=${hasCursorTR})`,
+        hint: 'Try /api/matches?debug=1',
         recentResults: [], nextFixtures: [], nextRound: null, lastRound: null, source: 'error',
       }), { status: 200, headers: corsHeaders });
     }
 
-    // Utolsó 3 forduló eredményei
-    const rounds = [...new Set(results.map(m => m.round))].sort((a, b) => b - a);
+    const rounds = [...new Set(parsed.results.map(m => m.round))].sort((a, b) => b - a);
     const lastRounds = rounds.slice(0, 3);
-    const recentResults = results.filter(m => lastRounds.includes(m.round));
+    const recentResults = parsed.results.filter(m => lastRounds.includes(m.round));
 
-    // Következő forduló
-    const upRounds = [...new Set(upcoming.map(m => m.round))].sort((a, b) => a - b);
+    const upRounds = [...new Set(parsed.upcoming.map(m => m.round))].sort((a, b) => a - b);
     const nextRound = upRounds[0] ?? null;
-    const nextFixtures = upcoming.filter(m => m.round === nextRound);
+    const nextFixtures = parsed.upcoming.filter(m => m.round === nextRound);
 
     return new Response(JSON.stringify({
       recentResults,
@@ -282,6 +267,7 @@ export default async function handler(req) {
       nextRound,
       lastRound: lastRounds[0] ?? null,
       source: 'scrape',
+      method: parsed.method,
     }), { status: 200, headers: corsHeaders });
 
   } catch (err) {
