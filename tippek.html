@@ -259,6 +259,22 @@
 
     .tip-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px;}
     @media(max-width:600px){.tip-cards{grid-template-columns:repeat(2,1fr);}}
+
+    .tip-cards-wide{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 12px 12px;}
+    @media(max-width:600px){.tip-cards-wide{grid-template-columns:repeat(2,1fr);}}
+
+    .tip-section-sub{font-family:'JetBrains Mono',monospace;font-size:.52rem;letter-spacing:2px;color:var(--text-muted);text-transform:uppercase;padding:8px 14px 4px;border-top:1px solid var(--border);}
+
+    .tip-score-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:10px 12px 14px;}
+    @media(max-width:500px){.tip-score-grid{grid-template-columns:repeat(3,1fr);}}
+    .tip-score-card{background:var(--surface2);border:1px solid var(--border2);border-radius:3px;padding:8px 4px 7px;text-align:center;position:relative;animation:rowSlide .4s ease both;transition:border-color .2s;}
+    .tip-score-card.top1{border-color:rgba(0,230,118,0.45);background:rgba(0,40,20,0.55);box-shadow:0 0 16px rgba(0,230,118,0.07);}
+    .tip-score-card.top2{border-color:rgba(0,184,212,0.3);background:rgba(0,20,40,0.4);}
+    .tip-score-best-badge{position:absolute;top:0;left:0;right:0;background:linear-gradient(90deg,rgba(0,230,118,0.15),rgba(0,230,118,0.05));border-bottom:1px solid rgba(0,230,118,0.15);font-family:'JetBrains Mono',monospace;font-size:.36rem;letter-spacing:1px;color:var(--green);padding:2px 0;text-align:center;}
+    .tip-score-val{font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:900;letter-spacing:2px;color:#fff;margin-top:10px;}
+    .tip-score-card.top1 .tip-score-val{color:var(--green);text-shadow:0 0 10px rgba(0,230,118,0.4);}
+    .tip-score-card.top2 .tip-score-val{color:var(--cyan);}
+    .tip-score-pct{font-family:'JetBrains Mono',monospace;font-size:.52rem;color:var(--text-muted);margin-top:3px;}
     .tip-card2{background:var(--surface2);border:1px solid var(--border2);border-radius:3px;padding:12px 10px 10px;text-align:center;position:relative;overflow:hidden;animation:rowSlide .4s ease both;transition:border-color .2s,background .2s;}
     .tip-card2.highlighted{border-color:rgba(0,230,118,0.4);background:rgba(0,40,20,0.5);box-shadow:0 0 20px rgba(0,230,118,0.08);}
     .tip-card2-best-badge{position:absolute;top:0;left:0;right:0;background:linear-gradient(90deg,rgba(0,230,118,0.15),rgba(0,230,118,0.05));border-bottom:1px solid rgba(0,230,118,0.15);font-family:'JetBrains Mono',monospace;font-size:.38rem;letter-spacing:1.5px;color:var(--green);padding:3px 0;text-align:center;}
@@ -1078,10 +1094,45 @@ function calcMatchProbs(homeStats,awayStats,played){
   const awayDefense=awayStats?(awayStats.goalsAgainst||0)/p/PL_AVG_HOME:1.0;
   const lH=Math.min(Math.max(homeAttack*awayDefense*PL_AVG_HOME,0.3),4.0);
   const lA=Math.min(Math.max(awayAttack*homeDefense*PL_AVG_AWAY,0.3),4.0);
-  let probBTTS=0,probOver15=0,probOver25=0,probOver35=0,totalProb=0;
-  for(let h=0;h<=6;h++)for(let a=0;a<=6;a++){const p2=poisson(lH,h)*poisson(lA,a);totalProb+=p2;const tot=h+a;if(h>0&&a>0)probBTTS+=p2;if(tot>1)probOver15+=p2;if(tot>2)probOver25+=p2;if(tot>3)probOver35+=p2;}
+
+  let probBTTS=0,probOver15=0,probOver25=0,probOver35=0;
+  let probH15=0,probH25=0,probA15=0,probA25=0;
+  let totalProb=0;
+  const scoreProbs=[];
+
+  for(let h=0;h<=6;h++) for(let a=0;a<=6;a++){
+    const p2=poisson(lH,h)*poisson(lA,a);
+    totalProb+=p2;
+    const tot=h+a;
+    if(h>0&&a>0) probBTTS+=p2;
+    if(tot>1) probOver15+=p2;
+    if(tot>2) probOver25+=p2;
+    if(tot>3) probOver35+=p2;
+    // Hazai egyéni
+    if(h>=2) probH15+=p2;
+    if(h>=3) probH25+=p2;
+    // Vendég egyéni
+    if(a>=2) probA15+=p2;
+    if(a>=3) probA25+=p2;
+    // Végeredmény
+    scoreProbs.push({score:`${h}:${a}`,prob:p2});
+  }
   const n=totalProb||1;
-  return{lambdaHome:lH.toFixed(2),lambdaAway:lA.toFixed(2),expectedTotal:(lH+lA).toFixed(2),btts:(probBTTS/n*100).toFixed(1),over15:(probOver15/n*100).toFixed(1),over25:(probOver25/n*100).toFixed(1),over35:(probOver35/n*100).toFixed(1)};
+  // Top 6 legvalószínűbb végeredmény
+  const topScores=scoreProbs.sort((a,b)=>b.prob-a.prob).slice(0,6).map(s=>({score:s.score,pct:(s.prob/n*100).toFixed(1)}));
+
+  return{
+    lambdaHome:lH.toFixed(2),lambdaAway:lA.toFixed(2),expectedTotal:(lH+lA).toFixed(2),
+    btts:(probBTTS/n*100).toFixed(1),
+    over15:(probOver15/n*100).toFixed(1),
+    over25:(probOver25/n*100).toFixed(1),
+    over35:(probOver35/n*100).toFixed(1),
+    homeOver15:(probH15/n*100).toFixed(1),
+    homeOver25:(probH25/n*100).toFixed(1),
+    awayOver15:(probA15/n*100).toFixed(1),
+    awayOver25:(probA25/n*100).toFixed(1),
+    topScores
+  };
 }
 
 async function generateAllTips(){
@@ -1157,7 +1208,21 @@ async function generateAllTips(){
 
 const GENBTN_HTML=`<svg viewBox="0 0 24 24" fill="none" style="width:15px;height:15px"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg> AI Tippek Generálása`;
 
-function calcBestTip(btts,o15,o25,o35){const vals=[{k:'btts',v:Math.abs(btts-50),p:btts},{k:'over15',v:Math.abs(o15-50),p:o15},{k:'over25',v:Math.abs(o25-50),p:o25},{k:'over35',v:Math.abs(o35-50),p:o35}];const above50=vals.filter(x=>x.p>50).sort((a,b)=>b.v-a.v);if(above50.length)return above50[0].k;return vals.sort((a,b)=>b.v-a.v)[0].k;}
+function calcBestTip(btts,o15,o25,o35,ho15,ho25,ao15,ao25){
+  const vals=[
+    {k:'btts',v:Math.abs(btts-50),p:btts},
+    {k:'over15',v:Math.abs(o15-50),p:o15},
+    {k:'over25',v:Math.abs(o25-50),p:o25},
+    {k:'over35',v:Math.abs(o35-50),p:o35},
+    {k:'home_o15',v:Math.abs((ho15||50)-50),p:ho15||50},
+    {k:'home_o25',v:Math.abs((ho25||50)-50),p:ho25||50},
+    {k:'away_o15',v:Math.abs((ao15||50)-50),p:ao15||50},
+    {k:'away_o25',v:Math.abs((ao25||50)-50),p:ao25||50},
+  ];
+  const above50=vals.filter(x=>x.p>50).sort((a,b)=>b.v-a.v);
+  if(above50.length) return above50[0].k;
+  return vals.sort((a,b)=>b.v-a.v)[0].k;
+}
 
 /**
  * Egy mérkőzés elemzése – conversation history figyelembevételével.
@@ -1173,6 +1238,9 @@ async function generateOneTip(home,away,num,standingsCtx,played,conversationHist
   const homeStats=getTeamStats(home),awayStats=getTeamStats(away);
   const probs=calcMatchProbs(homeStats,awayStats,played);
   const bttsProb=parseFloat(probs.btts),o15Prob=parseFloat(probs.over15),o25Prob=parseFloat(probs.over25),o35Prob=parseFloat(probs.over35);
+  const ho15Prob=parseFloat(probs.homeOver15),ho25Prob=parseFloat(probs.homeOver25);
+  const ao15Prob=parseFloat(probs.awayOver15),ao25Prob=parseFloat(probs.awayOver25);
+  const topScores=probs.topScores||[];
   const homeRank=homeStats?.pos||'?',awayRank=awayStats?.pos||'?',homeForm=homeStats?.trend||'same',awayForm=awayStats?.trend||'same';
 
   // Context summary az előző tippekről (ha van)
@@ -1191,12 +1259,13 @@ async function generateOneTip(home,away,num,standingsCtx,played,conversationHist
     `- ${away} λ: ${probs.lambdaAway}\n`+
     `- Várható összes gól: ${probs.expectedTotal}\n`+
     `- BTTS: ${probs.btts}%\n`+
-    `- Over 1.5: ${probs.over15}%\n`+
-    `- Over 2.5: ${probs.over25}%\n`+
-    `- Over 3.5: ${probs.over35}%`+
+    `- Over 1.5: ${probs.over15}% | Over 2.5: ${probs.over25}% | Over 3.5: ${probs.over35}%\n`+
+    `- ${home} Over 1.5: ${probs.homeOver15}% | Over 2.5: ${probs.homeOver25}%\n`+
+    `- ${away} Over 1.5: ${probs.awayOver15}% | Over 2.5: ${probs.awayOver25}%\n`+
+    `- Top végeredmények: ${topScores.map(s=>`${s.score}(${s.pct}%)`).join(', ')}`+
     prevNote +
     `\n\nVálaszolj CSAK valid JSON-nal:\n`+
-    `{"btts":{"pick":"${bttsProb>50?'Igen':'Nem'}","confidence":${Math.round(bttsProb)}},"over15":{"pick":${o15Prob>50},"confidence":${Math.round(o15Prob)}},"over25":{"pick":${o25Prob>50},"confidence":${Math.round(o25Prob)}},"over35":{"pick":${o35Prob>50},"confidence":${Math.round(o35Prob)}},"best_tip":"${calcBestTip(bttsProb,o15Prob,o25Prob,o35Prob)}","expected_home":${probs.lambdaHome},"expected_away":${probs.lambdaAway},"analysis":"3 mondatos MAGYAR elemzés konkrét számokkal, figyelembe véve a szezon kontextust"}`;
+    `{"btts":{"pick":"${bttsProb>50?'Igen':'Nem'}","confidence":${Math.round(bttsProb)}},"over15":{"pick":${o15Prob>50},"confidence":${Math.round(o15Prob)}},"over25":{"pick":${o25Prob>50},"confidence":${Math.round(o25Prob)}},"over35":{"pick":${o35Prob>50},"confidence":${Math.round(o35Prob)}},"home_o15":{"pick":${ho15Prob>50},"confidence":${Math.round(ho15Prob)}},"home_o25":{"pick":${ho25Prob>50},"confidence":${Math.round(ho25Prob)}},"away_o15":{"pick":${ao15Prob>50},"confidence":${Math.round(ao15Prob)}},"away_o25":{"pick":${ao25Prob>50},"confidence":${Math.round(ao25Prob)}},"top_score":"${topScores[0]?.score||'1:1'}","best_tip":"${calcBestTip(bttsProb,o15Prob,o25Prob,o35Prob,ho15Prob,ho25Prob,ao15Prob,ao25Prob)}","expected_home":${probs.lambdaHome},"expected_away":${probs.lambdaAway},"analysis":"3 mondatos MAGYAR elemzés konkrét számokkal, figyelembe véve a szezon kontextust"}`;
 
   // ── Hívás a teljes history-val ──
   const messages = [...conversationHistory, {role:'user', content: userPrompt}];
@@ -1211,7 +1280,7 @@ async function generateOneTip(home,away,num,standingsCtx,played,conversationHist
     data=JSON.parse(clean.slice(start));
   } catch(e){
     rawResponse = rawResponse || '{}';
-    data={btts:{pick:bttsProb>50?'Igen':'Nem',confidence:Math.round(bttsProb)},over15:{pick:o15Prob>50,confidence:Math.round(o15Prob)},over25:{pick:o25Prob>50,confidence:Math.round(o25Prob)},over35:{pick:o35Prob>50,confidence:Math.round(o35Prob)},best_tip:calcBestTip(bttsProb,o15Prob,o25Prob,o35Prob),expected_home:probs.lambdaHome,expected_away:probs.lambdaAway,analysis:`A Poisson-modell alapján: ${home} várható ${probs.lambdaHome} gól, ${away} ${probs.lambdaAway} gól.`};
+    data={btts:{pick:bttsProb>50?'Igen':'Nem',confidence:Math.round(bttsProb)},over15:{pick:o15Prob>50,confidence:Math.round(o15Prob)},over25:{pick:o25Prob>50,confidence:Math.round(o25Prob)},over35:{pick:o35Prob>50,confidence:Math.round(o35Prob)},home_o15:{pick:ho15Prob>50,confidence:Math.round(ho15Prob)},home_o25:{pick:ho25Prob>50,confidence:Math.round(ho25Prob)},away_o15:{pick:ao15Prob>50,confidence:Math.round(ao15Prob)},away_o25:{pick:ao25Prob>50,confidence:Math.round(ao25Prob)},top_score:topScores[0]?.score||'1:1',best_tip:calcBestTip(bttsProb,o15Prob,o25Prob,o35Prob,ho15Prob,ho25Prob,ao15Prob,ao25Prob),expected_home:probs.lambdaHome,expected_away:probs.lambdaAway,analysis:`A Poisson-modell alapján: ${home} várható ${probs.lambdaHome} gól, ${away} ${probs.lambdaAway} gól.`};
   }
 
   const safeConf=(aiConf,pv)=>{const diff=Math.abs(aiConf-pv);return diff>15?Math.round((aiConf+pv)/2):aiConf;};
@@ -1219,11 +1288,20 @@ async function generateOneTip(home,away,num,standingsCtx,played,conversationHist
   const o15Conf=safeConf(data.over15?.confidence||o15Prob,o15Prob);
   const o25Conf=safeConf(data.over25?.confidence||o25Prob,o25Prob);
   const o35Conf=safeConf(data.over35?.confidence||o35Prob,o35Prob);
+  const ho15Conf=safeConf(data.home_o15?.confidence||ho15Prob,ho15Prob);
+  const ho25Conf=safeConf(data.home_o25?.confidence||ho25Prob,ho25Prob);
+  const ao15Conf=safeConf(data.away_o15?.confidence||ao15Prob,ao15Prob);
+  const ao25Conf=safeConf(data.away_o25?.confidence||ao25Prob,ao25Prob);
   const bttsYes=(data.btts?.pick||'').toString().toLowerCase().includes('igen')||bttsProb>50;
   const o15Yes=data.over15?.pick===true||data.over15?.pick==='true'||o15Prob>50;
   const o25Yes=data.over25?.pick===true||data.over25?.pick==='true'||o25Prob>50;
   const o35Yes=data.over35?.pick===true||data.over35?.pick==='true'||o35Prob>50;
+  const ho15Yes=data.home_o15?.pick===true||data.home_o15?.pick==='true'||ho15Prob>50;
+  const ho25Yes=data.home_o25?.pick===true||data.home_o25?.pick==='true'||ho25Prob>50;
+  const ao15Yes=data.away_o1?.pick===true||data.away_o15?.pick==='true'||ao15Prob>50;
+  const ao25Yes=data.away_o25?.pick===true||data.away_o25?.pick==='true'||ao25Prob>50;
   const bestTip=data.best_tip||'over15';
+  const aiTopScore=data.top_score||topScores[0]?.score||'1:1';
   const xgH=data.expected_home||probs.lambdaHome,xgA=data.expected_away||probs.lambdaAway;
   const xgTot=(parseFloat(xgH)+parseFloat(xgA)).toFixed(2);
 
@@ -1258,11 +1336,29 @@ async function generateOneTip(home,away,num,standingsCtx,played,conversationHist
         ${awayStats?`<span class="tip-xg-sub">${awayStats.pos}. hely · ${((awayStats.goalsFor||0)/Math.max(1,played)).toFixed(2)} gól/m</span>`:''}
       </div>
     </div>
+    <div class="tip-section-sub">Összes gól</div>
     <div class="tip-cards">
       ${buildCard2('BTTS','Mindkét csapat gólt szerez',bttsYes?'IGEN':'NEM',bttsConf,bestTip==='btts',probs.btts+'%',0)}
       ${buildCard2('O1.5','Over 1.5 gól',o15Yes?'IGEN':'NEM',o15Conf,bestTip==='over15',probs.over15+'%',1)}
       ${buildCard2('O2.5','Over 2.5 gól',o25Yes?'IGEN':'NEM',o25Conf,bestTip==='over25',probs.over25+'%',2)}
       ${buildCard2('O3.5','Over 3.5 gól',o35Yes?'IGEN':'NEM',o35Conf,bestTip==='over35',probs.over35+'%',3)}
+    </div>
+    <div class="tip-section-sub">Egyéni gólok – ${home} & ${away}</div>
+    <div class="tip-cards-wide">
+      ${buildCard2('H O1.5','Hazai Over 1.5',ho15Yes?'IGEN':'NEM',ho15Conf,bestTip==='home_o15',probs.homeOver15+'%',0)}
+      ${buildCard2('H O2.5','Hazai Over 2.5',ho25Yes?'IGEN':'NEM',ho25Conf,bestTip==='home_o25',probs.homeOver25+'%',1)}
+      ${buildCard2('V O1.5','Vendég Over 1.5',ao15Yes?'IGEN':'NEM',ao15Conf,bestTip==='away_o15',probs.awayOver15+'%',2)}
+      ${buildCard2('V O2.5','Vendég Over 2.5',ao25Yes?'IGEN':'NEM',ao25Conf,bestTip==='away_o25',probs.awayOver25+'%',3)}
+    </div>
+    <div class="tip-section-sub">Top végeredmények (Poisson)</div>
+    <div class="tip-score-grid">
+      ${topScores.map((s,i)=>`
+        <div class="tip-score-card ${i===0?'top1':i===1?'top2':''}" style="animation-delay:${i*.06}s">
+          ${i===0?'<div class="tip-score-best-badge">★ LEGVALÓSZÍNŰBB</div>':''}
+          <div class="tip-score-val">${s.score}</div>
+          <div class="tip-score-pct">${s.pct}%</div>
+        </div>
+      `).join('')}
     </div>
     ${data.analysis?`<div class="tip-analysis"><span class="tip-analysis-label"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" style="margin-right:4px"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="currentColor"/></svg>AI Elemzés</span><div class="tip-analysis-text">${data.analysis}</div></div>`:''}
   `;
