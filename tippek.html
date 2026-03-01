@@ -8,260 +8,229 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #080808;
-      --surface: #0f0f0f;
-      --surface2: #151515;
-      --border: #1e1e1e;
-      --border2: #2a2a2a;
-      --text: #e8e8e8;
-      --text-dim: #666;
-      --text-muted: #333;
-      --green: #4caf50;
-      --green-dim: #1e6b1e;
-      --red: #e53935;
-      --amber: #f59e0b;
+      --bg: #080808; --surface: #0f0f0f; --surface2: #151515;
+      --border: #1e1e1e; --border2: #2a2a2a;
+      --text: #e8e8e8; --text-dim: #666; --text-muted: #333;
+      --green: #4caf50; --green-dim: #1e6b1e; --red: #e53935; --amber: #f59e0b;
     }
-
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; overflow-x: hidden; }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html, body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; overflow-x:hidden; }
 
     body::before {
-      content: '';
-      position: fixed; inset: 0; z-index: 0;
-      pointer-events: none; opacity: 0.025;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-      background-size: 200px;
-      animation: grain 0.5s steps(1) infinite;
+      content:''; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.025;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size:200px; animation:grain 0.5s steps(1) infinite;
     }
     @keyframes grain { 0%{transform:translate(0,0)} 10%{transform:translate(-2%,-2%)} 20%{transform:translate(2%,2%)} 30%{transform:translate(-1%,1%)} 40%{transform:translate(1%,-1%)} 50%{transform:translate(-2%,1%)} 60%{transform:translate(2%,-2%)} 70%{transform:translate(-1%,-1%)} 80%{transform:translate(1%,2%)} 90%{transform:translate(-2%,2%)} 100%{transform:translate(2%,-1%)} }
+    body::after { content:''; position:fixed; inset:0; z-index:0; pointer-events:none; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px); }
 
-    body::after {
-      content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
-      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
-    }
-
-    /* ── Header ── */
+    /* HEADER */
     header {
-      position: sticky; top: 0; z-index: 100;
-      background: rgba(8,8,8,0.92);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      padding: 0 24px; height: 52px;
-      display: flex; align-items: center; gap: 14px;
+      position:sticky; top:0; z-index:100;
+      background:rgba(8,8,8,0.92); backdrop-filter:blur(12px);
+      border-bottom:1px solid var(--border);
+      padding:0 24px; height:52px;
+      display:flex; align-items:center; gap:14px;
     }
+    .live-dot { width:8px; height:8px; border-radius:50%; background:#fff; box-shadow:0 0 0 0 rgba(255,255,255,0.4); animation:livePulse 2s infinite; }
+    @keyframes livePulse { 0%{box-shadow:0 0 0 0 rgba(255,255,255,0.4)} 70%{box-shadow:0 0 0 6px rgba(255,255,255,0)} 100%{box-shadow:0 0 0 0 rgba(255,255,255,0)} }
+    .header-sep { width:1px; height:20px; background:var(--border2); }
+    .site-title { font-family:'Bebas Neue',sans-serif; font-size:1.4rem; letter-spacing:4px; color:#fff; text-shadow:0 0 20px rgba(255,255,255,0.15); }
+    .back-btn { display:flex; align-items:center; gap:7px; color:var(--text-dim); font-size:.65rem; text-decoration:none; font-family:'DM Mono',monospace; letter-spacing:1px; padding:5px 12px; border:1px solid var(--border2); border-radius:2px; transition:all .15s; }
+    .back-btn:hover { color:#fff; border-color:#555; }
+    .back-icon { width:12px; height:12px; }
 
-    .live-dot {
-      width: 8px; height: 8px; border-radius: 50%; background: #fff;
-      box-shadow: 0 0 0 0 rgba(255,255,255,0.4);
-      animation: livePulse 2s infinite;
-    }
-    @keyframes livePulse {
-      0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
-      70% { box-shadow: 0 0 0 6px rgba(255,255,255,0); }
-      100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
-    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 
-    .header-sep { width: 1px; height: 20px; background: var(--border2); }
+    /* PAGE */
+    .page { position:relative; z-index:1; max-width:960px; margin:0 auto; padding:28px 20px 60px; animation:fadeUp 0.5s ease both; }
 
-    .site-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.4rem; letter-spacing: 4px; color: #fff;
-      text-shadow: 0 0 20px rgba(255,255,255,0.15);
-    }
-
-    .back-btn {
-      display: flex; align-items: center; gap: 7px;
-      color: var(--text-dim); font-size: .65rem; text-decoration: none;
-      font-family: 'DM Mono', monospace; letter-spacing: 1px;
-      padding: 5px 12px; border: 1px solid var(--border2); border-radius: 2px;
-      transition: all .15s;
-    }
-    .back-btn:hover { color: #fff; border-color: #555; }
-    .back-icon { width: 12px; height: 12px; }
-
-    @keyframes fadeDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
-    @keyframes fadeUp   { from{opacity:0;transform:translateY(8px)}  to{opacity:1;transform:translateY(0)} }
-    @keyframes fadeIn   { from{opacity:0} to{opacity:1} }
-
-    /* ── Page ── */
-    .page {
-      position: relative; z-index: 1;
-      max-width: 940px; margin: 0 auto; padding: 28px 20px 60px;
-      animation: fadeUp 0.5s ease both;
-    }
-
-    /* ── Tabs ── */
-    .tabs {
-      display: flex; gap: 0; margin-bottom: 24px;
-      border-bottom: 1px solid var(--border);
-    }
+    /* TABS */
+    .tabs { display:flex; margin-bottom:24px; border-bottom:1px solid var(--border); }
     .tab {
-      background: none; border: none; border-bottom: 2px solid transparent;
-      color: var(--text-dim); font-size: .68rem;
-      font-family: 'DM Mono', monospace; letter-spacing: 1.5px;
-      padding: 10px 20px; cursor: pointer; transition: all .15s;
-      text-transform: uppercase; display: flex; align-items: center; gap: 8px;
-      position: relative; top: 1px;
+      background:none; border:none; border-bottom:2px solid transparent;
+      color:var(--text-dim); font-size:.65rem; font-family:'DM Mono',monospace;
+      letter-spacing:1.5px; padding:10px 20px; cursor:pointer; transition:all .15s;
+      text-transform:uppercase; display:flex; align-items:center; gap:8px;
+      position:relative; top:1px;
     }
-    .tab:hover { color: #aaa; }
-    .tab.active { color: #fff; border-bottom-color: #fff; }
-    .tab-icon { width: 14px; height: 14px; }
+    .tab:hover { color:#aaa; }
+    .tab.active { color:#fff; border-bottom-color:#fff; }
+    .tab-icon { width:14px; height:14px; }
 
-    /* ── AI badge ── */
-    .ai-badge {
-      background: var(--green-dim, #1e6b1e); color: #fff;
-      font-size: .55rem; font-family: 'DM Mono', monospace;
-      padding: 2px 8px; border-radius: 2px; letter-spacing: 1px;
-      animation: livePulse 2s infinite;
-    }
+    /* SECTION HEADER */
+    .section-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+    .section-title { font-family:'Bebas Neue',sans-serif; font-size:1.1rem; letter-spacing:3px; color:var(--text); display:flex; align-items:center; gap:10px; }
+    .section-title-icon { width:18px; height:18px; opacity:0.8; }
+    .ai-badge { background:var(--green-dim); color:#fff; font-size:.55rem; font-family:'DM Mono',monospace; padding:2px 8px; border-radius:2px; letter-spacing:1px; animation:livePulse 2s infinite; }
 
-    /* ── Section header ── */
-    .section-hdr {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 14px;
-    }
-    .section-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.1rem; letter-spacing: 3px; color: var(--text);
-      display: flex; align-items: center; gap: 10px;
-    }
-    .section-title-icon { width: 18px; height: 18px; opacity: 0.8; }
-
-    /* ── Leaderboard ── */
-    .leaderboard-block {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 2px; overflow: hidden; margin-bottom: 16px;
-    }
+    /* LEADERBOARD */
+    .leaderboard-block { background:var(--surface); border:1px solid var(--border); border-radius:2px; overflow:hidden; margin-bottom:16px; }
     .leaderboard-header-bar {
-      background: linear-gradient(90deg, #1a4d1a 0%, #1e6b1e 100%);
-      display: grid;
-      grid-template-columns: 28px 18px 1fr 80px 46px 38px;
-      align-items: center; padding: 8px 12px; gap: 4px;
-      border-bottom: 1px solid rgba(76,175,80,0.2);
+      background:linear-gradient(90deg,#1a4d1a 0%,#1e6b1e 100%);
+      display:grid; grid-template-columns:28px 18px 1fr 80px 46px 38px;
+      align-items:center; padding:8px 12px; gap:4px;
+      border-bottom:1px solid rgba(76,175,80,0.2);
     }
-    .leaderboard-header-bar span {
-      font-family: 'DM Mono', monospace;
-      font-size: .55rem; color: rgba(255,255,255,0.65);
-      text-transform: uppercase; letter-spacing: .5px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .leaderboard-header-bar .h-right { text-align: right; }
+    .leaderboard-header-bar span { font-family:'DM Mono',monospace; font-size:.55rem; color:rgba(255,255,255,0.65); text-transform:uppercase; letter-spacing:.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .leaderboard-header-bar .h-right { text-align:right; }
+    .lb-meta { background:#0a0a0a; border-bottom:1px solid var(--border); padding:4px 12px; font-size:.58rem; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; font-family:'DM Mono',monospace; }
+    .refresh-dot { width:5px; height:5px; border-radius:50%; background:var(--green); display:inline-block; margin-right:5px; animation:livePulse 2s infinite; }
+    .lb-meta.loading .refresh-dot { background:var(--amber); }
+    .lb-meta.error .refresh-dot { background:var(--red); }
+    .leaderboard-body { background:var(--surface); }
+    .lb-row { display:grid; grid-template-columns:28px 18px 1fr 80px 46px 38px; align-items:center; padding:5px 12px; gap:4px; border-bottom:1px solid var(--border); transition:background .12s; animation:fadeIn 0.3s ease both; }
+    .lb-row:last-child { border-bottom:none; }
+    .lb-row:hover { background:var(--surface2); }
+    .lb-row.top3 { background:linear-gradient(90deg,rgba(30,107,30,0.15) 0%,transparent 100%); }
+    .lb-row.top3:hover { background:rgba(30,107,30,0.2); }
+    .lb-row.relegation { background:linear-gradient(90deg,rgba(229,57,53,0.08) 0%,transparent 100%); }
+    .lb-row.relegation:hover { background:rgba(229,57,53,0.12); }
+    .col-pos { font-family:'DM Mono',monospace; font-size:.68rem; color:var(--text-dim); text-align:center; }
+    .lb-row.top3 .col-pos { color:var(--green); }
+    .lb-row.relegation .col-pos { color:var(--red); }
+    .col-trend { display:flex; align-items:center; justify-content:center; }
+    .trend-up { color:var(--green); font-size:.5rem; }
+    .trend-down { color:var(--red); font-size:.5rem; }
+    .trend-same { color:#252525; font-size:.5rem; }
+    .col-team { display:flex; align-items:center; gap:7px; min-width:0; }
+    .team-logo { width:16px; height:16px; object-fit:contain; flex-shrink:0; }
+    .team-logo-placeholder { width:16px; height:16px; flex-shrink:0; background:#1a1a1a; border-radius:50%; }
+    .team-name { font-size:.74rem; font-weight:600; color:#ccc; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .col-goals { font-family:'DM Mono',monospace; font-size:.65rem; color:var(--text-dim); text-align:right; }
+    .col-gd { font-family:'DM Mono',monospace; font-size:.63rem; color:var(--text-muted); text-align:right; }
+    .col-pts { font-family:'DM Mono',monospace; font-size:.78rem; font-weight:500; color:#fff; text-align:right; }
 
-    .lb-meta {
-      background: #0a0a0a; border-bottom: 1px solid var(--border);
-      padding: 4px 12px; font-size: .58rem; color: var(--text-muted);
-      display: flex; justify-content: space-between; align-items: center;
-      font-family: 'DM Mono', monospace;
-    }
-    .refresh-dot {
-      width: 5px; height: 5px; border-radius: 50%;
-      background: var(--green); display: inline-block;
-      margin-right: 5px; animation: livePulse 2s infinite;
-    }
-    .lb-meta.loading .refresh-dot { background: var(--amber); }
-    .lb-meta.error   .refresh-dot { background: var(--red); }
+    /* AI PANEL */
+    .aipanel { background:var(--surface); border:1px solid var(--border); border-radius:2px; overflow:hidden; margin-top:16px; }
+    .aipanel-hdr { background:var(--surface2); border-bottom:1px solid var(--border); padding:10px 16px; display:flex; align-items:center; gap:10px; }
+    .aipanel-icon { width:16px; height:16px; }
+    .aipanel-title { font-family:'DM Mono',monospace; font-size:.65rem; font-weight:500; letter-spacing:1.5px; text-transform:uppercase; color:var(--text); }
+    .aibody { padding:18px 20px; font-size:.82rem; line-height:1.8; color:#999; min-height:80px; }
 
-    .leaderboard-body { background: var(--surface); }
+    /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+       AI TIPPEK TAB – match cards + tip cards
+       ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-    .lb-row {
-      display: grid;
-      grid-template-columns: 28px 18px 1fr 80px 46px 38px;
-      align-items: center; padding: 5px 12px; gap: 4px;
-      border-bottom: 1px solid var(--border);
-      transition: background .12s;
-      animation: fadeIn 0.3s ease both;
+    .tips-meta-bar {
+      display:flex; align-items:center; justify-content:space-between;
+      margin-bottom:16px; padding:8px 14px;
+      background:var(--surface); border:1px solid var(--border); border-radius:2px;
+      font-family:'DM Mono',monospace; font-size:.6rem; color:var(--text-dim);
     }
-    .lb-row:last-child { border-bottom: none; }
-    .lb-row:hover { background: var(--surface2); }
-    .lb-row.top3 {
-      background: linear-gradient(90deg, rgba(30,107,30,0.15) 0%, transparent 100%);
-    }
-    .lb-row.top3:hover { background: rgba(30,107,30,0.2); }
-    .lb-row.relegation {
-      background: linear-gradient(90deg, rgba(229,57,53,0.08) 0%, transparent 100%);
-    }
-    .lb-row.relegation:hover { background: rgba(229,57,53,0.12); }
-
-    .col-pos { font-family: 'DM Mono', monospace; font-size: .68rem; color: var(--text-dim); text-align: center; }
-    .lb-row.top3 .col-pos { color: var(--green); }
-    .lb-row.relegation .col-pos { color: var(--red); }
-
-    .col-trend { display: flex; align-items: center; justify-content: center; }
-    .trend-up   { color: var(--green); font-size: .5rem; }
-    .trend-down { color: var(--red);   font-size: .5rem; }
-    .trend-same { color: #252525;      font-size: .5rem; }
-
-    .col-team { display: flex; align-items: center; gap: 7px; min-width: 0; }
-    .team-logo { width: 16px; height: 16px; object-fit: contain; flex-shrink: 0; }
-    .team-logo-placeholder { width: 16px; height: 16px; flex-shrink: 0; background: #1a1a1a; border-radius: 50%; }
-    .team-name { font-size: .74rem; font-weight: 600; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    .col-goals { font-family: 'DM Mono', monospace; font-size: .65rem; color: var(--text-dim); text-align: right; }
-    .col-gd    { font-family: 'DM Mono', monospace; font-size: .63rem; color: var(--text-muted); text-align: right; }
-    .col-pts   { font-family: 'DM Mono', monospace; font-size: .78rem; font-weight: 500; color: #fff; text-align: right; }
-
-    /* ── AI Panel ── */
-    .aipanel {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 2px; overflow: hidden; margin-top: 16px;
-    }
-    .aipanel-hdr {
-      background: var(--surface2); border-bottom: 1px solid var(--border);
-      padding: 10px 16px; display: flex; align-items: center; gap: 10px;
-    }
-    .aipanel-icon { width: 16px; height: 16px; }
-    .aipanel-title {
-      font-family: 'DM Mono', monospace;
-      font-size: .65rem; font-weight: 500; letter-spacing: 1.5px;
-      text-transform: uppercase; color: var(--text);
-    }
-    .aibody {
-      padding: 18px 20px; font-size: .82rem; line-height: 1.8;
-      color: #999; min-height: 80px;
+    .tips-meta-left { display:flex; align-items:center; gap:8px; }
+    .round-badge {
+      background:#fff; color:#000;
+      font-size:.55rem; font-weight:800; padding:2px 8px; border-radius:1px; letter-spacing:2px;
     }
 
-    /* ── Season notice ── */
-    .season-notice {
-      display: flex; align-items: center; gap: 10px;
-      background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
-      border-radius: 2px; padding: 10px 14px; margin-bottom: 16px;
-      font-size: .72rem; color: var(--amber);
-      font-family: 'DM Mono', monospace; letter-spacing: 0.5px;
-    }
-    .season-notice-icon { width: 14px; height: 14px; flex-shrink: 0; }
+    /* Match list */
+    .matches-grid { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
 
-    /* ── Loading dots ── */
-    .dots { display: flex; gap: 6px; padding: 16px 0; justify-content: center; }
-    .dots span {
-      width: 6px; height: 6px; border-radius: 50%; background: #fff;
-      opacity: .15; animation: dotPulse 1.2s infinite;
+    .match-card {
+      background:var(--surface); border:1px solid var(--border); border-radius:2px;
+      padding:12px 16px;
+      display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:12px;
+      animation:fadeIn 0.3s ease both;
+      transition:border-color .15s;
     }
+    .match-card:hover { border-color:var(--border2); }
+    .match-card.has-tip { border-left:2px solid var(--green); }
+
+    .match-home { display:flex; align-items:center; justify-content:flex-end; gap:8px; }
+    .match-away { display:flex; align-items:center; justify-content:flex-start; gap:8px; }
+    .match-team-name { font-size:.78rem; font-weight:600; color:#ccc; }
+    .match-logo { width:20px; height:20px; object-fit:contain; flex-shrink:0; }
+    .match-logo-ph { width:20px; height:20px; background:#1a1a1a; border-radius:50%; flex-shrink:0; }
+
+    .match-center { text-align:center; }
+    .match-time { font-family:'DM Mono',monospace; font-size:.6rem; color:var(--text-dim); margin-bottom:2px; }
+    .match-vs { font-family:'DM Mono',monospace; font-size:.65rem; color:var(--text-muted); letter-spacing:2px; }
+
+    /* Tip cards grid */
+    .tips-section-title {
+      font-family:'DM Mono',monospace; font-size:.6rem; letter-spacing:2px;
+      color:var(--text-muted); text-transform:uppercase;
+      margin-bottom:10px; display:flex; align-items:center; gap:10px;
+    }
+    .tips-section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+    .tips-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+
+    .tip-card {
+      background:var(--surface); border:1px solid var(--border); border-radius:2px;
+      padding:14px 16px; display:flex; flex-direction:column; gap:8px;
+      animation:fadeIn 0.4s ease both;
+      transition:all .2s; position:relative; overflow:hidden;
+    }
+    .tip-card::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    }
+    .tip-card.over15::before { background:linear-gradient(90deg,var(--green),transparent); }
+    .tip-card.btts::before   { background:linear-gradient(90deg,var(--amber),transparent); }
+
+    .tip-card:hover { border-color:var(--border2); }
+
+    .tip-type {
+      display:flex; align-items:center; gap:6px;
+      font-family:'DM Mono',monospace; font-size:.55rem;
+      letter-spacing:1.5px; text-transform:uppercase;
+    }
+    .tip-type.over15 { color:var(--green); }
+    .tip-type.btts   { color:var(--amber); }
+    .tip-type-icon { width:12px; height:12px; }
+
+    .tip-match {
+      font-size:.8rem; font-weight:700; color:#fff; line-height:1.3;
+    }
+    .tip-label {
+      font-family:'DM Mono',monospace; font-size:.6rem; color:var(--text-dim);
+    }
+    .tip-confidence {
+      display:flex; align-items:center; gap:6px; margin-top:2px;
+    }
+    .tip-conf-bar { height:3px; background:var(--border2); border-radius:2px; flex:1; overflow:hidden; }
+    .tip-conf-fill { height:100%; border-radius:2px; transition:width 0.6s ease; }
+    .tip-card.over15 .tip-conf-fill { background:var(--green); }
+    .tip-card.btts   .tip-conf-fill { background:var(--amber); }
+    .tip-conf-pct { font-family:'DM Mono',monospace; font-size:.58rem; color:var(--text-dim); min-width:28px; text-align:right; }
+    .tip-reason { font-size:.7rem; color:#555; line-height:1.5; }
+
+    /* Loading state for tips */
+    .tips-loading {
+      display:flex; flex-direction:column; align-items:center; gap:12px;
+      padding:40px 20px; color:var(--text-muted);
+      font-family:'DM Mono',monospace; font-size:.65rem; letter-spacing:1px;
+    }
+
+    /* Season notice */
+    .season-notice { display:flex; align-items:center; gap:10px; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.2); border-radius:2px; padding:10px 14px; margin-bottom:16px; font-size:.72rem; color:var(--amber); font-family:'DM Mono',monospace; letter-spacing:0.5px; }
+    .season-notice-icon { width:14px; height:14px; flex-shrink:0; }
+
+    /* Dots */
+    .dots { display:flex; gap:6px; padding:16px 0; justify-content:center; }
+    .dots span { width:6px; height:6px; border-radius:50%; background:#fff; opacity:.15; animation:dotPulse 1.2s infinite; }
     .dots span:nth-child(2){ animation-delay:.2s; }
     .dots span:nth-child(3){ animation-delay:.4s; }
     @keyframes dotPulse { 0%,100%{opacity:.15} 50%{opacity:.8} }
 
-    /* ── Error box ── */
-    .error-box {
-      display: none;
-      background: rgba(229,57,53,0.08); border: 1px solid rgba(229,57,53,0.2);
-      border-radius: 2px; padding: 12px 16px; font-size: .75rem;
-      color: #ff8a80; margin-bottom: 16px;
-      font-family: 'DM Mono', monospace;
-    }
-    .error-box.show { display: flex; align-items: center; gap: 8px; }
-    .error-icon { width: 14px; height: 14px; flex-shrink: 0; }
+    /* Error */
+    .error-box { display:none; background:rgba(229,57,53,0.08); border:1px solid rgba(229,57,53,0.2); border-radius:2px; padding:12px 16px; font-size:.75rem; color:#ff8a80; margin-bottom:16px; font-family:'DM Mono',monospace; }
+    .error-box.show { display:flex; align-items:center; gap:8px; }
+    .error-icon { width:14px; height:14px; flex-shrink:0; }
 
-    /* ── Button ── */
-    .btn {
-      display: flex; align-items: center; gap: 7px;
-      background: var(--surface2); border: 1px solid var(--border2);
-      color: var(--text-dim); font-size: .65rem;
-      font-family: 'DM Mono', monospace; letter-spacing: 1px;
-      padding: 7px 14px; border-radius: 2px;
-      cursor: pointer; transition: all .15s; text-transform: uppercase;
+    /* Buttons */
+    .btn { display:flex; align-items:center; gap:7px; background:var(--surface2); border:1px solid var(--border2); color:var(--text-dim); font-size:.65rem; font-family:'DM Mono',monospace; letter-spacing:1px; padding:7px 14px; border-radius:2px; cursor:pointer; transition:all .15s; text-transform:uppercase; }
+    .btn:hover { background:#1a1a1a; border-color:#555; color:#fff; }
+    .btn-icon { width:13px; height:13px; }
+
+    @media (max-width:600px) {
+      .tips-grid { grid-template-columns:1fr; }
+      .match-card { grid-template-columns:1fr; gap:6px; text-align:center; }
+      .match-home { justify-content:center; }
+      .match-away { justify-content:center; }
     }
-    .btn:hover { background: #1a1a1a; border-color: #555; color: #fff; }
-    .btn-icon { width: 13px; height: 13px; }
   </style>
 </head>
 <body>
@@ -272,10 +241,7 @@
   <span class="site-title">VSPORT</span>
   <div class="header-sep"></div>
   <a class="back-btn" href="/">
-    <!-- Back arrow SVG -->
-    <svg class="back-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
+    <svg class="back-icon" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12L12 19M5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     Vissza
   </a>
 </header>
@@ -284,111 +250,87 @@
 
   <!-- TABS -->
   <div class="tabs">
-    <button class="tab active" id="realTab" onclick="showRealTable()">
-      <!-- Chart SVG -->
-      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M3 3v18h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        <path d="M7 16l4-4 4 4 4-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      Valódi tabella
+    <button class="tab active" id="realTab" onclick="showTab('real')">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none"><path d="M3 3v18h18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M7 16l4-4 4 4 4-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Tabella
     </button>
-    <button class="tab" id="aiTab" onclick="showAITable()">
-      <!-- AI star SVG -->
-      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M19 16L19.6 18.4L22 19L19.6 19.6L19 22L18.4 19.6L16 19L18.4 18.4L19 16Z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
-      </svg>
-      AI Elemzett tabella
+    <button class="tab" id="aiTab" onclick="showTab('ai')">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      AI Tabella
+    </button>
+    <button class="tab" id="tipsTab" onclick="showTab('tips')">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      AI Tippek
     </button>
   </div>
 
-  <!-- VALÓDI TABELLA -->
-  <div id="realTableContainer">
+  <!-- ═══════════════════════════════════════
+       VALÓDI TABELLA TAB
+       ═══════════════════════════════════════ -->
+  <div id="realContainer">
     <div class="section-hdr">
       <div class="section-title">
-        <!-- Lightning SVG -->
-        <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2Z" fill="white" stroke="white" stroke-width="1" stroke-linejoin="round"/>
-        </svg>
+        <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2Z" fill="white" stroke="white" stroke-width="1" stroke-linejoin="round"/></svg>
         Premier Liga
       </div>
       <button class="btn" id="refreshRealBtn">
-        <!-- Refresh SVG -->
-        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Frissítés
       </button>
     </div>
-
     <div class="leaderboard-block">
       <div class="leaderboard-header-bar">
         <span>#</span><span></span><span>Csapat</span>
-        <span class="h-right">Lőtt–Kapott</span>
-        <span class="h-right">GD</span>
-        <span class="h-right">Pont</span>
+        <span class="h-right">Lőtt–Kapott</span><span class="h-right">GD</span><span class="h-right">Pont</span>
       </div>
       <div class="lb-meta loading" id="realMeta">
         <span><span class="refresh-dot"></span>Betöltés...</span>
         <span id="realUpdateTime">–</span>
       </div>
       <div class="leaderboard-body" id="realTable">
-        <div style="padding:24px; text-align:center; color:var(--text-muted); font-size:.72rem; font-family:'DM Mono',monospace">Betöltés...</div>
+        <div style="padding:24px;text-align:center;color:var(--text-muted);font-size:.72rem;font-family:'DM Mono',monospace">Betöltés...</div>
       </div>
     </div>
   </div>
 
-  <!-- AI TABELLA -->
-  <div id="aiTableContainer" style="display: none;">
+  <!-- ═══════════════════════════════════════
+       AI TABELLA TAB
+       ═══════════════════════════════════════ -->
+  <div id="aiContainer" style="display:none">
     <div class="section-hdr">
       <div class="section-title">
-        <svg class="section-title-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="white" stroke="white" stroke-width="0.5"/>
-        </svg>
+        <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="white" stroke="white" stroke-width="0.5"/></svg>
         AI Előrejelzés
         <span class="ai-badge">LLM7</span>
       </div>
       <button class="btn" id="generateAIBtn">
-        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-        </svg>
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
         Generálás
       </button>
     </div>
-
-    <!-- Season notice (hidden by default) -->
-    <div class="season-notice" id="seasonNotice" style="display:none;">
-      <svg class="season-notice-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <span id="seasonNoticeText">Új szezon érzékelve – az AI az új adatok alapján elemez</span>
+    <div class="season-notice" id="seasonNotice" style="display:none">
+      <svg class="season-notice-icon" viewBox="0 0 24 24" fill="none"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span id="seasonNoticeText">Új szezon érzékelve</span>
     </div>
-
     <div class="leaderboard-block">
       <div class="leaderboard-header-bar">
         <span>#</span><span></span><span>Csapat</span>
-        <span class="h-right">Lőtt–Kapott</span>
-        <span class="h-right">GD</span>
-        <span class="h-right">Pont</span>
+        <span class="h-right">Lőtt–Kapott</span><span class="h-right">GD</span><span class="h-right">Pont</span>
       </div>
       <div class="lb-meta" id="aiMeta">
         <span><span class="refresh-dot"></span>AI becslés</span>
         <span id="aiUpdateTime">–</span>
       </div>
       <div class="leaderboard-body" id="aiTable">
-        <div style="padding:32px; text-align:center; color:var(--text-muted); font-size:.72rem; font-family:'DM Mono',monospace; line-height:2">
+        <div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.72rem;font-family:'DM Mono',monospace;line-height:2">
           Kattints a "Generálás" gombra<br>
-          <span style="color:#222; font-size:.6rem">Az AI elemzi a valós adatokat és saját előrejelzést készít</span>
+          <span style="color:#222;font-size:.6rem">Az AI elemzi a valós adatokat és előrejelzést készít</span>
         </div>
       </div>
     </div>
-
-    <div class="aipanel" id="aiPanel" style="display:none;">
+    <div class="aipanel" id="aiPanel" style="display:none">
       <div class="aipanel-hdr">
-        <svg class="aipanel-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
+        <svg class="aipanel-icon" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="aipanel-title">AI Elemzés</span>
         <span class="ai-badge" style="margin-left:auto">llm7.io</span>
       </div>
@@ -396,54 +338,104 @@
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════
+       AI TIPPEK TAB
+       ═══════════════════════════════════════ -->
+  <div id="tipsContainer" style="display:none">
+    <div class="section-hdr">
+      <div class="section-title">
+        <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="white" stroke="white" stroke-width="0.5"/></svg>
+        AI Tippek
+        <span class="ai-badge">LLM7</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="tipsRoundBadge" class="round-badge" style="display:none"></span>
+        <span id="tipsCountdown" style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--text-muted)"></span>
+      </div>
+    </div>
+
+    <!-- Meta bar -->
+    <div class="tips-meta-bar">
+      <div class="tips-meta-left">
+        <span class="refresh-dot" id="tipsDot"></span>
+        <span id="tipsStatusText" style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--text-dim)">Meccsek betöltése...</span>
+      </div>
+      <span id="tipsUpdateTime" style="font-family:'DM Mono',monospace;font-size:.58rem;color:var(--text-muted)">–</span>
+    </div>
+
+    <!-- Matches -->
+    <div id="matchesSection" style="display:none">
+      <div class="tips-section-title">Következő menet</div>
+      <div class="matches-grid" id="matchesGrid"></div>
+
+      <!-- Tips -->
+      <div class="tips-section-title" style="margin-top:4px">
+        <svg style="width:12px;height:12px;flex-shrink:0" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        AI tippek – 2× 1.5 gól felett &amp; 2× mindkét csapat góloz
+      </div>
+      <div class="tips-grid" id="tipsGrid"></div>
+    </div>
+
+    <div id="tipsLoadingState" class="tips-loading">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span>AI tippek generálása...</span>
+    </div>
+
+    <div id="tipsEmptyState" style="display:none;padding:40px 20px;text-align:center;color:var(--text-muted);font-family:'DM Mono',monospace;font-size:.65rem;line-height:2">
+      Nincs elérhető következő menet<br>
+      <span style="color:#222;font-size:.6rem">Újrapróbálkozás folyamatban...</span>
+    </div>
+  </div>
+
   <div class="error-box" id="errorBox">
-    <svg class="error-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
-      <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
+    <svg class="error-icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
     <span id="errorText"></span>
   </div>
 
-</div><!-- .page -->
+</div>
 
 <script>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CONFIG
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const LLM7_URL = 'https://api.llm7.io/v1/chat/completions';
 const LLM7_KEY = '/WF1cs8NieiVJAvBfBR+n5Fb/vxRW1oSmv3EqtTSTRxWQBGMexqcI4Xivs+BqTXfNYMZI8OUFZpv5YAA0FOjcumYWgcG8AkhePVVO8zCVKQo3GMYfArXw2yPPKY7w3tRvofNvQ==';
+const TIPS_REFRESH_MS = 20000; // 20 mp – ellenőrzi hogy jött-e új menet
 
+// State
 let realStandings = [];
 let lastSeasonId = null;
-let lastTotalPoints = null; // szezonváltás detektáláshoz
+let lastTotalPoints = null;
+let lastRound = null;          // utolsó ismert menet száma
+let tipsRefreshTimer = null;
+let currentTab = 'real';
 
-// ── LLM7 hívás ──────────────────────────────────────────────
-async function callAI(prompt) {
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// LLM7 API
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function callAI(prompt, temp = 0.7) {
   const res = await fetch(LLM7_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${LLM7_KEY}`
-    },
-    body: JSON.stringify({
-      model: 'default',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.9,
-      max_tokens: 4096
-    })
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LLM7_KEY}` },
+    body: JSON.stringify({ model: 'default', messages: [{ role: 'user', content: prompt }], temperature: temp, max_tokens: 2048 })
   });
   if (!res.ok) throw new Error(`LLM7 hiba: ${res.status}`);
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || '';
+  const d = await res.json();
+  return d.choices?.[0]?.message?.content || '';
 }
 
-// ── Segédfüggvények ──────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HELPERS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function gd(gf, ga) {
-  const diff = (gf || 0) - (ga || 0);
-  if (diff > 0) return `<span style="color:#4caf50">+${diff}</span>`;
-  if (diff < 0) return `<span style="color:#e53935">${diff}</span>`;
+  const d = (gf||0)-(ga||0);
+  if (d>0) return `<span style="color:#4caf50">+${d}</span>`;
+  if (d<0) return `<span style="color:#e53935">${d}</span>`;
   return `<span style="color:#2a2a2a">0</span>`;
 }
 function trendHtml(t) {
-  if (t === 'up')   return '<span class="trend-up">▲</span>';
-  if (t === 'down') return '<span class="trend-down">▼</span>';
+  if (t==='up')   return '<span class="trend-up">▲</span>';
+  if (t==='down') return '<span class="trend-down">▼</span>';
   return '<span class="trend-same">—</span>';
 }
 function logoHtml(logo) {
@@ -451,280 +443,400 @@ function logoHtml(logo) {
   return `<img class="team-logo" src="${logo}" alt="" loading="lazy" onerror="this.style.display='none'">`;
 }
 function rowClass(pos, total) {
-  if (pos <= 3) return 'lb-row top3';
-  if (total && pos > total - 3) return 'lb-row relegation';
+  if (pos<=3) return 'lb-row top3';
+  if (total && pos>total-3) return 'lb-row relegation';
   return 'lb-row';
 }
-
-// ── JSON kinyerő (robusztus) ──────────────────────────────────
+function normalizeTeam(r) {
+  return { pos:r.pos, team:r.team, goalsFor:r.goalsFor??r.goals_for??0, goalsAgainst:r.goalsAgainst??r.goals_against??0, pts:r.pts??r.points??r.point??0, trend:r.trend??'same' };
+}
 function extractJSONArray(text) {
-  let s = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  let s = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
   const start = s.indexOf('[');
-  if (start === -1) throw new Error('Nem található JSON tömb');
+  if (start===-1) throw new Error('Nem található JSON tömb');
   s = s.slice(start);
-  try { return JSON.parse(s).map(normalizeTeam); } catch (_) {}
-
-  // Ha csonkított: objektumokat egyenként mentjük ki
+  try { return JSON.parse(s).map(normalizeTeam); } catch(_) {}
   const objects = [];
-  let depth = 0, inStr = false, escape = false, objStart = -1;
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i];
-    if (escape) { escape = false; continue; }
-    if (c === '\\' && inStr) { escape = true; continue; }
-    if (c === '"') { inStr = !inStr; continue; }
+  let depth=0, inStr=false, escape=false, objStart=-1;
+  for (let i=0;i<s.length;i++) {
+    const c=s[i];
+    if (escape){escape=false;continue;}
+    if (c==='\\'&&inStr){escape=true;continue;}
+    if (c==='"'){inStr=!inStr;continue;}
     if (inStr) continue;
-    if (c === '{') { if (depth === 0) objStart = i; depth++; }
-    else if (c === '}') {
-      depth--;
-      if (depth === 0 && objStart !== -1) {
-        try { objects.push(JSON.parse(s.slice(objStart, i + 1))); } catch (_) {}
-        objStart = -1;
-      }
-    }
+    if (c==='{'){if(depth===0)objStart=i;depth++;}
+    else if (c==='}'){depth--;if(depth===0&&objStart!==-1){try{objects.push(JSON.parse(s.slice(objStart,i+1)));}catch(_){}objStart=-1;}}
   }
-  if (objects.length > 0) return objects.map(normalizeTeam);
+  if (objects.length>0) return objects.map(normalizeTeam);
   throw new Error('Nem sikerült érvényes adatokat kinyerni');
 }
-
-// "points" / "pts" / "point" egységesítése
-function normalizeTeam(r) {
-  return {
-    pos:          r.pos,
-    team:         r.team,
-    goalsFor:     r.goalsFor  ?? r.goals_for      ?? 0,
-    goalsAgainst: r.goalsAgainst ?? r.goals_against ?? 0,
-    pts:          r.pts       ?? r.points         ?? r.point ?? 0,
-    trend:        r.trend     ?? 'same'
-  };
+function extractJSONRaw(text) {
+  // Nem normalizál – tippekhez
+  let s = text.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  const start = s.indexOf('[');
+  if (start===-1) throw new Error('Nem található JSON');
+  s = s.slice(start);
+  const end = s.lastIndexOf(']');
+  if (end!==-1) s = s.slice(0, end+1);
+  return JSON.parse(s);
 }
+function nowStr() { return new Date().toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+function showError(msg) { document.getElementById('errorText').textContent=msg; document.getElementById('errorBox').classList.add('show'); }
+function hideError() { document.getElementById('errorBox').classList.remove('show'); }
 
-// ── Szezonváltás detektálás ──────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SEASON DETECTION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function detectSeasonReset(standings, serverSeasonId) {
-  const totalPoints = standings.reduce((s, t) => s + (t.pts || 0), 0);
+  const totalPoints = standings.reduce((s,t)=>s+(t.pts||0),0);
   let isReset = false;
-
-  // Ha szerver visszaküldi a szezon ID-t és változott
-  if (serverSeasonId && lastSeasonId && serverSeasonId !== lastSeasonId) {
-    isReset = true;
-  }
-  // Ha az összes pont drasztikusan lecsökkent (pl. 900 -> 30 = új szezon)
-  if (lastTotalPoints !== null && lastTotalPoints > 100 && totalPoints < lastTotalPoints * 0.3) {
-    isReset = true;
-  }
-
+  if (serverSeasonId && lastSeasonId && serverSeasonId!==lastSeasonId) isReset=true;
+  if (lastTotalPoints!==null && lastTotalPoints>100 && totalPoints<lastTotalPoints*0.3) isReset=true;
   if (isReset) {
     const notice = document.getElementById('seasonNotice');
-    const noticeText = document.getElementById('seasonNoticeText');
-    notice.style.display = 'flex';
-    noticeText.textContent = serverSeasonId
+    document.getElementById('seasonNoticeText').textContent = serverSeasonId
       ? `Új szezon érzékelve (ID: ${serverSeasonId}) – az AI az új adatok alapján elemez`
       : 'Szezonváltás érzékelve – az AI az új adatok alapján elemez';
-    // AI cache törlése: következő generálásnál friss lesz
-    document.getElementById('aiTable').innerHTML =
-      '<div style="padding:32px; text-align:center; color:var(--text-muted); font-size:.72rem; font-family:\'DM Mono\',monospace">Új szezon! Kattints a "Generálás" gombra az AI elemzéshez.</div>';
-    document.getElementById('aiPanel').style.display = 'none';
+    notice.style.display='flex';
+    document.getElementById('aiTable').innerHTML='<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.72rem;font-family:\'DM Mono\',monospace">Új szezon! Kattints a "Generálás" gombra.</div>';
+    document.getElementById('aiPanel').style.display='none';
+    // Tippek tab-ot is reseteljük
+    lastRound = null;
   }
-
-  lastTotalPoints = totalPoints;
-  if (serverSeasonId) lastSeasonId = serverSeasonId;
+  lastTotalPoints=totalPoints;
+  if (serverSeasonId) lastSeasonId=serverSeasonId;
 }
 
-// ── Valódi tabella ───────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// STANDINGS (REAL TABLE)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 async function fetchRealStandings() {
   const res = await fetch('/api/standings?liga=pl');
   if (!res.ok) throw new Error(`API hiba: ${res.status}`);
   const data = await res.json();
-  return { standings: data.standings || [], seasonId: data.seasonId || null };
+  return { standings: data.standings||[], seasonId: data.seasonId||null };
 }
-
 function renderRealTable(standings) {
-  const table = document.getElementById('realTable');
-  const meta  = document.getElementById('realMeta');
-  const time  = document.getElementById('realUpdateTime');
-  if (!standings || standings.length === 0) {
-    table.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:.72rem">Nincs adat</div>';
-    return;
-  }
-  const total = standings.length;
-  table.innerHTML = standings.map((r, i) => `
-    <div class="${rowClass(r.pos, total)}" style="animation-delay:${i * 0.025}s">
+  const table=document.getElementById('realTable'), meta=document.getElementById('realMeta'), time=document.getElementById('realUpdateTime');
+  if (!standings||standings.length===0) { table.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:.72rem">Nincs adat</div>'; return; }
+  const total=standings.length;
+  table.innerHTML=standings.map((r,i)=>`
+    <div class="${rowClass(r.pos,total)}" style="animation-delay:${i*0.025}s">
       <span class="col-pos">${r.pos}</span>
-      <span class="col-trend">${trendHtml(r.trend ?? 'same')}</span>
+      <span class="col-trend">${trendHtml(r.trend??'same')}</span>
       <span class="col-team">${logoHtml(r.logo)}<span class="team-name">${r.team}</span></span>
-      <span class="col-goals">${r.goalsFor ?? '–'}:${r.goalsAgainst ?? '–'}</span>
-      <span class="col-gd">${gd(r.goalsFor, r.goalsAgainst)}</span>
+      <span class="col-goals">${r.goalsFor??'–'}:${r.goalsAgainst??'–'}</span>
+      <span class="col-gd">${gd(r.goalsFor,r.goalsAgainst)}</span>
       <span class="col-pts">${r.pts}</span>
-    </div>
-  `).join('');
-  meta.className = 'lb-meta';
-  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Élő adat';
-  time.textContent = new Date().toLocaleTimeString('hu-HU');
+    </div>`).join('');
+  meta.className='lb-meta';
+  meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Élő adat';
+  time.textContent=nowStr();
 }
-
 async function loadRealTable() {
-  const meta = document.getElementById('realMeta');
-  meta.className = 'lb-meta loading';
-  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Betöltés...';
+  const meta=document.getElementById('realMeta');
+  meta.className='lb-meta loading';
+  meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Betöltés...';
   try {
-    const { standings, seasonId } = await fetchRealStandings();
-    detectSeasonReset(standings, seasonId);
-    realStandings = standings;
+    const {standings,seasonId}=await fetchRealStandings();
+    detectSeasonReset(standings,seasonId);
+    realStandings=standings;
     renderRealTable(standings);
   } catch(e) {
     showError(e.message);
-    meta.className = 'lb-meta error';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
+    meta.className='lb-meta error';
+    meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Hiba';
   }
 }
 
-// ── AI tabella generálás ──────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI TABLE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 async function generateAITable() {
-  const meta    = document.getElementById('aiMeta');
-  const aiTable = document.getElementById('aiTable');
-  const aiPanel = document.getElementById('aiPanel');
-  const time    = document.getElementById('aiUpdateTime');
-
-  meta.className = 'lb-meta loading';
-  meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI generálás...';
-  aiTable.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
-  aiPanel.style.display = 'none';
-  hideError();
-
-  if (realStandings.length === 0) {
-    try {
-      const { standings, seasonId } = await fetchRealStandings();
-      detectSeasonReset(standings, seasonId);
-      realStandings = standings;
-    } catch(e) {
-      showError(`Nem sikerült betölteni a valódi adatokat: ${e.message}`);
-      meta.className = 'lb-meta error';
-      return;
-    }
+  const meta=document.getElementById('aiMeta'), aiTable=document.getElementById('aiTable'), aiPanel=document.getElementById('aiPanel'), time=document.getElementById('aiUpdateTime');
+  meta.className='lb-meta loading';
+  meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI generálás...';
+  aiTable.innerHTML='<div class="dots"><span></span><span></span><span></span></div>';
+  aiPanel.style.display='none'; hideError();
+  if (realStandings.length===0) {
+    try { const {standings,seasonId}=await fetchRealStandings(); detectSeasonReset(standings,seasonId); realStandings=standings; }
+    catch(e) { showError(`Valódi adatok betöltése sikertelen: ${e.message}`); meta.className='lb-meta error'; return; }
   }
-
-  const allTeamsData = realStandings.map(t =>
-    `${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`
-  ).join('\n');
-
-  const totalPts = realStandings.reduce((s, t) => s + (t.pts || 0), 0);
-  const seasonNote = totalPts < 50
-    ? 'FONTOS: Ez egy ÚJ szezon eleje, nagyon kevés meccset játszottak. Becsüld meg a teljes szezon végét!'
-    : 'Becsüld meg a szezon végét a mostani teljesítmény alapján!';
-
-  const prompt = `Te egy virtuális futball liga profi elemzője vagy. A jelenlegi tabella alapján készíts SAJÁT, FÜGGETLEN előrejelzést a szezon végére!
-
-JELENLEGI TABELLA:
-${allTeamsData}
-
-${seasonNote}
-
-SZABÁLYOK – KÖTELEZŐ BETARTANI:
-1. A sorrend VÁLTOZZON JELENTŐSEN – legalább 5 csapat kerüljön más helyre mint jelenleg!
-2. A pontok és gólok KÜLÖNBÖZZENEK – add hozzá a becsült hátralévő meccsek pontjait!
-3. Egy jelenlegi középcsapat kerüljön fel, egy top csapat essen vissza!
-4. trend: "up" ha feljebb kerül a jelenleginél, "down" ha lejjebb, "same" ha nagyjából marad
-5. TILOS a valós tabella egyszerű lemásolása!
-
-Válaszolj KIZÁRÓLAG kompakt JSON tömbbel (egy sorban), semmi más szöveg:
-[{"pos":1,"team":"CsapatNév","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},{"pos":2,...}]`;
-
+  const allTeamsData=realStandings.map(t=>`${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n');
+  const totalPts=realStandings.reduce((s,t)=>s+(t.pts||0),0);
+  const seasonNote=totalPts<50?'FONTOS: ÚJ szezon eleje. Becsüld a teljes szezon végét!':'Becsüld a szezon végét!';
+  const prompt=`Te egy virtuális futball liga profí elemzője vagy. A jelenlegi tabella alapján készíts SAJÁT, FÜGGETLEN előrejelzést a szezon végére!\n\nJELENLEGI TABELLA:\n${allTeamsData}\n\n${seasonNote}\n\nSZABÁLYOK:\n1. Sorrend VÁLTOZZON – legalább 5 csapat kerüljön más helyre!\n2. Pontok és gólok KÜLÖNBÖZZENEK a valóstól!\n3. Egy középcsapat kerüljön fel, egy top csapat essen vissza!\n4. trend: "up"/"down"/"same"\n5. TILOS a valós adatok másolása!\n\nVálaszolj KIZÁRÓLAG kompakt JSON tömbbel:\n[{"pos":1,"team":"Név","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},...]`;
   try {
-    const text = await callAI(prompt);
-    console.log('LLM7 nyers válasz:', text);
-
-    const aiStandings = extractJSONArray(text);
-    if (!aiStandings || aiStandings.length === 0) throw new Error('Üres tabella érkezett');
-
-    renderAITable(aiStandings);
-    await generateAnalysis(aiStandings);
-
-    meta.className = 'lb-meta';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>AI becslés';
-    time.textContent = new Date().toLocaleTimeString('hu-HU');
-
+    const text=await callAI(prompt, 0.9);
+    const aiStandings=extractJSONArray(text);
+    if (!aiStandings||aiStandings.length===0) throw new Error('Üres tabella');
+    const total=aiStandings.length;
+    aiTable.innerHTML=aiStandings.map((r,i)=>`
+      <div class="${rowClass(r.pos,total)}" style="animation-delay:${i*0.025}s">
+        <span class="col-pos">${r.pos}</span>
+        <span class="col-trend">${trendHtml(r.trend)}</span>
+        <span class="col-team"><span class="team-logo-placeholder"></span><span class="team-name">${r.team}</span></span>
+        <span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span>
+        <span class="col-gd">${gd(r.goalsFor,r.goalsAgainst)}</span>
+        <span class="col-pts">${r.pts}</span>
+      </div>`).join('');
+    meta.className='lb-meta';
+    meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI becslés';
+    time.textContent=nowStr();
+    // Szöveges elemzés
+    const top3=aiStandings.slice(0,3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
+    const bot3=aiStandings.slice(-3).map(t=>`${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
+    const analText=await callAI(`Rövid elemzés MAGYARUL (max 4 mondat):\nTop 3: ${top3}\nUtolsó 3: ${bot3}\nMiért lehetnek ilyen helyzetben?`);
+    if (analText) { document.getElementById('aiBody').innerHTML=analText.replace(/\n/g,'<br>'); aiPanel.style.display='block'; }
   } catch(e) {
-    console.error('Generálási hiba:', e);
-    showError(e.message);
-    meta.className = 'lb-meta error';
-    meta.querySelector('span:first-child').innerHTML = '<span class="refresh-dot"></span>Hiba';
-    aiTable.innerHTML = '<div style="padding:32px; text-align:center; color:var(--text-muted); font-size:.72rem; font-family:\'DM Mono\',monospace">Hiba. Próbáld újra.</div>';
+    showError(e.message); meta.className='lb-meta error';
+    meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Hiba';
+    aiTable.innerHTML='<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.72rem;font-family:\'DM Mono\',monospace">Hiba. Próbáld újra.</div>';
   }
 }
 
-function renderAITable(standings) {
-  const table = document.getElementById('aiTable');
-  if (!standings || standings.length === 0) {
-    table.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted)">Nincs adat</div>';
-    return;
-  }
-  const total = standings.length;
-  table.innerHTML = standings.map((r, i) => `
-    <div class="${rowClass(r.pos, total)}" style="animation-delay:${i * 0.025}s">
-      <span class="col-pos">${r.pos}</span>
-      <span class="col-trend">${trendHtml(r.trend)}</span>
-      <span class="col-team">
-        <span class="team-logo-placeholder"></span>
-        <span class="team-name">${r.team}</span>
-      </span>
-      <span class="col-goals">${r.goalsFor}:${r.goalsAgainst}</span>
-      <span class="col-gd">${gd(r.goalsFor, r.goalsAgainst)}</span>
-      <span class="col-pts">${r.pts}</span>
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MATCHES FETCHING – from /api/matches
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function fetchNextMatches() {
+  const res = await fetch('/api/matches');
+  if (!res.ok) throw new Error(`Meccs API hiba: ${res.status}`);
+  const data = await res.json();
+  return data; // { nextFixtures, nextRound, recentResults, ... }
+}
+
+function logoUrl(id) {
+  if (!id) return null;
+  return `https://vgls.betradar.com/ls/s5_crest/scigamingvirtuals/medium/${id}.png`;
+}
+
+function renderMatches(fixtures) {
+  const grid = document.getElementById('matchesGrid');
+  grid.innerHTML = fixtures.map((m, i) => `
+    <div class="match-card" style="animation-delay:${i*0.04}s" id="match-${i}">
+      <div class="match-home">
+        <span class="match-team-name">${m.home}</span>
+        ${m.hid ? `<img class="match-logo" src="${logoUrl(m.hid)}" alt="" onerror="this.style.display='none'">` : '<span class="match-logo-ph"></span>'}
+      </div>
+      <div class="match-center">
+        ${m.time ? `<div class="match-time">${m.time}</div>` : ''}
+        <div class="match-vs">VS</div>
+      </div>
+      <div class="match-away">
+        ${m.aid ? `<img class="match-logo" src="${logoUrl(m.aid)}" alt="" onerror="this.style.display='none'">` : '<span class="match-logo-ph"></span>'}
+        <span class="match-team-name">${m.away}</span>
+      </div>
     </div>
   `).join('');
 }
 
-async function generateAnalysis(standings) {
-  const aiPanel = document.getElementById('aiPanel');
-  const aiBody  = document.getElementById('aiBody');
-  const top3 = standings.slice(0, 3).map(t => `${t.pos}. ${t.team} (${t.pts} pont)`).join(', ');
-  const bot3 = standings.slice(-3).map(t => `${t.pos}. ${t.team} (${t.pts} pont)`).join(', ');
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI TIPS GENERATION
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function generateTips(fixtures, standings) {
+  const tipsGrid = document.getElementById('tipsGrid');
+  tipsGrid.innerHTML = '<div class="dots"><span></span><span></span><span></span></div>';
 
-  const prompt = `Rövid elemzés MAGYARUL (max 4 mondat):
-Top 3: ${top3}
-Utolsó 3: ${bot3}
-Miért lehetnek ezek a csapatok ilyen helyzetben a következő körökben?`;
+  // Tabella összefoglaló az AI-nak
+  const standingsSummary = standings.length > 0
+    ? standings.slice(0, 8).map(t=>`${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor||0}:${t.goalsAgainst||0}`).join('\n')
+    : 'Nincs tabella adat';
+
+  const matchList = fixtures.map(m=>`${m.home} vs ${m.away}`).join('\n');
+
+  const prompt = `Te egy virtuális futball liga profí tipp-elemzője vagy. A következő menet meccseiből adj 4 tippet MAGYARUL.
+
+MECCSEK:
+${matchList}
+
+TABELLA (top 8):
+${standingsSummary}
+
+SZABÁLYOK:
+- Adj pontosan 2 db "1.5 gól felett" (over 1.5) tippet – válaszd a legvalószínűbb 2 meccset
+- Adj pontosan 2 db "mindkét csapat góloz" (BTTS - both teams score) tippet – válaszd a legvalószínűbb 2 meccset
+- Különböző meccsekre is lehet, vagy ugyanarra is – ami logikusabb
+- Adj 50-95% közötti megbízhatósági %-ot minden tipphez
+- Adj 1 mondatos MAGYAR indoklást minden tipphez
+
+Válaszolj KIZÁRÓLAG kompakt JSON tömbként (nincs más szöveg):
+[
+  {"type":"over15","match":"Hazai vs Vendég","label":"1.5 gól felett","confidence":78,"reason":"Mindkét csapat sokat támad és gyenge a védekezésük."},
+  {"type":"over15","match":"Hazai vs Vendég","label":"1.5 gól felett","confidence":72,"reason":"..."},
+  {"type":"btts","match":"Hazai vs Vendég","label":"Mindkét csapat góloz","confidence":68,"reason":"..."},
+  {"type":"btts","match":"Hazai vs Vendég","label":"Mindkét csapat góloz","confidence":65,"reason":"..."}
+]`;
 
   try {
-    const text = await callAI(prompt);
-    if (text) {
-      aiBody.innerHTML = text.replace(/\n/g, '<br>');
-      aiPanel.style.display = 'block';
-    }
+    const text = await callAI(prompt, 0.8);
+    console.log('Tips AI válasz:', text);
+
+    let tips;
+    try { tips = extractJSONRaw(text); }
+    catch(e) { throw new Error('Tipp JSON parse hiba'); }
+
+    if (!tips || tips.length === 0) throw new Error('Üres tippek');
+
+    tipsGrid.innerHTML = tips.slice(0,4).map((tip, i) => {
+      const isOver = tip.type === 'over15';
+      const conf = Math.min(95, Math.max(50, parseInt(tip.confidence)||70));
+      return `
+        <div class="tip-card ${tip.type}" style="animation-delay:${i*0.08}s">
+          <div class="tip-type ${tip.type}">
+            ${isOver
+              ? `<svg class="tip-type-icon" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+              : `<svg class="tip-type-icon" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M8 12s1-2 4-2 4 2 4 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`
+            }
+            ${isOver ? '1.5 GÓL FELETT' : 'MINDKÉT CSAPAT GÓLOZ'}
+          </div>
+          <div class="tip-match">${tip.match||''}</div>
+          <div class="tip-confidence">
+            <div class="tip-conf-bar"><div class="tip-conf-fill" style="width:${conf}%"></div></div>
+            <span class="tip-conf-pct">${conf}%</span>
+          </div>
+          <div class="tip-reason">${tip.reason||''}</div>
+        </div>`;
+    }).join('');
+
+    // Match card-okon jelöljük a tippelt meccseket
+    tips.forEach(tip => {
+      const matchName = tip.match || '';
+      document.querySelectorAll('.match-card').forEach(card => {
+        const home = card.querySelector('.match-home .match-team-name')?.textContent||'';
+        const away = card.querySelector('.match-away .match-team-name')?.textContent||'';
+        if (matchName.includes(home) || matchName.includes(away)) {
+          card.classList.add('has-tip');
+        }
+      });
+    });
+
   } catch(e) {
-    aiPanel.style.display = 'none';
+    console.error('Tips hiba:', e);
+    tipsGrid.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text-muted);font-size:.72rem;font-family:'DM Mono',monospace">Tippek generálása sikertelen.<br><span style="color:#222;font-size:.6rem">${e.message}</span></div>`;
   }
 }
 
-// ── Hibakezelés ───────────────────────────────────────────────
-function showError(msg) {
-  const box = document.getElementById('errorBox');
-  document.getElementById('errorText').textContent = msg;
-  box.classList.add('show');
-}
-function hideError() {
-  document.getElementById('errorBox').classList.remove('show');
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TIPS TAB – MAIN LOAD + AUTO REFRESH
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+async function loadTips(forceRefresh = false) {
+  const dot = document.getElementById('tipsDot');
+  const statusText = document.getElementById('tipsStatusText');
+  const updateTime = document.getElementById('tipsUpdateTime');
+  const matchesSection = document.getElementById('matchesSection');
+  const loadingState = document.getElementById('tipsLoadingState');
+  const emptyState = document.getElementById('tipsEmptyState');
+  const roundBadge = document.getElementById('tipsRoundBadge');
+
+  dot.style.background = 'var(--amber)';
+  statusText.textContent = 'Meccsek betöltése...';
+
+  try {
+    const data = await fetchNextMatches();
+    const fixtures = data.nextFixtures || [];
+    const round = data.nextRound;
+
+    // Ha nincs következő menet
+    if (fixtures.length === 0) {
+      loadingState.style.display = 'none';
+      matchesSection.style.display = 'none';
+      emptyState.style.display = 'block';
+      dot.style.background = 'var(--text-muted)';
+      statusText.textContent = 'Nincs következő menet';
+      updateTime.textContent = nowStr();
+      return;
+    }
+
+    // Ha ugyanaz a menet és nem force refresh, kihagyjuk az AI hívást
+    if (round === lastRound && !forceRefresh) {
+      dot.style.background = 'var(--green)';
+      statusText.textContent = `${round}. menet – nincs változás`;
+      updateTime.textContent = nowStr();
+      return;
+    }
+
+    // ÚJ MENET vagy force refresh – mindent frissítünk
+    lastRound = round;
+    loadingState.style.display = 'flex';
+    matchesSection.style.display = 'none';
+    emptyState.style.display = 'none';
+
+    // Round badge
+    if (round) {
+      roundBadge.textContent = `${round}. MENET`;
+      roundBadge.style.display = 'inline-block';
+    }
+
+    // Render matches first
+    matchesSection.style.display = 'block';
+    loadingState.style.display = 'none';
+    renderMatches(fixtures);
+
+    // AI tippek generálása a standings-szel együtt
+    statusText.textContent = 'AI tippek generálása...';
+    dot.style.background = 'var(--amber)';
+
+    // Standings betöltése ha kell
+    if (realStandings.length === 0) {
+      try { const {standings} = await fetchRealStandings(); realStandings = standings; } catch(_) {}
+    }
+
+    await generateTips(fixtures, realStandings);
+
+    dot.style.background = 'var(--green)';
+    statusText.textContent = `${round ? round + '. menet' : 'Következő menet'} – AI tippek kész`;
+    updateTime.textContent = nowStr();
+
+  } catch(e) {
+    console.error('Tips load hiba:', e);
+    loadingState.style.display = 'none';
+    emptyState.style.display = 'block';
+    dot.style.background = 'var(--red)';
+    statusText.textContent = `Hiba: ${e.message}`;
+    updateTime.textContent = nowStr();
+  }
 }
 
-// ── Tab váltás ────────────────────────────────────────────────
-function showRealTable() {
-  document.getElementById('realTableContainer').style.display = 'block';
-  document.getElementById('aiTableContainer').style.display = 'none';
-  document.getElementById('realTab').classList.add('active');
-  document.getElementById('aiTab').classList.remove('active');
-}
-function showAITable() {
-  document.getElementById('realTableContainer').style.display = 'none';
-  document.getElementById('aiTableContainer').style.display = 'block';
-  document.getElementById('realTab').classList.remove('active');
-  document.getElementById('aiTab').classList.add('active');
+// Periodikus ellenőrzés – ha új menet jött, frissít
+async function checkForNewRound() {
+  if (currentTab !== 'tips') return;
+  try {
+    const data = await fetchNextMatches();
+    const round = data.nextRound;
+    if (round && round !== lastRound) {
+      console.log(`Új menet érzékelve: ${round} (volt: ${lastRound}) – tippek frissítése`);
+      await loadTips(true);
+    }
+  } catch(_) {}
 }
 
-// ── Init ──────────────────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TAB SWITCHING
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function showTab(tab) {
+  currentTab = tab;
+  ['real','ai','tips'].forEach(t => {
+    document.getElementById(t+'Container').style.display = t===tab ? 'block' : 'none';
+    document.getElementById(t+'Tab').classList.toggle('active', t===tab);
+  });
+  if (tab === 'tips' && lastRound === null) {
+    loadTips(true);
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INIT
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 document.addEventListener('DOMContentLoaded', () => {
   loadRealTable();
   document.getElementById('refreshRealBtn').addEventListener('click', loadRealTable);
   document.getElementById('generateAIBtn').addEventListener('click', generateAITable);
+
+  // Tabella 30mp-es frissítés
   setInterval(loadRealTable, 30000);
+
+  // Tippek: 20mp-enként ellenőrzi jött-e új menet
+  setInterval(checkForNewRound, TIPS_REFRESH_MS);
 });
 </script>
 </body>
