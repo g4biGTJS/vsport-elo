@@ -113,7 +113,7 @@ function parsePL(html) {
     if (hiddenTds.length >= 2) {
       goalsFor     = hiddenTds[0].val;
       goalsAgainst = hiddenTds[1].val;
-      pts          = visibleTds[visibleTds.length - 1]?.val ?? 0;
+      pts          = tdList[tdList.length - 1]?.val ?? 0;  // FIX: mindig az utolsó TD a pont
     } else {
       goalsFor     = tdList[4]?.val ?? 0;
       goalsAgainst = tdList[5]?.val ?? 0;
