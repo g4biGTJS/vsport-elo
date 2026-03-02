@@ -39,13 +39,17 @@ async function kvGet(key) {
   const res = await fetch(kvUrl(`/get/${key}`), { headers: kvHeaders(), signal: AbortSignal.timeout(5000) });
   if (!res.ok) return null;
   const data = await res.json();
-  return data.result ?? null;
+  const result = data.result ?? null;
+  if (!result) return null;
+  // Ha az Upstash {value: "..."} formában adja vissza
+  if (typeof result === 'object' && result.value !== undefined) return result.value;
+  return result;
 }
 async function kvSet(key, value) {
-  const res = await fetch(kvUrl(`/set/${key}`), {
+  const encoded = encodeURIComponent(value);
+  const res = await fetch(kvUrl(`/set/${key}/${encoded}`), {
     method: 'POST',
     headers: kvHeaders(),
-    body: JSON.stringify({ value }),
     signal: AbortSignal.timeout(5000),
   });
   return res.ok;
