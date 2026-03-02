@@ -273,18 +273,22 @@ export default async function handler(req) {
         if (rawMeta) {
           let meta = null;
           try { meta = JSON.parse(rawMeta); } catch (e) {}
-          if (meta && meta.basedOnFingerprint === currentFP) {
-            const rawPred = await kvGet(AI_KEY);
-            if (rawPred) {
-              let prediction = null;
-              try { prediction = JSON.parse(rawPred); } catch (e) {}
-              if (prediction) {
-                return new Response(JSON.stringify({
-                  prediction,
-                  meta,
-                  regenerated: false,
-                  reason: 'already_current',
-                }), { status: 200, headers: corsHeaders });
+          if (meta) {
+            // Szezonváltás: ha a seasonId megváltozott, mindig újragenerálunk
+            const seasonChanged = seasonId && meta.seasonId && String(seasonId) !== String(meta.seasonId);
+            if (!seasonChanged && meta.basedOnFingerprint === currentFP) {
+              const rawPred = await kvGet(AI_KEY);
+              if (rawPred) {
+                let prediction = null;
+                try { prediction = JSON.parse(rawPred); } catch (e) {}
+                if (prediction) {
+                  return new Response(JSON.stringify({
+                    prediction,
+                    meta,
+                    regenerated: false,
+                    reason: 'already_current',
+                  }), { status: 200, headers: corsHeaders });
+                }
               }
             }
           }
