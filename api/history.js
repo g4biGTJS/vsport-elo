@@ -1,13 +1,13 @@
 // api/history.js – Vercel Edge Function
-// Visszaadja a szerver oldalon tárolt snapshot históriát.
-// Szükséges env változók: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+// GET              → visszaadja a globális snapshot históriát (Redis)
+// GET ?clear=1     → törli a históriát (Redis)
 
 export const config = { runtime: 'edge' };
 
 const corsHeaders = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
-  'Cache-Control': 's-maxage=30, stale-while-revalidate=60',
+  'Cache-Control': 'no-store',
 };
 
 async function kv(cmd, ...args) {
@@ -29,14 +29,23 @@ export default async function handler(req) {
     return new Response(null, { status: 204, headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'GET, OPTIONS' } });
   }
 
+  const { searchParams } = new URL(req.url);
+
   try {
+    // Törlés
+    if (searchParams.get('clear') === '1') {
+      await kv('DEL', 'vsport:history');
+      return new Response(JSON.stringify({ ok: true, cleared: true }), { status: 200, headers: corsHeaders });
+    }
+
+    // Olvasás
     const raw = await kv('GET', 'vsport:history');
     const history = raw ? JSON.parse(raw) : { seasonId: null, snapshots: [] };
 
     return new Response(JSON.stringify(history), { status: 200, headers: corsHeaders });
+
   } catch (error) {
     console.error('[history] Error:', error.message);
-    // Hiba esetén üres történetet adunk vissza (a kliens localStorage-t használ fallback-ként)
     return new Response(
       JSON.stringify({ seasonId: null, snapshots: [], error: error.message }),
       { status: 200, headers: corsHeaders }
