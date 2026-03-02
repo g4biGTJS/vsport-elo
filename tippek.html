@@ -294,7 +294,7 @@
         <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="currentColor" stroke="currentColor" stroke-width="0.5"/></svg>
         AI Előrejelzés
         <span class="ai-badge-pill">LLM7</span>
-        <span class="global-badge">🌐 GLOBÁLIS</span>
+        <span class="global-badge">GLOBÁLIS</span>
       </div>
     </div>
     <div class="season-notice" id="seasonNotice" style="display:none">
@@ -333,7 +333,7 @@
       <div class="section-title">
         <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         Liga Történetek
-        <span class="global-badge">🌐 GLOBÁLIS</span>
+        <span class="global-badge">GLOBÁLIS</span>
       </div>
       <button class="btn" onclick="fetchAndRenderHistory()">
         <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -466,17 +466,30 @@ function detectChanges(standings,serverSeasonId){
   const totalPts=standings.reduce((s,t)=>s+(t.pts||0),0);
   const fp=calcFP(standings);
   let changeType=null;
-  if(serverSeasonId&&lastSeasonId&&serverSeasonId!==lastSeasonId)changeType='season';
-  if(lastTotalPoints!==null&&lastTotalPoints>100&&totalPts<lastTotalPoints*.3)changeType='season';
-  if(!changeType&&lastRoundFingerprint!==null&&lastRoundFingerprint!==fp)changeType='round';
-  // Mentsük a fordulatot globálisan
-  if(changeType&&prevStandingsForHistory&&prevStandingsForHistory.length>0){
-    buildAndSaveEntry(prevStandingsForHistory,standings,changeType,serverSeasonId);
+
+  // Szezonváltás: ID változás (csak ha mindkettő érvényes, nem null/undefined)
+  const validIdChange = serverSeasonId && lastSeasonId && String(serverSeasonId) !== String(lastSeasonId);
+  // Szezonváltás: pontok drasztikus visszaesése (pl. új szezon reset)
+  const pointsReset = lastTotalPoints !== null && lastTotalPoints > 80 && totalPts < lastTotalPoints * 0.25;
+
+  if(validIdChange || pointsReset) changeType='season';
+
+  // Fordulóváltás: fingerprint változás (csak ha nem szezonváltás és volt már adat)
+  if(!changeType && lastRoundFingerprint !== null && lastRoundFingerprint !== fp) changeType='round';
+
+  // Csak akkor mentünk, ha volt előző adat ÉS valódi változás van
+  if(changeType && prevStandingsForHistory && prevStandingsForHistory.length > 0){
+    // Extra ellenőrzés: ne mentsük ha a new standings üres
+    if(standings.length > 0){
+      buildAndSaveEntry(prevStandingsForHistory, standings, changeType, serverSeasonId);
+    }
   }
-  prevStandingsForHistory=standings.slice();
-  lastTotalPoints=totalPts;
-  if(serverSeasonId)lastSeasonId=serverSeasonId;
-  lastRoundFingerprint=fp;
+
+  prevStandingsForHistory = standings.slice();
+  lastTotalPoints = totalPts;
+  // SeasonId frissítése csak ha érvényes
+  if(serverSeasonId) lastSeasonId = serverSeasonId;
+  lastRoundFingerprint = fp;
   return changeType;
 }
 
@@ -594,8 +607,9 @@ async function loadRealTable(triggerAIIfChanged=true){
         document.getElementById('seasonNoticeText').textContent=seasonId?`Új szezon (ID: ${seasonId})`:'Szezonváltás';
         document.getElementById('seasonNotice').style.display='flex';
       }
-      showToast(changeType==='season'?'🔄 Új szezon! AI előrejelzés frissítése...':'⚡ Új forduló! AI előrejelzés frissítése...',6000);
+      showToast(changeType==='season'?'Új szezon! AI előrejelzés frissítése...':'Új forduló! AI előrejelzés frissítése...',6000);
       setAutoBadge('syncing');
+      // Szezonváltáskor mindig force=true, fordulóváltáskor is force=true (új adatok vannak)
       setTimeout(()=>generateGlobalAI(true),1000);
     }
   }catch(e){
@@ -627,7 +641,7 @@ async function generateGlobalAI(forceNew=false){
     if(!result.prediction?.standings?.length)throw new Error('Üres AI válasz');
     renderAITable(result.prediction);
     setAutoBadge('active');
-    if(result.regenerated)showToast('✓ AI előrejelzés frissítve (globális)',3000);
+    if(result.regenerated)showToast('AI előrejelzés frissítve (globális)',3000);
   }catch(e){
     showError(e.message);
     meta.className='lb-meta error';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Hiba';
@@ -669,7 +683,7 @@ async function fetchAndRenderHistory(){
         const d=new Date(e.timestamp);
         const ds=d.toLocaleDateString('hu-HU',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
         const isNewSeason=e.changeType==='season';
-        if(isNewSeason&&idx>0)html+=`<div class="history-new-season">🔄 Szezonváltás érzékelve – ${ds}</div>`;
+        if(isNewSeason&&idx>0)html+=`<div class="history-new-season">SZEZONVÁLTÁS ÉRZÉKELVE – ${ds}</div>`;
         const up=(e.movers||[]).filter(m=>m.dir==='up').slice(0,6);
         const dn=(e.movers||[]).filter(m=>m.dir==='down').slice(0,6);
         const moversHtml=[
@@ -711,7 +725,7 @@ async function fetchAndRenderHistory(){
         }
         html+=`<div class="history-card">
           <div class="history-card-header">
-            <span class="history-round-label">${isNewSeason?'🔄 Szezonváltás':'⚡ Fordulóváltás'}</span>
+            <span class="history-round-label">${isNewSeason?'SZEZONVÁLTÁS':'FORDULÓVÁLTÁS'}</span>
             <span class="history-round-time">${ds}</span>
           </div>
           <div class="history-card-body">
@@ -738,7 +752,7 @@ async function fetchAndRenderHistory(){
     if(firstWrap&&firstBtn){firstWrap.classList.add('open');firstBtn.classList.add('open');firstBtn.querySelector('svg').style.transform='rotate(180deg)';}
   }catch(err){
     console.error('[History render]',err);
-    list.innerHTML=`<div class="history-empty">⚠ Betöltési hiba: ${err.message}</div>`;
+    list.innerHTML=`<div class="history-empty">Betöltési hiba: ${err.message}</div>`;
   }
 }
 
