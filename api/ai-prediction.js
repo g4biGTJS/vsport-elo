@@ -100,15 +100,39 @@ async function getHistoryContext() {
     if (!raw) return '';
     const entries = JSON.parse(raw);
     if (!Array.isArray(entries) || !entries.length) return '';
-    const recent = entries.slice(0, 8);
-    const lines = recent.map(e => {
+
+    // Utolsó 6 forduló teljes tabelláival
+    const recent = entries.slice(0, 6);
+    const lines = recent.map((e, idx) => {
       const d = new Date(e.timestamp);
       const dateStr = d.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
-      const moversStr = (e.movers || []).slice(0, 5).map(m => `${m.team}(${m.fromPos}→${m.toPos})`).join(', ');
-      const top3Str = (e.top3 || []).map(t => `${t.pos}.${t.team}(${t.pts}pt)`).join(', ');
-      return `  [${dateStr}] Top3: ${top3Str}${moversStr ? ` | Mozdulatok: ${moversStr}` : ''}`;
+      const roundLabel = idx === 0 ? 'LEGUTÓBBI FORDULÓ' : `${idx + 1}. korábbi`;
+
+      // Teljes standings snapshot ha van
+      const snap = e.standingsSnapshot || [];
+      let standingsStr = '';
+      if (snap.length) {
+        standingsStr = snap.map(t => {
+          const gd = (t.goalsFor || 0) - (t.goalsAgainst || 0);
+          const gdStr = gd >= 0 ? `+${gd}` : String(gd);
+          return `    ${String(t.pos).padStart(2)}. ${t.team}: ${t.pts}pt  ${t.goalsFor||0}:${t.goalsAgainst||0}(${gdStr})`;
+        }).join('\n');
+      } else {
+        // Fallback régi formátum
+        standingsStr = (e.top3 || []).map(t => `    ${t.pos}. ${t.team}: ${t.pts}pt`).join('\n');
+      }
+
+      // Változások
+      const moversStr = (e.movers || [])
+        .filter(m => m.dir !== 'same')
+        .slice(0, 6)
+        .map(m => `${m.team}(${m.fromPos}→${m.toPos}${m.ptsDiff ? `,+${m.ptsDiff}pt` : ''})`)
+        .join(', ');
+
+      return `\n  [${dateStr} – ${roundLabel}]\n${standingsStr}${moversStr ? `\n  Elmozdulások: ${moversStr}` : ''}\n  ÖsszPont: ${e.totalPts||'?'}, Gólok: ${e.totalGoalsFor||'?'}:${e.totalGoalsAgainst||'?'}`;
     });
-    return `\nLIGA ELŐZMÉNYEK (utolsó ${recent.length} forduló):\n${lines.join('\n')}\n`;
+
+    return `\n═══ LIGA ELŐZMÉNYEK (utolsó ${recent.length} forduló – teljes tabella) ═══\n${lines.join('\n')}\n═══ VÉGE ═══\n`;
   } catch (e) {
     console.warn('[getHistoryContext]', e.message);
     return '';
@@ -122,22 +146,29 @@ async function generatePrediction(standings, seasonId) {
   const totalPts = standings.reduce((s, t) => s + (t.pts || 0), 0);
   const seasonNote = totalPts < 50 ? 'MEGJEGYZÉS: Szezon eleje, kevés meccsel. Becsüld a várható szezonvégi állást!' : '';
 
-  const prompt = `Te egy virtuális futball liga profí elemzője vagy. A jelenlegi tabella alapján készíts előrejelzést a szezon végére!
+  const prompt = `Te egy virtuális futball liga profi elemzője vagy. A teljes historikus adatok alapján készíts szezonvégi előrejelzést!
 
-JELENLEGI TABELLA:
+JELENLEGI TABELLA (${standings.length} csapat):
 ${allTeamsData}
 ${historyContext}
 ${seasonNote}
 
-FELADAT:
-Elemezd az aktuális állást és a liga történetét, majd adj egy valósághű, független szezonvégi előrejelzést.
-- Figyelj a trendekre (ki emelkedik, ki visszaeshet)
-- Ha vannak előzmények, használd fel a mintákat
-- Az előrejelzés lehet hasonló a jelenlegihez, ha az adatok ezt indokolják
-- trend mező: "up" (emelkedő forma), "down" (visszaeső), "same" (stagnáló)
+ELEMZÉSI FELADAT:
+1. Vizsgáld meg a TRENDEKET: ki emelkedik, ki esik vissza, ki stagnál
+2. Nézd meg a GÓL-STATISZTIKÁKAT: melyik csapat támadó/védekező ereje nő vagy csökken
+3. Használd fel a HISTORIKUS FORDULÓKAT (ha vannak): milyen minta látszik?
+4. Becsüld a SZEZONVÉGI állást realisztikusan
 
-Válaszolj KIZÁRÓLAG kompakt JSON tömbbel, minden mező SZÁM legyen:
-[{"pos":1,"team":"Név","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},...]`;
+SZABÁLYOK:
+- trend mező: "up" (emelkedő), "down" (visszaeső), "same" (stagnáló)
+- A pontszámok legyenek realisztikusak a jelenlegi álláshoz képest
+- A gólok is legyenek arányosak
+- Ha a szezon eleje van, extrapolálj a teljes szezonra
+
+Válaszolj KIZÁRÓLAG valid JSON tömbbel, semmi más szöveg:
+[{"pos":1,"team":"Csapatnév","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},...]
+
+FONTOS: pontosan ${standings.length} csapatot adj vissza, mindegyiket!`;
 
   const text = await callAI(prompt);
   const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
@@ -174,9 +205,11 @@ Válaszolj KIZÁRÓLAG kompakt JSON tömbbel, minden mező SZÁM legyen:
   }
 
   // Elemzés szöveg
-  const top3 = aiStandings.slice(0, 3).map(t => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
-  const bot3 = aiStandings.slice(-3).map(t => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
-  const analysisPrompt = `Rövid elemzés MAGYARUL (max 4 mondat):\nAI előrejelzés – Top 3: ${top3}\nUtolsó 3: ${bot3}${historyContext}\nMiért lehetnek ilyen helyzetben a szezon végén?`;
+  const top3 = aiStandings.slice(0, 3).map(t => `${t.pos}. ${t.team} (${t.pts}pt, ${t.goalsFor}:${t.goalsAgainst})`).join(', ');
+  const bot3 = aiStandings.slice(-3).map(t => `${t.pos}. ${t.team} (${t.pts}pt, ${t.goalsFor}:${t.goalsAgainst})`).join(', ');
+  const upTeams = aiStandings.filter(t => t.trend === 'up').map(t => t.team).join(', ') || 'nincs';
+  const downTeams = aiStandings.filter(t => t.trend === 'down').map(t => t.team).join(', ') || 'nincs';
+  const analysisPrompt = `Rövid elemzés MAGYARUL (max 4-5 mondat, legyen konkrét és informatív):\nAI előrejelzés – Top 3: ${top3}\nKieső zóna: ${bot3}\nEmelkedő trend: ${upTeams}\nCsökkenő trend: ${downTeams}${historyContext}\nMiért lehetnek ilyen helyzetben a szezon végén? Milyen trendek vezethetek ide?`;
   const analysis = await callAI(analysisPrompt, 0.7);
 
   return {
