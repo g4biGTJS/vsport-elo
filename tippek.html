@@ -550,6 +550,41 @@ function saveHistory(h) {
   try { localStorage.setItem(LS_KEY, JSON.stringify(h)); } catch(e) {}
 }
 
+// ── Szerver históriát beolvassa és összefésüli a localStorage-szal ─────────
+async function loadAndMergeServerHistory() {
+  try {
+    const res = await fetch('/api/history');
+    if (!res.ok) return;
+    const serverH = await res.json();
+    if (!serverH.snapshots || !serverH.snapshots.length) return;
+
+    const localH = loadHistory();
+
+    // Ha a szerver más szezonhoz van → cseréljük le teljesen
+    if (serverH.seasonId && localH.seasonId && serverH.seasonId !== localH.seasonId) {
+      saveHistory(serverH);
+      return;
+    }
+
+    // Összefésülés: timestamp alapján egyesítjük, deduplikálva
+    const allSnaps = [...localH.snapshots, ...serverH.snapshots];
+    const seen = new Set();
+    const merged = allSnaps
+      .filter(s => { if (seen.has(s.ts)) return false; seen.add(s.ts); return true; })
+      .sort((a, b) => a.ts - b.ts)
+      .slice(-500);
+
+    const mergedH = {
+      seasonId: serverH.seasonId || localH.seasonId,
+      snapshots: merged,
+    };
+
+    saveHistory(mergedH);
+  } catch(e) {
+    console.warn('[history] Server merge failed:', e.message);
+  }
+}
+
 /**
  * Called every time real standings arrive.
  * Saves a snapshot. If season reset detected → wipes history, starts fresh.
@@ -1006,10 +1041,15 @@ function showTab(tab){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  loadRealTable();
+  // Először betöltjük a szerver históriát (ha van), majd elindítjuk a tabellát
+  loadAndMergeServerHistory().finally(() => {
+    loadRealTable();
+  });
   document.getElementById('refreshRealBtn').addEventListener('click',loadRealTable);
   document.getElementById('generateAIBtn').addEventListener('click',generateAITable);
   setInterval(loadRealTable,30000);
+  // Szerver históriát 10 percenként is frissítjük (ha nyitva marad az oldal)
+  setInterval(loadAndMergeServerHistory, 600_000);
   addMatch();
 });
 
