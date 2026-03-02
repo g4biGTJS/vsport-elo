@@ -1,7 +1,5 @@
 // api/ai-prediction.js – Globális AI előrejelzés (Vercel KV)
-// Minden felhasználó ugyanazt az AI táblát látja.
-// Az AI generálás a szerveren fut, nem a kliensnél.
-// Automatikusan újragenerálja, ha fordulóváltás van.
+// FIX v2: kvSet pipeline-alapú; minden fordulóváltásnál automatikus regenerálás
 
 export const config = { runtime: 'edge' };
 
@@ -35,24 +33,41 @@ function kvHeaders() {
   if (!token) throw new Error('KV_REST_API_TOKEN nincs beállítva');
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 }
+
 async function kvGet(key) {
-  const res = await fetch(kvUrl(`/get/${key}`), { headers: kvHeaders(), signal: AbortSignal.timeout(5000) });
-  if (!res.ok) return null;
+  const res = await fetch(kvUrl(`/get/${encodeURIComponent(key)}`), {
+    headers: kvHeaders(),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    return null; // soft fail – nem blokkolja a generálást
+  }
   const data = await res.json();
   const result = data.result ?? null;
-  if (!result) return null;
-  // Ha az Upstash {value: "..."} formában adja vissza
-  if (typeof result === 'object' && result.value !== undefined) return result.value;
-  return result;
+  if (result === null || result === undefined) return null;
+  // Upstash néha {value: "..."} formában adja vissza
+  if (typeof result === 'object' && result !== null && result.value !== undefined) {
+    return typeof result.value === 'string' ? result.value : JSON.stringify(result.value);
+  }
+  // Ha már objektum (Upstash auto-parsed JSON)
+  if (typeof result === 'object') return JSON.stringify(result);
+  return String(result);
 }
+
+// FIX: Pipeline POST – elkerüli az URL path méretkorlátot
 async function kvSet(key, value) {
-  const encoded = encodeURIComponent(value);
-  const res = await fetch(kvUrl(`/set/${key}/${encoded}`), {
+  const res = await fetch(kvUrl('/pipeline'), {
     method: 'POST',
     headers: kvHeaders(),
-    signal: AbortSignal.timeout(5000),
+    body: JSON.stringify([['SET', key, value]]),
+    signal: AbortSignal.timeout(10000),
   });
-  return res.ok;
+  if (!res.ok) {
+    const errText = await res.text().catch(() => String(res.status));
+    throw new Error(`KV SET hiba: ${res.status} – ${errText}`);
+  }
+  return true;
 }
 
 // ── Standings fingerprint ─────────────────────────────────────────────────────
@@ -71,7 +86,7 @@ async function callAI(prompt, temp = 0.85) {
       temperature: temp,
       max_tokens: 2048,
     }),
-    signal: AbortSignal.timeout(30000),
+    signal: AbortSignal.timeout(35000),
   });
   if (!res.ok) throw new Error(`LLM7 hiba: ${res.status}`);
   const d = await res.json();
@@ -84,7 +99,7 @@ async function getHistoryContext() {
     const raw = await kvGet('vsport:league_history');
     if (!raw) return '';
     const entries = JSON.parse(raw);
-    if (!entries.length) return '';
+    if (!Array.isArray(entries) || !entries.length) return '';
     const recent = entries.slice(0, 8);
     const lines = recent.map(e => {
       const d = new Date(e.timestamp);
@@ -95,6 +110,7 @@ async function getHistoryContext() {
     });
     return `\nLIGA ELŐZMÉNYEK (utolsó ${recent.length} forduló):\n${lines.join('\n')}\n`;
   } catch (e) {
+    console.warn('[getHistoryContext]', e.message);
     return '';
   }
 }
@@ -178,15 +194,25 @@ export default async function handler(req) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
 
-  const { searchParams } = new URL(req.url);
-
   try {
     // GET – aktuális AI előrejelzés + meta lekérése
     if (req.method === 'GET') {
       const rawPred = await kvGet(AI_KEY);
       const rawMeta = await kvGet(AI_META_KEY);
-      const prediction = rawPred ? JSON.parse(rawPred) : null;
-      const meta = rawMeta ? JSON.parse(rawMeta) : null;
+
+      let prediction = null;
+      let meta = null;
+
+      if (rawPred) {
+        try { prediction = JSON.parse(rawPred); } catch (e) {
+          console.error('[ai GET] prediction parse hiba:', e.message);
+        }
+      }
+      if (rawMeta) {
+        try { meta = JSON.parse(rawMeta); } catch (e) {
+          console.error('[ai GET] meta parse hiba:', e.message);
+        }
+      }
 
       return new Response(JSON.stringify({
         prediction,
@@ -196,10 +222,9 @@ export default async function handler(req) {
     }
 
     // POST – generálás kérése (a kliens küldi a standings-ot)
-    // Vagy force=true paraméterrel erőltetett újragenerálás
     if (req.method === 'POST') {
       const body = await req.json();
-      const { standings, seasonId, force, currentFingerprint } = body;
+      const { standings, seasonId, force } = body;
 
       if (!standings || !standings.length) {
         return new Response(JSON.stringify({ error: 'Hiányzó standings' }), {
@@ -207,26 +232,34 @@ export default async function handler(req) {
         });
       }
 
+      const currentFP = fingerprint(standings);
+
       // Ha nem force, ellenőrizzük, hogy szükséges-e újragenerálás
       if (!force) {
         const rawMeta = await kvGet(AI_META_KEY);
-        const meta = rawMeta ? JSON.parse(rawMeta) : null;
-        if (meta && meta.basedOnFingerprint === fingerprint(standings)) {
-          // Már van aktuális előrejelzés ehhez a fordulóhoz
-          const rawPred = await kvGet(AI_KEY);
-          if (rawPred) {
-            return new Response(JSON.stringify({
-              prediction: JSON.parse(rawPred),
-              meta,
-              regenerated: false,
-              reason: 'already_current',
-            }), { status: 200, headers: corsHeaders });
+        if (rawMeta) {
+          let meta = null;
+          try { meta = JSON.parse(rawMeta); } catch (e) {}
+          if (meta && meta.basedOnFingerprint === currentFP) {
+            const rawPred = await kvGet(AI_KEY);
+            if (rawPred) {
+              let prediction = null;
+              try { prediction = JSON.parse(rawPred); } catch (e) {}
+              if (prediction) {
+                return new Response(JSON.stringify({
+                  prediction,
+                  meta,
+                  regenerated: false,
+                  reason: 'already_current',
+                }), { status: 200, headers: corsHeaders });
+              }
+            }
           }
         }
       }
 
       // Generálás
-      console.log('[ai-prediction] Generating new prediction...');
+      console.log('[ai-prediction] Generating new prediction... force=', force, 'fp=', currentFP.slice(0, 60));
       const prediction = await generatePrediction(standings, seasonId);
 
       // Mentés KV-ba
