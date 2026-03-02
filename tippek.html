@@ -174,6 +174,29 @@
     .history-stat strong{color:var(--text-dim);}
     .history-new-season{background:rgba(255,171,0,0.06);border:1px solid rgba(255,171,0,0.25);border-radius:4px;padding:10px 14px;display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:.64rem;color:var(--amber);}
     .history-info-bar{display:flex;align-items:center;gap:10px;background:rgba(0,184,212,0.06);border:1px solid rgba(0,184,212,0.15);border-radius:4px;padding:8px 14px;margin-bottom:16px;font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--cyan);}
+    /* MINI TABELLA */
+    .history-toggle-btn{display:flex;align-items:center;gap:6px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:.55rem;letter-spacing:1px;padding:5px 12px;cursor:pointer;transition:all .2s;margin-top:4px;}
+    .history-toggle-btn:hover,.history-toggle-btn.open{border-color:rgba(var(--green-rgb),0.3);color:var(--green);}
+    .history-toggle-btn svg{transition:transform .2s;}
+    .history-mini-table-wrap{display:none;margin-top:8px;border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+    .history-mini-table-wrap.open{display:block;}
+    .history-mini-header{display:grid;grid-template-columns:24px 1fr 40px 40px 38px 40px;align-items:center;padding:5px 10px;gap:4px;background:var(--lb-header-bg);border-bottom:1px solid var(--border);}
+    .history-mini-header span{font-family:'JetBrains Mono',monospace;font-size:.48rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.8px;text-align:right;}
+    .history-mini-header span:nth-child(2){text-align:left;}
+    .h-row{display:grid;grid-template-columns:24px 1fr 40px 40px 38px 40px;align-items:center;padding:4px 10px;gap:4px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:.6rem;}
+    .h-row:last-child{border-bottom:none;}
+    .h-row.top3{background:rgba(var(--green-rgb),0.04);}
+    .h-row.relegation{background:rgba(217,48,37,0.04);}
+    .h-col-pos{color:var(--text-muted);font-size:.58rem;text-align:center;}
+    .h-row.top3 .h-col-pos{color:var(--green);font-weight:700;}
+    .h-row.relegation .h-col-pos{color:var(--red);}
+    .h-col-team{color:var(--text-dim);font-size:.62rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px;}
+    .h-row.top3 .h-col-team{color:var(--text);font-weight:600;}
+    .h-col-g{color:var(--text-muted);text-align:right;font-size:.58rem;}
+    .h-col-gd{color:var(--text-muted);text-align:right;font-size:.58rem;}
+    .h-col-pts{color:var(--text);font-weight:700;text-align:right;font-size:.68rem;}
+    .h-row.top3 .h-col-pts{color:var(--green);}
+    .h-row.relegation .h-col-pts{color:var(--red);}
   </style>
 </head>
 <body>
@@ -462,22 +485,53 @@ async function buildAndSaveEntry(prevS,newS,changeType,seasonId){
   const movers=[];
   newS.forEach(t=>{
     const p=prevS.find(x=>x.team===t.team);
-    if(p&&p.pos!==t.pos)movers.push({team:t.team,fromPos:p.pos,toPos:t.pos,ptsDiff:t.pts-(p.pts||0),dir:t.pos<p.pos?'up':'down'});
+    if(p){
+      const ptsDiff=(t.pts||0)-(p.pts||0);
+      const gdDiff=((t.goalsFor||0)-(t.goalsAgainst||0))-((p.goalsFor||0)-(p.goalsAgainst||0));
+      if(p.pos!==t.pos||ptsDiff!==0){
+        movers.push({
+          team:t.team,fromPos:p.pos,toPos:t.pos,
+          ptsDiff,gdDiff,
+          dir:t.pos<p.pos?'up':(t.pos>p.pos?'down':'same')
+        });
+      }
+    }
   });
+  // Teljes snapshot – MINDEN csapat, MINDEN elérhető adat
+  const fullSnapshot=newS.map(t=>({
+    pos:t.pos,
+    team:t.team,
+    pts:t.pts||0,
+    goalsFor:t.goalsFor||0,
+    goalsAgainst:t.goalsAgainst||0,
+    gd:(t.goalsFor||0)-(t.goalsAgainst||0),
+    played:t.played||t.pld||t.mp||t.gamesPlayed||null,
+    won:t.won||t.w||null,
+    drawn:t.drawn||t.d||t.draw||null,
+    lost:t.lost||t.l||null,
+    trend:t.trend||'same',
+    logo:t.logo||null
+  }));
+  const totalGoalsFor=newS.reduce((s,t)=>s+(t.goalsFor||0),0);
+  const totalGoalsAgainst=newS.reduce((s,t)=>s+(t.goalsAgainst||0),0);
   const entry={
     fingerprint:calcFP(newS),
     timestamp:new Date().toISOString(),
     seasonId:seasonId||lastSeasonId||'?',
     changeType,
     totalPts:newS.reduce((s,t)=>s+(t.pts||0),0),
-    top3:newS.slice(0,3).map(t=>({team:t.team,pts:t.pts,pos:t.pos})),
-    bottom3:newS.slice(-3).map(t=>({team:t.team,pts:t.pts,pos:t.pos})),
-    movers:movers.slice(0,10),
-    standingsSnapshot:newS.map(t=>({pos:t.pos,team:t.team,pts:t.pts,goalsFor:t.goalsFor,goalsAgainst:t.goalsAgainst,trend:t.trend}))
+    totalGoalsFor,totalGoalsAgainst,
+    teamCount:newS.length,
+    // Gyors referencia (visszafelé kompatibilis)
+    top3:newS.slice(0,3).map(t=>({pos:t.pos,team:t.team,pts:t.pts||0,goalsFor:t.goalsFor||0,goalsAgainst:t.goalsAgainst||0})),
+    bottom3:newS.slice(-3).map(t=>({pos:t.pos,team:t.team,pts:t.pts||0,goalsFor:t.goalsFor||0,goalsAgainst:t.goalsAgainst||0})),
+    movers,
+    // TELJES tabella snapshot – mind a 16 csapat
+    standingsSnapshot:fullSnapshot
   };
   const saved=await apiSaveHistoryEntry(entry);
   if(saved){
-    console.log('[History] Globálisan mentve ✓');
+    console.log('[History] Globálisan mentve ✓ –',newS.length,'csapat, changeType:',changeType);
     if(currentTab==='history')fetchAndRenderHistory();
   }
 }
@@ -616,31 +670,83 @@ async function fetchAndRenderHistory(){
         const ds=d.toLocaleDateString('hu-HU',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
         const isNewSeason=e.changeType==='season';
         if(isNewSeason&&idx>0)html+=`<div class="history-new-season">🔄 Szezonváltás érzékelve – ${ds}</div>`;
-        const up=(e.movers||[]).filter(m=>m.dir==='up').slice(0,5);
-        const dn=(e.movers||[]).filter(m=>m.dir==='down').slice(0,5);
-        const moversHtml=[...up.map(m=>`<span class="history-mover up">▲ ${m.team} <span style="opacity:.6">${m.fromPos}→${m.toPos}</span></span>`),...dn.map(m=>`<span class="history-mover down">▼ ${m.team} <span style="opacity:.6">${m.fromPos}→${m.toPos}</span></span>`)].join('');
-        const top3Html=(e.top3||[]).map(t=>`${t.pos}. <span>${t.team}</span> (${t.pts}pt)`).join('<span style="opacity:.3;margin:0 4px">|</span>');
+        const up=(e.movers||[]).filter(m=>m.dir==='up').slice(0,6);
+        const dn=(e.movers||[]).filter(m=>m.dir==='down').slice(0,6);
+        const moversHtml=[
+          ...up.map(m=>`<span class="history-mover up">▲ ${m.team} <span style="opacity:.6">${m.fromPos}→${m.toPos}${m.ptsDiff?` +${m.ptsDiff}pt`:''}</span></span>`),
+          ...dn.map(m=>`<span class="history-mover down">▼ ${m.team} <span style="opacity:.6">${m.fromPos}→${m.toPos}${m.ptsDiff?` +${m.ptsDiff}pt`:''}</span></span>`)
+        ].join('');
+        // Mini tabella az összes csapattal
+        const snap=e.standingsSnapshot||[];
+        const total=snap.length||16;
+        const eid='hist_'+e.fingerprint.replace(/[^a-z0-9]/gi,'').slice(0,12);
+        let miniTable='';
+        if(snap.length){
+          miniTable=`
+          <div class="history-mini-table-wrap" id="${eid}">
+            <div class="history-mini-header">
+              <span class="h-col-pos">#</span>
+              <span class="h-col-team">Csapat</span>
+              <span class="h-col-g">Lőtt</span>
+              <span class="h-col-g">Kapott</span>
+              <span class="h-col-gd">GK</span>
+              <span class="h-col-pts">Pont</span>
+            </div>
+            ${snap.map((t,i)=>{
+              const gd2=(t.goalsFor||0)-(t.goalsAgainst||0);
+              const gdStr=gd2>0?`+${gd2}`:String(gd2);
+              const rowCls=t.pos<=3?'h-row top3':t.pos>total-3?'h-row relegation':'h-row';
+              const mover=(e.movers||[]).find(m=>m.team===t.team);
+              const arrow=mover?(mover.dir==='up'?'<span style="color:var(--green);font-size:.5rem">▲</span>':mover.dir==='down'?'<span style="color:var(--red);font-size:.5rem">▼</span>':''):'';
+              return `<div class="${rowCls}">
+                <span class="h-col-pos">${t.pos}</span>
+                <span class="h-col-team">${arrow} ${t.team||'–'}</span>
+                <span class="h-col-g">${t.goalsFor??'–'}</span>
+                <span class="h-col-g">${t.goalsAgainst??'–'}</span>
+                <span class="h-col-gd">${gdStr}</span>
+                <span class="h-col-pts">${t.pts??'–'}</span>
+              </div>`;
+            }).join('')}
+          </div>`;
+        }
         html+=`<div class="history-card">
           <div class="history-card-header">
             <span class="history-round-label">${isNewSeason?'🔄 Szezonváltás':'⚡ Fordulóváltás'}</span>
             <span class="history-round-time">${ds}</span>
           </div>
           <div class="history-card-body">
-            <div class="history-top3">${top3Html}</div>
             ${moversHtml?`<div class="history-movers">${moversHtml}</div>`:''}
             <div class="history-stats-row">
               <span class="history-stat">Össz pont: <strong>${e.totalPts||0}</strong></span>
-              <span class="history-stat">Változások: <strong>${(e.movers||[]).length} csapat</strong></span>
+              <span class="history-stat">Változó: <strong>${(e.movers||[]).length} csapat</strong></span>
+              ${e.totalGoalsFor!=null?`<span class="history-stat">Gólok: <strong>${e.totalGoalsFor}:${e.totalGoalsAgainst}</strong></span>`:''}
+              <span class="history-stat">Csapatok: <strong>${snap.length||e.teamCount||'–'}</strong></span>
             </div>
+            <button class="history-toggle-btn" onclick="toggleMiniTable('${eid}',this)">
+              <svg style="width:10px;height:10px" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Teljes tabella (${snap.length||'?'} csapat)
+            </button>
+            ${miniTable}
           </div>
         </div>`;
       });
     });
     list.innerHTML=html;
+    // Első entry automatikusan nyitva
+    const firstWrap=list.querySelector('.history-mini-table-wrap');
+    const firstBtn=list.querySelector('.history-toggle-btn');
+    if(firstWrap&&firstBtn){firstWrap.classList.add('open');firstBtn.classList.add('open');firstBtn.querySelector('svg').style.transform='rotate(180deg)';}
   }catch(err){
     console.error('[History render]',err);
     list.innerHTML=`<div class="history-empty">⚠ Betöltési hiba: ${err.message}</div>`;
   }
+}
+
+function toggleMiniTable(id,btn){
+  const w=document.getElementById(id);if(!w)return;
+  const open=w.classList.toggle('open');
+  btn.classList.toggle('open',open);
+  const svg=btn.querySelector('svg');if(svg)svg.style.transform=open?'rotate(180deg)':'';
 }
 
 /* ═══ TAB ═══ */
