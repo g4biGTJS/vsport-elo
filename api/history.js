@@ -117,8 +117,11 @@ export default async function handler(req) {
         }
       }
 
-      // Duplikáció ellenőrzés
-      const exists = entries.some(e => e.fingerprint === entry.fingerprint);
+      // Duplikáció ellenőrzés – fingerprint ÉS seasonId alapján
+      const exists = entries.some(e => 
+        e.fingerprint === entry.fingerprint && 
+        String(e.seasonId||'?') === String(entry.seasonId||'?')
+      );
       if (exists) {
         return new Response(JSON.stringify({ saved: false, reason: 'duplicate' }), {
           status: 200,
