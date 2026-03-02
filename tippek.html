@@ -415,7 +415,14 @@ async function apiFetchHistory(){
 async function apiFetchAIPrediction(){
   const res=await fetch('/api/ai-prediction');
   if(!res.ok)throw new Error(`AI API hiba: ${res.status}`);
-  return res.json();
+  const data=await res.json();
+  if(data.prediction&&typeof data.prediction==='object'&&data.prediction.value!==undefined){
+    try{data.prediction=JSON.parse(data.prediction.value);}catch(e){}
+  }
+  if(data.meta&&typeof data.meta==='object'&&data.meta.value!==undefined){
+    try{data.meta=JSON.parse(data.meta.value);}catch(e){}
+  }
+  return data;
 }
 async function apiGenerateAIPrediction(standings,seasonId,force=false){
   const res=await fetch('/api/ai-prediction',{
@@ -633,30 +640,22 @@ function showTab(tab){
 }
 
 /* ═══ INIT ═══ */
-function initPage(){
+document.addEventListener('DOMContentLoaded',()=>{
+  // Meglévő globális AI azonnal betölt
   loadExistingAI();
+
+  // Valós tábla, majd AI ha kell
   loadRealTable(true).then(async()=>{
     try{
       const r=await apiFetchAIPrediction();
       if(!r.hasData)await generateGlobalAI(false);
     }catch{await generateGlobalAI(false);}
   });
-}
-
-document.addEventListener('DOMContentLoaded',()=>{
-  initPage();
 
   document.getElementById('refreshRealBtn').addEventListener('click',()=>loadRealTable(true));
 
   // ⚡ 10 másodpercenkénti frissítés
   setInterval(()=>loadRealTable(true),10000);
-});
-
-// Visszalépés esetén (böngésző cache) újratölti az AI adatot
-window.addEventListener('pageshow',(e)=>{
-  if(e.persisted){
-    loadExistingAI();
-  }
 });
 </script>
 </body>
