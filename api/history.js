@@ -1,6 +1,5 @@
 // api/history.js – Globális liga történet (Vercel KV)
-// Vercel KV: https://vercel.com/docs/storage/vercel-kv
-// Setup: vercel env add KV_REST_API_URL + KV_REST_API_TOKEN
+// FIX v2: kvSet pipeline-alapú (POST body), nem URL path encoding
 
 export const config = { runtime: 'edge' };
 
@@ -27,27 +26,44 @@ function kvHeaders() {
 }
 
 async function kvGet(key) {
-  const res = await fetch(kvUrl(`/get/${key}`), {
+  const res = await fetch(kvUrl(`/get/${encodeURIComponent(key)}`), {
     headers: kvHeaders(),
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(8000),
   });
-  if (!res.ok) throw new Error(`KV GET hiba: ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    throw new Error(`KV GET hiba: ${res.status}`);
+  }
   const data = await res.json();
   const result = data.result ?? null;
-  if (!result) return null;
-  // Ha az Upstash {value: "..."} formában adja vissza
-  if (typeof result === 'object' && result.value !== undefined) return result.value;
-  return result;
+  if (result === null || result === undefined) return null;
+  // Upstash néha {value: "..."} formában adja vissza
+  if (typeof result === 'object' && result !== null && result.value !== undefined) {
+    return typeof result.value === 'string' ? result.value : JSON.stringify(result.value);
+  }
+  // Ha már objektum (Upstash auto-parsed JSON)
+  if (typeof result === 'object') return JSON.stringify(result);
+  return String(result);
 }
 
+// FIX: Pipeline POST helyett URL path encoding – elkerüli a méretkorlátot
 async function kvSet(key, value) {
-  const encoded = encodeURIComponent(value);
-  const res = await fetch(kvUrl(`/set/${key}/${encoded}`), {
+  // Pipeline endpoint: [["SET", "key", "value"]]
+  const res = await fetch(kvUrl('/pipeline'), {
     method: 'POST',
     headers: kvHeaders(),
-    signal: AbortSignal.timeout(5000),
+    body: JSON.stringify([['SET', key, value]]),
+    signal: AbortSignal.timeout(10000),
   });
-  if (!res.ok) throw new Error(`KV SET hiba: ${res.status}`);
+  if (!res.ok) {
+    const errText = await res.text().catch(() => res.status);
+    throw new Error(`KV SET hiba: ${res.status} – ${errText}`);
+  }
+  const data = await res.json();
+  // Pipeline response: [{result: "OK"}]
+  if (Array.isArray(data) && data[0]?.result !== 'OK') {
+    console.error('[KV SET pipeline result]', JSON.stringify(data[0]));
+  }
   return true;
 }
 
@@ -61,7 +77,16 @@ export default async function handler(req) {
     // GET – összes történet lekérése
     if (req.method === 'GET') {
       const raw = await kvGet(HISTORY_KEY);
-      const entries = raw ? JSON.parse(raw) : [];
+      let entries = [];
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          entries = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          console.error('[history GET] JSON parse hiba:', e.message, '| raw snippet:', String(raw).slice(0, 200));
+          entries = [];
+        }
+      }
       return new Response(JSON.stringify({ entries, count: entries.length }), {
         status: 200,
         headers: corsHeaders,
@@ -81,7 +106,16 @@ export default async function handler(req) {
 
       // Aktuális lista lekérése
       const raw = await kvGet(HISTORY_KEY);
-      const entries = raw ? JSON.parse(raw) : [];
+      let entries = [];
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          entries = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          console.error('[history POST] JSON parse hiba:', e.message);
+          entries = [];
+        }
+      }
 
       // Duplikáció ellenőrzés
       const exists = entries.some(e => e.fingerprint === entry.fingerprint);
