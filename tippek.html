@@ -416,12 +416,16 @@ async function apiFetchAIPrediction(){
   const res=await fetch('/api/ai-prediction');
   if(!res.ok)throw new Error(`AI API hiba: ${res.status}`);
   const data=await res.json();
-  if(data.prediction&&typeof data.prediction==='object'&&data.prediction.value!==undefined){
-    try{data.prediction=JSON.parse(data.prediction.value);}catch(e){}
+  // Biztonsági unwrap ha a szerver véletlenül {value:"..."} formátumban adná vissza
+  function safeUnwrap(val){
+    if(!val)return val;
+    if(typeof val==='object'&&val.value!==undefined){
+      try{return JSON.parse(val.value);}catch(e){return val;}
+    }
+    return val;
   }
-  if(data.meta&&typeof data.meta==='object'&&data.meta.value!==undefined){
-    try{data.meta=JSON.parse(data.meta.value);}catch(e){}
-  }
+  data.prediction=safeUnwrap(data.prediction);
+  data.meta=safeUnwrap(data.meta);
   return data;
 }
 async function apiGenerateAIPrediction(standings,seasonId,force=false){
@@ -552,9 +556,14 @@ async function generateGlobalAI(forceNew=false){
   if(aiIsGenerating)return;
   aiIsGenerating=true;
   const meta=document.getElementById('aiMeta'),aiPanel=document.getElementById('aiPanel'),aiTable=document.getElementById('aiTable');
-  meta.className='lb-meta loading';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI generálás...';
-  aiTable.innerHTML='<div class="dots"><span></span><span></span><span></span></div>';
-  aiPanel.style.display='none';hideError();
+  // Ha force=false és van már valami renderelve, ne írjuk felül loading-gal
+  const hasRendered=aiTable.querySelector('.lb-row');
+  if(!hasRendered){
+    aiTable.innerHTML='<div class="dots"><span></span><span></span><span></span></div>';
+    aiPanel.style.display='none';
+  }
+  meta.className='lb-meta loading';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>AI ellenőrzés...';
+  hideError();
   try{
     if(!realStandings.length){
       const{standings,seasonId}=await fetchRealStandings();
@@ -568,7 +577,7 @@ async function generateGlobalAI(forceNew=false){
   }catch(e){
     showError(e.message);
     meta.className='lb-meta error';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Hiba';
-    aiTable.innerHTML='<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.7rem;font-family:\'JetBrains Mono\',monospace">Hiba. Próbáld újra.</div>';
+    if(!hasRendered)aiTable.innerHTML='<div style="padding:32px;text-align:center;color:var(--text-muted);font-size:.7rem;font-family:\'JetBrains Mono\',monospace">Hiba. Próbáld újra.</div>';
     setAutoBadge('');
   }finally{aiIsGenerating=false;}
 }
@@ -577,7 +586,9 @@ async function generateGlobalAI(forceNew=false){
 async function loadExistingAI(){
   try{
     const result=await apiFetchAIPrediction();
-    if(result.hasData&&result.prediction)renderAITable(result.prediction);
+    if(result.hasData&&result.prediction&&result.prediction.standings?.length){
+      renderAITable(result.prediction);
+    }
   }catch(e){console.warn('[AI load]',e.message);}
 }
 
@@ -586,9 +597,11 @@ async function fetchAndRenderHistory(){
   const list=document.getElementById('historyList'),countEl=document.getElementById('historyCount');
   list.innerHTML='<div style="padding:30px;text-align:center;color:var(--text-muted);font-family:\'JetBrains Mono\',monospace;font-size:.65rem;"><div class="dots"><span></span><span></span><span></span></div>Betöltés...</div>';
   try{
-    const{entries,count}=await apiFetchHistory();
+    const data=await apiFetchHistory();
+    const entries=data.entries||[];
+    const count=data.count||entries.length;
     countEl.textContent=count>0?`${count} bejegyzés`:'';
-    if(!entries||!entries.length){
+    if(!entries.length){
       list.innerHTML='<div class="history-empty"><div class="dots"><span></span><span></span><span></span></div>Még nincs rögzített forduló.<br><span style="font-size:.6rem;opacity:.5">Fordulóváltáskor automatikusan mentődnek a szerverbe.</span></div>';
       return;
     }
@@ -625,6 +638,7 @@ async function fetchAndRenderHistory(){
     });
     list.innerHTML=html;
   }catch(err){
+    console.error('[History render]',err);
     list.innerHTML=`<div class="history-empty">⚠ Betöltési hiba: ${err.message}</div>`;
   }
 }
@@ -644,12 +658,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Meglévő globális AI azonnal betölt
   loadExistingAI();
 
-  // Valós tábla, majd AI ha kell
+  // Valós tábla betöltés, majd AI frissítés ellenőrzése
+  // FIX: mindig megkérdezzük a szervert (fingerprint alapján dönt, nem csak !hasData)
   loadRealTable(true).then(async()=>{
-    try{
-      const r=await apiFetchAIPrediction();
-      if(!r.hasData)await generateGlobalAI(false);
-    }catch{await generateGlobalAI(false);}
+    await generateGlobalAI(false);
   });
 
   document.getElementById('refreshRealBtn').addEventListener('click',()=>loadRealTable(true));
