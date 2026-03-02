@@ -604,51 +604,28 @@ async function loadServerHistory() {
  * Called every time real standings arrive.
  * Saves a snapshot. If season reset detected → wipes history, starts fresh.
  */
+// persistSnapshot: a kliens NEM épít saját history-t.
+// Csak pingeli a szervert (snapshot.js kezeli a Redis mentést).
+// A globalHistory mindig a szerverről töltődik – mindenkinél ugyanaz.
+let _lastPersistTs = 0;
 function persistSnapshot(standings, serverSeasonId) {
   if (!standings || !standings.length) return;
-  let h = loadHistory();
+
+  // Szezonváltás / pontösszeomlás detektálás (csak UI reset)
   const totalPts = standings.reduce((s,t)=>s+(t.pts||0),0);
-
-  // Detect season reset
-  const seasonChanged = serverSeasonId && h.seasonId && serverSeasonId !== h.seasonId;
-  const ptsCrashed = h.snapshots.length && lastTotalPoints !== null && lastTotalPoints > 100 && totalPts < lastTotalPoints * 0.3;
-  const newSeasonStart = totalPts === 0;
-
-  if (seasonChanged || ptsCrashed || newSeasonStart) {
-    // Wipe and start fresh
-    h = { seasonId: serverSeasonId || h.seasonId, snapshots: [] };
+  const seasonChanged = serverSeasonId && lastSeasonId && serverSeasonId !== lastSeasonId;
+  const ptsCrashed = lastTotalPoints !== null && lastTotalPoints > 100 && totalPts < lastTotalPoints * 0.3;
+  if (seasonChanged || ptsCrashed || totalPts === 0) {
+    // Szerver history újratöltése szezonváltáskor
+    loadServerHistory().then(() => { if (currentTab === 'hist') renderHistTab(); });
   }
 
-  if (serverSeasonId) h.seasonId = serverSeasonId;
-
-  // Only save if something changed vs last snapshot
-  const last = h.snapshots[h.snapshots.length - 1];
-  if (last) {
-    const changed = standings.some(t => {
-      const prev = last.standings.find(p => p.team === t.team);
-      if (!prev) return true;
-      return prev.pts !== t.pts || prev.goalsFor !== t.goalsFor || prev.goalsAgainst !== t.goalsAgainst;
-    });
-    if (!changed) return; // nothing new – don't save
+  // Szerver pingelése hogy mentse (max 1x / 30mp)
+  const now = Date.now();
+  if (now - _lastPersistTs > 30_000) {
+    _lastPersistTs = now;
+    fetch('/api/snapshot').catch(() => {});
   }
-
-  h.snapshots.push({
-    ts: Date.now(),
-    standings: standings.map(t => ({
-      team: t.team, pos: t.pos,
-      pts: t.pts || 0,
-      goalsFor: t.goalsFor || 0,
-      goalsAgainst: t.goalsAgainst || 0,
-      logo: t.logo || null
-    }))
-  });
-
-  // Keep last 500 snapshots max
-  if (h.snapshots.length > 500) h.snapshots = h.snapshots.slice(-500);
-  saveHistory(h);
-
-  // ── Szerverre is mentjük (Redis) → minden látogatónál ugyanaz lesz ──────
-  fetch('/api/snapshot').catch(() => {});
 }
 
 /** Compute per-team delta between two snapshots */
@@ -823,8 +800,10 @@ function exportHistory() {
 }
 
 function clearHistoryConfirm() {
-  if (confirm('Biztosan törlöd az összes mentett történeti adatot?')) {
+  if (confirm('Biztosan törlöd az összes mentett történeti adatot? (Szerver + lokális)')) {
     localStorage.removeItem(LS_KEY);
+    globalHistory = { seasonId: null, snapshots: [] };
+    fetch('/api/history?clear=1').catch(() => {});
     renderHistTab();
   }
 }
