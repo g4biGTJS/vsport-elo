@@ -864,56 +864,25 @@ async function tipsGenerate(){
   </div>`;
 
   try {
-    // Standings kontextus összeállítása
-    const standingsCtx = realStandings.length
-      ? realStandings.map(t=>`${t.pos}. ${t.team} – ${t.pts}pt, GF:${t.goalsFor} GA:${t.goalsAgainst} GD:${(t.goalsFor||0)-(t.goalsAgainst||0)}`).join('\n')
-      : 'Tabella adat nem elérhető';
+    // History betöltés ha még üres (pl. a History tab nem volt megnyitva)
+    if (!_histEntries || !_histEntries.length) {
+      try {
+        const hData = await apiFetchHistory();
+        _histEntries = hData.entries || [];
+      } catch(e) { console.warn('[Tips] history prefetch hiba:', e.message); }
+    }
 
-    const matchList = tipsMatches.map((m,i)=>`${i+1}. ${m.home} (HAZAI) vs ${m.away} (VENDÉG)`).join('\n');
-
-    const prompt = `Te egy profi virtuális futball elemző vagy. Az alábbi élő tabella adatok alapján elemezd meg a megadott meccseket:
-
-JELENLEGI TABELLA (Premier Liga Virtuális):
-${standingsCtx}
-
-ELEMZENDŐ MECCSEK:
-${matchList}
-
-Minden meccshez adj meg PONTOSAN a következő JSON struktúrában:
-- homePct: hazai győzelem valószínűsége (egész szám, 0-100)
-- drawPct: döntetlen valószínűsége (egész szám, 0-100)  
-- awayPct: vendég győzelem valószínűsége (egész szám, 0-100)
-- over15Pct: 1.5 gól felett valószínűsége (egész szám, 0-100)
-- over25Pct: 2.5 gól felett valószínűsége (egész szám, 0-100)
-- over15Comment: rövid magyarázat (1 sor, magyar)
-- over25Comment: rövid magyarázat (1 sor, magyar)
-- analysis: részletes elemzés (2-3 mondat, magyar) – ki az esélyes nyerni és miért, a tabella pozíció, gólkülönbség és pontszám alapján
-
-FONTOS szabályok:
-1. homePct + drawPct + awayPct = 100 (összeg mindig 100!)
-2. Vedd figyelembe a tabella pozíciót és a statisztikákat
-3. A magasabb tabella pozíció és jobb GD erősebb csapatot jelent
-4. Adj reális, differenciált százalékokat (ne mindig 50-50)
-5. Az analysis-ban nevezd meg egyértelműen a favorit csapatot
-
-Válaszolj CSAK valid JSON tömbben, minden más szöveg nélkül:
-[
-  {"home":"...", "away":"...", "homePct":X, "drawPct":X, "awayPct":X, "over15Pct":X, "over25Pct":X, "over15Comment":"...", "over25Comment":"...", "analysis":"..."},
-  ...
-]`;
-
-const response = await fetch('/api/match-tips', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    matches: tipsMatches.map(m => ({ home: m.home, away: m.away })),
-    standings: realStandings,
-    aiPrediction: lastAIPrediction,
-    history: _histEntries,
-    seasonId: lastSeasonId || null
-  })
-});
-
+    const response = await fetch('/api/match-tips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        matches: tipsMatches.map(m => ({ home: m.home, away: m.away })),
+        standings: realStandings,
+        aiPrediction: lastAIPrediction,
+        history: _histEntries.slice(0, 8),
+        seasonId: lastSeasonId || null
+      })
+    });
     if(!response.ok){
       const results = tipsComputeFallback();
       tipsRenderResults(results);
@@ -959,34 +928,59 @@ function tipsComputeFallback(){
     const homePos = home ? home.pos : 10;
     const awayPos = away ? away.pos : 10;
 
-    // Erő-számítás (magasabb = jobb)
-    const homeStr = homePts * 1.5 + homeGD * 0.8 + (20 - homePos) * 2 + 30;
-    const awayStr = awayPts * 1.5 + awayGD * 0.8 + (20 - awayPos) * 2 + 5; // hazai pálya -előny
+    // Erőindex: pts/m + GD/m + pozíció – NINCS hazai előny
+    const n = realStandings.length || 20;
+    function teamStr(t) {
+      if (!t) return 50;
+      const gp = Math.max((t.wins||0)+(t.draws||0)+(t.losses||0), 1);
+      const ppgN = t.pts / gp / 3 * 100;
+      const gdN  = Math.min(Math.max(((t.goalsFor||0)-(t.goalsAgainst||0)) / gp + 3, 0) / 6 * 100, 100);
+      const posN = (n - t.pos) / Math.max(n - 1, 1) * 100;
+      return ppgN * 0.5 + gdN * 0.3 + posN * 0.2;
+    }
+    const sA = teamStr(home), sB = teamStr(away);
+    // Logisztikus valószínűség
+    const k = 0.04;
+    const rawA = 1 / (1 + Math.exp(-k * (sA - sB)));
+    const rawB = 1 - rawA;
+    const bal  = 1 - Math.abs(rawA - rawB) * 2;
+    const drawR = 0.10 + bal * 0.18;
+    const s = rawA*(1-drawR) + rawB*(1-drawR) + drawR;
+    let finalHomePct = Math.round(rawA*(1-drawR)/s*100);
+    let awayPct      = Math.round(rawB*(1-drawR)/s*100);
+    let drawPct      = 100 - finalHomePct - awayPct;
+    if (drawPct < 8) { drawPct = 8; finalHomePct = Math.max(100-drawPct-awayPct, 5); }
 
-    const totalStr = Math.max(homeStr + awayStr, 1);
-    let homePct = Math.round((homeStr / totalStr) * 80);
-    let awayPct = Math.round((awayStr / totalStr) * 65);
-    homePct = Math.min(Math.max(homePct, 20), 70);
-    awayPct = Math.min(Math.max(awayPct, 10), 55);
-    const drawPct = Math.max(100 - homePct - awayPct, 5);
-    const adj = 100 - homePct - drawPct - awayPct;
-    const finalHomePct = homePct + adj;
+    // Poisson gól valószínűség
+    const ligaAvgXG = realStandings.length
+      ? realStandings.reduce((s,t)=>s+(t.goalsFor||0),0) /
+        Math.max(realStandings.reduce((s,t)=>s+Math.max((t.wins||0)+(t.draws||0)+(t.losses||0),0),0),1)
+      : 1.30;
+    const gp_a = Math.max((home?.wins||0)+(home?.draws||0)+(home?.losses||0), 1);
+    const gp_b = Math.max((away?.wins||0)+(away?.draws||0)+(away?.losses||0), 1);
+    const xgA = home?.goalsFor ? home.goalsFor/gp_a*0.7+ligaAvgXG*0.3 : ligaAvgXG;
+    const xgB = away?.goalsFor ? away.goalsFor/gp_b*0.7+ligaAvgXG*0.3 : ligaAvgXG;
+    const lA = Math.max(((sA-sB)*0.03), -0.5) + xgA * 0.5 + ligaAvgXG * 0.5;
+    const lB = Math.max(((sB-sA)*0.03), -0.5) + xgB * 0.5 + ligaAvgXG * 0.5;
+    // P(összgól > 1)
+    const p00 = Math.exp(-lA)*Math.exp(-lB);
+    const p10 = lA*Math.exp(-lA)*Math.exp(-lB);
+    const p01 = Math.exp(-lA)*lB*Math.exp(-lB);
+    const over15Pct = Math.min(Math.max(Math.round((1 - p00 - p10 - p01)*100), 25), 93);
+    // P(összgól > 2)
+    const p11 = lA*Math.exp(-lA)*lB*Math.exp(-lB);
+    const p20 = lA*lA/2*Math.exp(-lA)*Math.exp(-lB);
+    const p02 = Math.exp(-lA)*lB*lB/2*Math.exp(-lB);
+    const over25Pct = Math.min(Math.max(Math.round((1 - p00-p10-p01-p11-p20-p02)*100), 12), 90);
 
-    // Gól valószínűség (erős csapatok több gólt lőnek)
-    const avgGF = ((home?.goalsFor||5) + (away?.goalsFor||5)) / 2;
-    const over15Pct = Math.min(Math.max(Math.round(55 + avgGF * 1.2), 40), 90);
-    const over25Pct = Math.min(Math.max(Math.round(35 + avgGF * 0.9), 25), 80);
-
-    const favoriteName = finalHomePct > awayPct ? m.home : (awayPct > finalHomePct ? m.away : 'Kiegyenlített');
-    const favoriteLabel = finalHomePct > awayPct ? 'hazai pályán játszik' : (awayPct > finalHomePct ? 'vendégként jobb formában van' : 'nagyon kiegyenlített a meccs');
-
+    const favorit = finalHomePct >= awayPct ? m.home : m.away;
     return {
       home: m.home, away: m.away,
       homePct: finalHomePct, drawPct, awayPct,
       over15Pct, over25Pct,
-      over15Comment: over15Pct >= 60 ? 'Mindkét csapat sokat támad' : 'Szoros, alacsony gólszámú meccs várható',
-      over25Comment: over25Pct >= 55 ? 'Gólgazdag meccs valószínűsíthető' : 'Inkább taktikai, kevés gólos összecsapás',
-      analysis: `${favoriteName} az esélyes, ${favoriteLabel}. ${m.home} jelenlegi tabella pozíciója: ${homePos}., ${m.away}: ${awayPos}. A gólkülönbség és pontszám alapján ${finalHomePct > awayPct ? m.home : m.away} rendelkezik jobb esélyekkel.`
+      over15Comment: over15Pct >= 65 ? `Aktív meccs várható (becsült xG: ${lA.toFixed(1)}+${lB.toFixed(1)})` : `Szoros, taktikai mérkőzés (becsült xG: ${lA.toFixed(1)}+${lB.toFixed(1)})`,
+      over25Comment: over25Pct >= 55 ? 'Gólgazdag összecsapás valószínűsíthető' : 'Inkább defenzív, alacsony gólszámú meccs',
+      analysis: `${favorit} az esélyes (erőindex: ${Math.round(sA)} vs ${Math.round(sB)}, tabella: ${homePos}. vs ${awayPos}. hely, ${homePts}pt vs ${awayPts}pt). Várható gólszám: ${lA.toFixed(2)} – ${lB.toFixed(2)}.`
     };
   });
 }
