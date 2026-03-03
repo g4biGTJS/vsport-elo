@@ -909,7 +909,7 @@ const response = await fetch('/api/match-tips', {
     matches: tipsMatches.map(m => ({ home: m.home, away: m.away })),
     standings: realStandings,
     aiPrediction: lastAIPrediction,          // ← AI tabella előrejelzés
-    history: _histEntries.slice(0, 15)       // ← utolsó 15 history bejegyzés
+    history: _histEntries.slice(0, 30)       // ← utolsó 15 history bejegyzés
   })
 });
 
