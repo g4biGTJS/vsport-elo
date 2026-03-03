@@ -1135,6 +1135,11 @@
       const res  = await fetch(url);
       const json = await res.json();
 
+      // ← ÚJ: seasonId mentése localStorage-ba (tippek.html és history API használja)
+      if (liga === 'pl' && json.seasonId) {
+        localStorage.setItem('vsport-season-id', String(json.seasonId));
+      }
+
       if (json.standings && json.standings.length > 0) {
         tableEl.innerHTML = renderRows(json.standings);
         const isLive = json.source === 'scrape';
