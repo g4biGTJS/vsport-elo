@@ -618,7 +618,7 @@ function renderRealTable(standings){
 /* ═══ RENDER AI TABLE ═══ */
 function renderAITable(prediction){
   const standings=prediction.standings||[];
-  astAIPrediction = prediction;
+  lastAIPrediction = prediction;
   const aiTable=document.getElementById('aiTable'),aiPanel=document.getElementById('aiPanel'),aiBody=document.getElementById('aiBody'),meta=document.getElementById('aiMeta');
   if(!standings.length){aiTable.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:.7rem">Nincs AI adat</div>';return;}
   const total=standings.length;
@@ -908,8 +908,9 @@ const response = await fetch('/api/match-tips', {
   body: JSON.stringify({
     matches: tipsMatches.map(m => ({ home: m.home, away: m.away })),
     standings: realStandings,
-    aiPrediction: lastAIPrediction,          // ← AI tabella előrejelzés
-    history: _histEntries.slice(0, 30)       // ← utolsó 15 history bejegyzés
+    aiPrediction: lastAIPrediction,
+    history: _histEntries,
+    seasonId: lastSeasonId || null
   })
 });
 
