@@ -1,4 +1,4 @@
-// api/match-tips.js – v2: AI tabella + history alapú elemzés
+// api/match-tips.js – v3: CSAK history + AI tabella alapú elemzés
 export const config = { runtime: 'edge' };
 
 const corsHeaders = {
@@ -12,15 +12,13 @@ const corsHeaders = {
 function buildFormContext(historyEntries) {
   if (!historyEntries || !historyEntries.length) return null;
 
-  // Legfrissebb 8 snapshot feldolgozása
   const snapshots = historyEntries
     .filter(e => e.standingsSnapshot && e.standingsSnapshot.length)
     .slice(0, 8)
-    .reverse(); // időrendbe
+    .reverse();
 
   if (snapshots.length < 2) return null;
 
-  // Minden csapathoz kiszámítjuk a pontszerzési trendet
   const teamForms = {};
   const allTeams = new Set(snapshots.flatMap(s => s.standingsSnapshot.map(t => t.team)));
 
@@ -32,7 +30,6 @@ function buildFormContext(historyEntries) {
 
     if (pts.length < 2) return;
 
-    // Utolsó 3 fordulóban szerzett pontok
     const recentGains = [];
     for (let i = 1; i < Math.min(pts.length, 4); i++) {
       recentGains.push(pts[i] - pts[i - 1]);
@@ -41,41 +38,52 @@ function buildFormContext(historyEntries) {
     const avgGain = recentGains.reduce((a, b) => a + b, 0) / recentGains.length;
     const lastSnap = snapshots[snapshots.length - 1].standingsSnapshot.find(t => t.team === teamName);
     const firstSnap = snapshots[0].standingsSnapshot.find(t => t.team === teamName);
+    const posTrend = firstSnap && lastSnap ? firstSnap.pos - lastSnap.pos : 0;
 
-    const posTrend = firstSnap && lastSnap ? firstSnap.pos - lastSnap.pos : 0; // pozitív = javult
+    // Per-snapshot adatok (gólok, pozíció, pont) az összes rögzített fordulóból
+    const snapDetail = snapshots.map(snap => {
+      const t = snap.standingsSnapshot.find(x => x.team === teamName);
+      return t ? { pos: t.pos, pts: t.pts, goalsFor: t.goalsFor || 0, goalsAgainst: t.goalsAgainst || 0 } : null;
+    }).filter(Boolean);
+
+    const avgGoalsFor     = snapDetail.reduce((s, t) => s + t.goalsFor, 0)     / snapDetail.length;
+    const avgGoalsAgainst = snapDetail.reduce((s, t) => s + t.goalsAgainst, 0) / snapDetail.length;
 
     teamForms[teamName] = {
       avgPtsPerRound: Math.round(avgGain * 10) / 10,
       positionTrend: posTrend,
       recentGains,
+      avgGoalsFor:     Math.round(avgGoalsFor * 10) / 10,
+      avgGoalsAgainst: Math.round(avgGoalsAgainst * 10) / 10,
       trend: avgGain > 1.8 ? 'erős' : avgGain > 1.2 ? 'közepes' : 'gyenge',
-      posLabel: posTrend > 0 ? `+${posTrend} hely` : posTrend < 0 ? `${posTrend} hely` : 'stabil'
+      posLabel: posTrend > 0 ? `+${posTrend} hely` : posTrend < 0 ? `${posTrend} hely` : 'stabil',
+      snapCount: snapDetail.length,
     };
   });
 
   return teamForms;
 }
 
-// ─── Lokális fallback számítás ──────────────────────────────────────────────
-function computeLocalTips(matches, standings, aiStandings, formData) {
+// ─── Lokális fallback – CSAK history + AI tabella alapján ──────────────────
+function computeLocalTips(matches, aiStandings, formData) {
   return matches.map(m => {
-    const live  = standings.find(t => t.team === m.home);
-    const liveA = standings.find(t => t.team === m.away);
     const ai    = (aiStandings || []).find(t => t.team === m.home);
     const aiA   = (aiStandings || []).find(t => t.team === m.away);
     const form  = formData ? formData[m.home] : null;
     const formA = formData ? formData[m.away] : null;
 
-    // Pontozás: élő adat + AI végső pozíció + forma
+    const aiPos  = ai  ? ai.pos  : 10;
+    const aiPosA = aiA ? aiA.pos : 10;
+    const aiPts  = ai  ? ai.pts  : 0;
+    const aiPtsA = aiA ? aiA.pts : 0;
+
     const homeScore =
-      (live ? live.pts * 1.5 + ((live.goalsFor||0)-(live.goalsAgainst||0)) * 0.8 + (20 - live.pos) * 2 : 20) +
-      (ai   ? (20 - ai.pos) * 1.5 : 0) +
-      (form ? form.avgPtsPerRound * 4 + form.positionTrend * 0.5 : 0) + 30; // hazai előny
+      (20 - aiPos) * 3 + aiPts * 0.5 +
+      (form ? form.avgPtsPerRound * 5 + form.positionTrend * 0.8 + form.avgGoalsFor * 0.5 : 0) + 30;
 
     const awayScore =
-      (liveA ? liveA.pts * 1.5 + ((liveA.goalsFor||0)-(liveA.goalsAgainst||0)) * 0.8 + (20 - liveA.pos) * 2 : 20) +
-      (aiA   ? (20 - aiA.pos) * 1.5 : 0) +
-      (formA ? formA.avgPtsPerRound * 4 + formA.positionTrend * 0.5 : 0);
+      (20 - aiPosA) * 3 + aiPtsA * 0.5 +
+      (formA ? formA.avgPtsPerRound * 5 + formA.positionTrend * 0.8 + formA.avgGoalsFor * 0.5 : 0);
 
     const total = Math.max(homeScore + awayScore, 1);
     let homePct = Math.min(Math.max(Math.round((homeScore / total) * 80), 20), 70);
@@ -83,13 +91,13 @@ function computeLocalTips(matches, standings, aiStandings, formData) {
     const drawPct = Math.max(100 - homePct - awayPct, 5);
     const homePctFinal = 100 - drawPct - awayPct;
 
-    const avgGF = ((live?.goalsFor || 4) + (liveA?.goalsFor || 4)) / 2;
+    const avgGF = ((form?.avgGoalsFor || 4) + (formA?.avgGoalsFor || 4)) / 2;
     const over15Pct = Math.min(Math.max(Math.round(55 + avgGF * 1.2), 40), 92);
     const over25Pct = Math.min(Math.max(Math.round(35 + avgGF * 0.9), 22), 82);
 
     const favorit = homePctFinal >= awayPct ? m.home : m.away;
-    const formTxt = form ? ` Forma: ${form.trend} (${form.avgPtsPerRound} pt/forduló).` : '';
-    const formTxtA = formA ? ` ${m.away} forma: ${formA.trend}.` : '';
+    const formTxt  = form  ? ` ${m.home} forma: ${form.trend} (${form.avgPtsPerRound} pt/forduló, ${form.posLabel}).`  : '';
+    const formTxtA = formA ? ` ${m.away} forma: ${formA.trend} (${formA.avgPtsPerRound} pt/forduló, ${formA.posLabel}).` : '';
 
     return {
       home: m.home, away: m.away,
@@ -97,13 +105,13 @@ function computeLocalTips(matches, standings, aiStandings, formData) {
       over15Pct, over25Pct,
       over15Comment: over15Pct >= 60 ? 'Mindkét csapat sokat lő, magas gólvárakozás' : 'Szoros, taktikai meccs – alacsony gólszám várható',
       over25Comment: over25Pct >= 55 ? 'Gólgazdag összecsapás valószínűsíthető' : 'Inkább zárt, defenzív mérkőzés várható',
-      analysis: `${favorit} az esélyes a tabella és forma alapján.${formTxt}${formTxtA} Az AI szezonvégi előrejelzés ${ai ? `${m.home}-t ${ai.pos}. helyre` : 'ismeretlen pozícióra'} várja.`,
+      analysis: `${favorit} az esélyes az AI előrejelzés és a history forma alapján.${formTxt}${formTxtA}`,
       source: 'local'
     };
   });
 }
 
-// ─── LLM hívás (llm7.io elsődleges, Anthropic fallback) ────────────────────
+// ─── LLM hívás ──────────────────────────────────────────────────────────────
 async function callLLM(prompt) {
   try {
     const res = await fetch('https://api.llm7.io/v1/chat/completions', {
@@ -162,55 +170,45 @@ export default async function handler(req) {
 
   try {
     const body = await req.json();
-    const { matches, standings, aiPrediction, history } = body;
+    // standings-t szándékosan FIGYELMEN KÍVÜL HAGYJUK
+    const { matches, aiPrediction, history } = body;
 
     if (!matches?.length) {
       return new Response(JSON.stringify({ error: 'Hiányzó matches' }), { status: 400, headers: corsHeaders });
     }
 
-    // ── Kontextus összeállítása ──────────────────────────────────────────────
-
-    // 1. Élő tabella
-    const liveCtx = (standings || []).length
-      ? standings.map(t =>
-          `${t.pos}. ${t.team} – ${t.pts}pt | GF:${t.goalsFor} GA:${t.goalsAgainst} GD:${(t.goalsFor||0)-(t.goalsAgainst||0)} | trend:${t.trend||'same'}`
-        ).join('\n')
-      : 'Nem elérhető';
-
-    // 2. AI szezonvégi előrejelzés
+    // 1. AI szezonvégi előrejelzés
     const aiStandings = aiPrediction?.standings || [];
     const aiCtx = aiStandings.length
       ? aiStandings.map(t =>
-          `${t.pos}. ${t.team} – előrejelzett végső pont: ${t.pts}`
+          `${t.pos}. ${t.team} – várható végső pont: ${t.pts} | trend: ${t.trend || 'same'}`
         ).join('\n')
       : 'Nem elérhető';
 
-    // 3. Forma – history alapján (utolsó fordulók pontszerzése)
+    // 2. Forma – CSAK history snapshots alapján
     const formData = buildFormContext(history || []);
     let formCtx = 'Nem elérhető';
     if (formData && Object.keys(formData).length) {
       formCtx = Object.entries(formData)
         .map(([team, f]) =>
-          `${team}: ${f.trend} forma | ${f.avgPtsPerRound} pt/forduló | pozíció trend: ${f.posLabel}`
+          `${team}: ${f.trend} forma | ${f.avgPtsPerRound} pt/forduló | pozíció trend: ${f.posLabel} | átl. gól: ${f.avgGoalsFor}:${f.avgGoalsAgainst} | ${f.snapCount} mérés`
         )
         .join('\n');
     }
 
-    // 4. Meccs lista
+    // 3. Meccs lista
     const matchList = matches.map((m, i) =>
       `${i+1}. ${m.home} (HAZAI) vs ${m.away} (VENDÉG)`
     ).join('\n');
 
-    // ── Prompt ──────────────────────────────────────────────────────────────
-    const prompt = `Te egy profi virtuális futball elemző vagy. Három adatforrás alapján elemezd meg a meccseket:
+    // ── Prompt – CSAK AI tabella + history ────────────────────────────────
+    const prompt = `Te egy profi virtuális futball elemző vagy. KIZÁRÓLAG az alábbi két adatforrás alapján elemezd a meccseket – ne használj más információt:
 
-━━━ 1. ÉLŐVLŐ TABELLA (jelenlegi állás) ━━━
-${liveCtx}
-
-━━━ 2. AI SZEZONVÉGI ELŐREJELZÉS (várható végső sorrend) ━━━
+━━━ 1. AI SZEZONVÉGI ELŐREJELZÉS (várható végső sorrend) ━━━
 ${aiCtx}
 
-━━━ 3. CSAPATOK FORMÁJA (history alapján, utolsó fordulók) ━━━
+━━━ 2. CSAPATOK FORMÁJA – HISTORY SNAPSHOTS ALAPJÁN ━━━
+(rögzített fordulók átlagai: pont/forduló, pozíció változás, gólátlag)
 ${formCtx}
 
 ━━━ ELEMZENDŐ MECCSEK ━━━
@@ -222,21 +220,21 @@ Minden meccshez adj meg a következő JSON struktúrában:
 - awayPct: vendég győzelem % (egész, 0-100)
 - over15Pct: 1.5 gól felett % (egész, 0-100)
 - over25Pct: 2.5 gól felett % (egész, 0-100)
-- over15Comment: 1 mondat magyarul (gól-valószínűség indoklása)
+- over15Comment: 1 mondat magyarul (a history gólátlag alapján indokold)
 - over25Comment: 1 mondat magyarul
-- analysis: 2-3 mondat magyarul – KI az esélyes és MIÉRT (hivatkozz konkrétan a tabella pozícióra, formára, AI előrejelzésre)
+- analysis: 2-3 mondat magyarul – KI az esélyes és MIÉRT, hivatkozva az AI előrejelzésre ÉS a history formára
 
 SZABÁLYOK:
 1. homePct + drawPct + awayPct = PONTOSAN 100
-2. Vedd figyelembe MINDHÁROM adatforrást (élő tabella + AI előrejelzés + forma)
-3. Ha a forma és a tabella ellentmond egymásnak, magyarázd meg
+2. CSAK az AI tabella és a history forma számít – más adatot ne használj
+3. Ha a forma és az AI előrejelzés ellentmond egymásnak, magyarázd meg melyiket és miért súlyozod jobban
 4. Reális, differenciált százalékok (ne 33-33-33 vagy 50-50)
 5. Az analysis-ban MINDIG nevesítsd a favorit csapatot
 
 CSAK valid JSON tömböt adj vissza, semmi más szöveget:
 [{"home":"...","away":"...","homePct":X,"drawPct":X,"awayPct":X,"over15Pct":X,"over25Pct":X,"over15Comment":"...","over25Comment":"...","analysis":"..."}]`;
 
-    // ── LLM hívás ───────────────────────────────────────────────────────────
+    // ── LLM hívás ──────────────────────────────────────────────────────────
     const llmText = await callLLM(prompt);
     let results = null;
     let source = 'local';
@@ -260,7 +258,7 @@ CSAK valid JSON tömböt adj vissza, semmi más szöveget:
     }
 
     if (!results) {
-      results = computeLocalTips(matches, standings || [], aiStandings, formData);
+      results = computeLocalTips(matches, aiStandings, formData);
       source = 'local';
     }
 
