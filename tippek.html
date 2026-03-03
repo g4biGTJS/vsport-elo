@@ -152,51 +152,26 @@
     .error-box.show{display:flex;align-items:center;gap:8px;}
     .footer-line{position:fixed;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent 0%,rgba(0,230,118,0.2) 20%,rgba(0,230,118,0.6) 50%,rgba(0,230,118,0.2) 80%,transparent 100%);z-index:50;}
     /* ── TÖRTÉNETEK ── */
-    .history-container{display:flex;flex-direction:column;gap:10px;}
-    .history-empty{padding:40px;text-align:center;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:.7rem;line-height:2.5;}
-    .history-season-header{display:flex;align-items:center;gap:12px;margin-top:12px;margin-bottom:4px;font-family:'Barlow Condensed',sans-serif;font-size:1rem;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--text-dim);}
-    .history-season-header::after{content:'';flex:1;height:1px;background:var(--border);}
-    .history-season-badge{background:rgba(var(--green-rgb),0.1);border:1px solid rgba(var(--green-rgb),0.2);color:var(--green);font-size:.5rem;font-family:'JetBrains Mono',monospace;padding:2px 8px;border-radius:2px;letter-spacing:1px;}
-    .history-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden;box-shadow:var(--card-shadow);}
-    html.dark .history-card{border-radius:3px;}
-    .history-card-header{background:var(--lb-header-bg);padding:8px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
-    .history-round-label{font-family:'JetBrains Mono',monospace;font-size:.6rem;font-weight:700;color:var(--green);letter-spacing:1.5px;text-transform:uppercase;}
-    .history-round-time{font-family:'JetBrains Mono',monospace;font-size:.55rem;color:var(--text-muted);}
-    .history-card-body{padding:10px 14px;display:flex;flex-direction:column;gap:6px;}
-    .history-movers{display:flex;flex-wrap:wrap;gap:5px;margin-top:2px;}
-    .history-mover{display:flex;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:3px 8px;font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--text-dim);}
-    .history-mover.up{border-color:rgba(var(--green-rgb),0.3);color:var(--green);background:rgba(var(--green-rgb),0.05);}
-    .history-mover.down{border-color:rgba(255,61,61,0.3);color:var(--red);background:rgba(255,61,61,0.05);}
-    .history-top3{display:flex;gap:6px;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:.6rem;color:var(--text-muted);}
-    .history-top3 span{color:var(--text);font-weight:700;}
-    .history-stats-row{display:flex;gap:14px;flex-wrap:wrap;}
-    .history-stat{font-family:'JetBrains Mono',monospace;font-size:.56rem;color:var(--text-muted);}
-    .history-stat strong{color:var(--text-dim);}
-    .history-new-season{background:rgba(255,171,0,0.06);border:1px solid rgba(255,171,0,0.25);border-radius:4px;padding:10px 14px;display:flex;align-items:center;gap:10px;font-family:'JetBrains Mono',monospace;font-size:.64rem;color:var(--amber);}
+    /* ── HISTORY panel (tippek.html stílus) ── */
+    .history-panel{background:var(--surface2);border:1px solid rgba(0,184,212,0.15);border-radius:3px;margin-bottom:16px;overflow:hidden;}
+    .history-panel-hdr{background:linear-gradient(90deg,rgba(0,40,60,0.8),rgba(0,20,40,0.5));border-bottom:1px solid rgba(0,184,212,0.1);padding:10px 16px;display:flex;align-items:center;gap:10px;justify-content:space-between;}
+    .history-panel-title{font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--cyan);display:flex;align-items:center;gap:8px;}
+    .history-body{padding:12px 16px;overflow-x:auto;}
+    .history-table{width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:.55rem;}
+    .history-table th{color:rgba(0,184,212,0.6);font-weight:700;letter-spacing:1px;padding:4px 8px;text-align:left;border-bottom:1px solid var(--border);}
+    .history-table th.r{text-align:right;}
+    .history-table td{padding:4px 8px;color:var(--text-dim);border-bottom:1px solid rgba(255,255,255,0.02);}
+    .history-table td.r{text-align:right;}
+    .history-table tr:hover td{background:rgba(0,184,212,0.04);}
+    .hist-delta-pos{color:var(--green);}
+    .hist-delta-neg{color:var(--red);}
+    .hist-ts{color:var(--text-muted);font-size:.48rem;}
+    .history-empty{padding:24px;text-align:center;color:var(--text-muted);font-size:.65rem;}
+    .history-tabs{display:flex;gap:4px;flex-wrap:wrap;}
+    .history-tab{background:rgba(0,0,0,0.3);border:1px solid var(--border);color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:.52rem;letter-spacing:1px;padding:4px 10px;border-radius:2px;cursor:pointer;transition:all .15s;}
+    .history-tab:hover{border-color:rgba(0,184,212,0.3);color:var(--cyan);}
+    .history-tab.active{border-color:var(--cyan);color:var(--cyan);background:rgba(0,184,212,0.08);}
     .history-info-bar{display:flex;align-items:center;gap:10px;background:rgba(0,184,212,0.06);border:1px solid rgba(0,184,212,0.15);border-radius:4px;padding:8px 14px;margin-bottom:16px;font-family:'JetBrains Mono',monospace;font-size:.58rem;color:var(--cyan);}
-    /* MINI TABELLA */
-    .history-toggle-btn{display:flex;align-items:center;gap:6px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:.55rem;letter-spacing:1px;padding:5px 12px;cursor:pointer;transition:all .2s;margin-top:4px;}
-    .history-toggle-btn:hover,.history-toggle-btn.open{border-color:rgba(var(--green-rgb),0.3);color:var(--green);}
-    .history-toggle-btn svg{transition:transform .2s;}
-    .history-mini-table-wrap{display:none;margin-top:8px;border:1px solid var(--border);border-radius:4px;overflow:hidden;}
-    .history-mini-table-wrap.open{display:block;}
-    .history-mini-header{display:grid;grid-template-columns:24px 1fr 40px 40px 38px 40px;align-items:center;padding:5px 10px;gap:4px;background:var(--lb-header-bg);border-bottom:1px solid var(--border);}
-    .history-mini-header span{font-family:'JetBrains Mono',monospace;font-size:.48rem;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.8px;text-align:right;}
-    .history-mini-header span:nth-child(2){text-align:left;}
-    .h-row{display:grid;grid-template-columns:24px 1fr 40px 40px 38px 40px;align-items:center;padding:4px 10px;gap:4px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:.6rem;}
-    .h-row:last-child{border-bottom:none;}
-    .h-row.top3{background:rgba(var(--green-rgb),0.04);}
-    .h-row.relegation{background:rgba(217,48,37,0.04);}
-    .h-col-pos{color:var(--text-muted);font-size:.58rem;text-align:center;}
-    .h-row.top3 .h-col-pos{color:var(--green);font-weight:700;}
-    .h-row.relegation .h-col-pos{color:var(--red);}
-    .h-col-team{color:var(--text-dim);font-size:.62rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px;}
-    .h-row.top3 .h-col-team{color:var(--text);font-weight:600;}
-    .h-col-g{color:var(--text-muted);text-align:right;font-size:.58rem;}
-    .h-col-gd{color:var(--text-muted);text-align:right;font-size:.58rem;}
-    .h-col-pts{color:var(--text);font-weight:700;text-align:right;font-size:.68rem;}
-    .h-row.top3 .h-col-pts{color:var(--green);}
-    .h-row.relegation .h-col-pts{color:var(--red);}
   </style>
 </head>
 <body>
@@ -294,7 +269,7 @@
         <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="currentColor" stroke="currentColor" stroke-width="0.5"/></svg>
         AI Előrejelzés
         <span class="ai-badge-pill">LLM7</span>
-        <span class="global-badge">GLOBÁLIS</span>
+        <span class="global-badge">🌐 GLOBÁLIS</span>
       </div>
     </div>
     <div class="season-notice" id="seasonNotice" style="display:none">
@@ -331,26 +306,26 @@
   <div id="historyContainer" style="display:none">
     <div class="section-hdr">
       <div class="section-title">
-        <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        Liga Történetek
-        <span class="global-badge">GLOBÁLIS</span>
+        <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 8v4l3 3M3.05 11a9 9 0 1 0 .5-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Szezon Változások
       </div>
-      <button class="btn" onclick="fetchAndRenderHistory()">
-        <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Frissítés
-      </button>
+      <div class="btn-group">
+        <button class="btn" onclick="fetchAndRenderHistory()">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Frissítés
+        </button>
+        <button class="btn" onclick="exportHistory()">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Export
+        </button>
+      </div>
     </div>
     <div class="history-info-bar">
       <svg style="width:12px;height:12px;flex-shrink:0" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
       Minden forduló automatikusan mentődik a szerverre (Vercel KV). Mindenki ugyanazt látja. Az AI előrejelzés is ezekből tanul.
       <span id="historyCount" style="margin-left:auto;color:var(--green);font-weight:700;white-space:nowrap;"></span>
     </div>
-    <div id="historyList" class="history-container">
-      <div style="padding:30px;text-align:center;color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:.65rem;">
-        <div class="dots"><span></span><span></span><span></span></div>
-        Történetek betöltése...
-      </div>
-    </div>
+    <div id="histContent"></div>
   </div>
 
   <div class="error-box" id="errorBox">
@@ -466,30 +441,17 @@ function detectChanges(standings,serverSeasonId){
   const totalPts=standings.reduce((s,t)=>s+(t.pts||0),0);
   const fp=calcFP(standings);
   let changeType=null;
-
-  // Szezonváltás: ID változás (csak ha mindkettő érvényes, nem null/undefined)
-  const validIdChange = serverSeasonId && lastSeasonId && String(serverSeasonId) !== String(lastSeasonId);
-  // Szezonváltás: pontok drasztikus visszaesése (pl. új szezon reset)
-  const pointsReset = lastTotalPoints !== null && lastTotalPoints > 80 && totalPts < lastTotalPoints * 0.25;
-
-  if(validIdChange || pointsReset) changeType='season';
-
-  // Fordulóváltás: fingerprint változás (csak ha nem szezonváltás és volt már adat)
-  if(!changeType && lastRoundFingerprint !== null && lastRoundFingerprint !== fp) changeType='round';
-
-  // Csak akkor mentünk, ha volt előző adat ÉS valódi változás van
-  if(changeType && prevStandingsForHistory && prevStandingsForHistory.length > 0){
-    // Extra ellenőrzés: ne mentsük ha a new standings üres
-    if(standings.length > 0){
-      buildAndSaveEntry(prevStandingsForHistory, standings, changeType, serverSeasonId);
-    }
+  if(serverSeasonId&&lastSeasonId&&serverSeasonId!==lastSeasonId)changeType='season';
+  if(lastTotalPoints!==null&&lastTotalPoints>100&&totalPts<lastTotalPoints*.3)changeType='season';
+  if(!changeType&&lastRoundFingerprint!==null&&lastRoundFingerprint!==fp)changeType='round';
+  // Mentsük a fordulatot globálisan
+  if(changeType&&prevStandingsForHistory&&prevStandingsForHistory.length>0){
+    buildAndSaveEntry(prevStandingsForHistory,standings,changeType,serverSeasonId);
   }
-
-  prevStandingsForHistory = standings.slice();
-  lastTotalPoints = totalPts;
-  // SeasonId frissítése csak ha érvényes
-  if(serverSeasonId) lastSeasonId = serverSeasonId;
-  lastRoundFingerprint = fp;
+  prevStandingsForHistory=standings.slice();
+  lastTotalPoints=totalPts;
+  if(serverSeasonId)lastSeasonId=serverSeasonId;
+  lastRoundFingerprint=fp;
   return changeType;
 }
 
@@ -607,9 +569,8 @@ async function loadRealTable(triggerAIIfChanged=true){
         document.getElementById('seasonNoticeText').textContent=seasonId?`Új szezon (ID: ${seasonId})`:'Szezonváltás';
         document.getElementById('seasonNotice').style.display='flex';
       }
-      showToast(changeType==='season'?'Új szezon! AI előrejelzés frissítése...':'Új forduló! AI előrejelzés frissítése...',6000);
+      showToast(changeType==='season'?'🔄 Új szezon! AI előrejelzés frissítése...':'⚡ Új forduló! AI előrejelzés frissítése...',6000);
       setAutoBadge('syncing');
-      // Szezonváltáskor mindig force=true, fordulóváltáskor is force=true (új adatok vannak)
       setTimeout(()=>generateGlobalAI(true),1000);
     }
   }catch(e){
@@ -641,7 +602,7 @@ async function generateGlobalAI(forceNew=false){
     if(!result.prediction?.standings?.length)throw new Error('Üres AI válasz');
     renderAITable(result.prediction);
     setAutoBadge('active');
-    if(result.regenerated)showToast('AI előrejelzés frissítve (globális)',3000);
+    if(result.regenerated)showToast('✓ AI előrejelzés frissítve (globális)',3000);
   }catch(e){
     showError(e.message);
     meta.className='lb-meta error';meta.querySelector('span:first-child').innerHTML='<span class="refresh-dot"></span>Hiba';
@@ -660,100 +621,146 @@ async function loadExistingAI(){
   }catch(e){console.warn('[AI load]',e.message);}
 }
 
-/* ═══ TÖRTÉNETEK RENDER ═══ */
-async function fetchAndRenderHistory(){
-  const list=document.getElementById('historyList'),countEl=document.getElementById('historyCount');
-  list.innerHTML='<div style="padding:30px;text-align:center;color:var(--text-muted);font-family:\'JetBrains Mono\',monospace;font-size:.65rem;"><div class="dots"><span></span><span></span><span></span></div>Betöltés...</div>';
-  try{
-    const data=await apiFetchHistory();
-    const entries=data.entries||[];
-    const count=data.count||entries.length;
-    countEl.textContent=count>0?`${count} bejegyzés`:'';
-    if(!entries.length){
-      list.innerHTML='<div class="history-empty"><div class="dots"><span></span><span></span><span></span></div>Még nincs rögzített forduló.<br><span style="font-size:.6rem;opacity:.5">Fordulóváltáskor automatikusan mentődnek a szerverbe.</span></div>';
-      return;
-    }
-    const bySeason={};
-    entries.forEach(e=>{const s=e.seasonId||'?';if(!bySeason[s])bySeason[s]=[];bySeason[s].push(e);});
-    let html='';
-    Object.keys(bySeason).forEach(sid=>{
-      const se=bySeason[sid];
-      html+=`<div class="history-season-header"><span class="history-season-badge">SZEZON</span>ID: ${sid}<span style="font-size:.52rem;font-family:'JetBrains Mono',monospace;opacity:.4;margin-left:4px">${se.length} bejegyzés</span></div>`;
-      se.forEach((e,idx)=>{
-        const d=new Date(e.timestamp);
-        const ds=d.toLocaleDateString('hu-HU',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
-        const isNewSeason=e.changeType==='season';
-        if(isNewSeason&&idx>0)html+=`<div class="history-new-season">SZEZONVÁLTÁS ÉRZÉKELVE – ${ds}</div>`;
-        const up=(e.movers||[]).filter(m=>m.dir==='up').slice(0,6);
-        const dn=(e.movers||[]).filter(m=>m.dir==='down').slice(0,6);
-        const moversHtml=[
-          ...up.map(m=>`<span class="history-mover up">▲ ${m.team} <span style="opacity:.6">${m.fromPos}→${m.toPos}${m.ptsDiff?` +${m.ptsDiff}pt`:''}</span></span>`),
-          ...dn.map(m=>`<span class="history-mover down">▼ ${m.team} <span style="opacity:.6">${m.fromPos}→${m.toPos}${m.ptsDiff?` +${m.ptsDiff}pt`:''}</span></span>`)
-        ].join('');
-        // Mini tabella az összes csapattal
-        const snap=e.standingsSnapshot||[];
-        const total=snap.length||16;
-        const eid='hist_'+e.fingerprint.replace(/[^a-z0-9]/gi,'').slice(0,12);
-        let miniTable='';
-        if(snap.length){
-          miniTable=`
-          <div class="history-mini-table-wrap" id="${eid}">
-            <div class="history-mini-header">
-              <span class="h-col-pos">#</span>
-              <span class="h-col-team">Csapat</span>
-              <span class="h-col-g">Lőtt</span>
-              <span class="h-col-g">Kapott</span>
-              <span class="h-col-gd">GK</span>
-              <span class="h-col-pts">Pont</span>
-            </div>
-            ${snap.map((t,i)=>{
-              const gd2=(t.goalsFor||0)-(t.goalsAgainst||0);
-              const gdStr=gd2>0?`+${gd2}`:String(gd2);
-              const rowCls=t.pos<=3?'h-row top3':t.pos>total-3?'h-row relegation':'h-row';
-              const mover=(e.movers||[]).find(m=>m.team===t.team);
-              const arrow=mover?(mover.dir==='up'?'<span style="color:var(--green);font-size:.5rem">▲</span>':mover.dir==='down'?'<span style="color:var(--red);font-size:.5rem">▼</span>':''):'';
-              return `<div class="${rowCls}">
-                <span class="h-col-pos">${t.pos}</span>
-                <span class="h-col-team">${arrow} ${t.team||'–'}</span>
-                <span class="h-col-g">${t.goalsFor??'–'}</span>
-                <span class="h-col-g">${t.goalsAgainst??'–'}</span>
-                <span class="h-col-gd">${gdStr}</span>
-                <span class="h-col-pts">${t.pts??'–'}</span>
-              </div>`;
-            }).join('')}
-          </div>`;
-        }
-        html+=`<div class="history-card">
-          <div class="history-card-header">
-            <span class="history-round-label">${isNewSeason?'SZEZONVÁLTÁS':'FORDULÓVÁLTÁS'}</span>
-            <span class="history-round-time">${ds}</span>
-          </div>
-          <div class="history-card-body">
-            ${moversHtml?`<div class="history-movers">${moversHtml}</div>`:''}
-            <div class="history-stats-row">
-              <span class="history-stat">Össz pont: <strong>${e.totalPts||0}</strong></span>
-              <span class="history-stat">Változó: <strong>${(e.movers||[]).length} csapat</strong></span>
-              ${e.totalGoalsFor!=null?`<span class="history-stat">Gólok: <strong>${e.totalGoalsFor}:${e.totalGoalsAgainst}</strong></span>`:''}
-              <span class="history-stat">Csapatok: <strong>${snap.length||e.teamCount||'–'}</strong></span>
-            </div>
-            <button class="history-toggle-btn" onclick="toggleMiniTable('${eid}',this)">
-              <svg style="width:10px;height:10px" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Teljes tabella (${snap.length||'?'} csapat)
-            </button>
-            ${miniTable}
-          </div>
-        </div>`;
-      });
-    });
-    list.innerHTML=html;
-    // Első entry automatikusan nyitva
-    const firstWrap=list.querySelector('.history-mini-table-wrap');
-    const firstBtn=list.querySelector('.history-toggle-btn');
-    if(firstWrap&&firstBtn){firstWrap.classList.add('open');firstBtn.classList.add('open');firstBtn.querySelector('svg').style.transform='rotate(180deg)';}
-  }catch(err){
-    console.error('[History render]',err);
-    list.innerHTML=`<div class="history-empty">Betöltési hiba: ${err.message}</div>`;
+/* ═══ TÖRTÉNETEK RENDER (tippek.html stílus) ═══ */
+let histSelectedTeam = null;
+
+function tsStr(ts) {
+  if (!ts) return '–';
+  const d = new Date(ts);
+  return d.toLocaleDateString('hu-HU', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+function deltaHtml(v) {
+  if (v === null || v === undefined) return '<span class="delta-zero">–</span>';
+  if (v > 0) return `<span class="hist-delta-pos">+${v}</span>`;
+  if (v < 0) return `<span class="hist-delta-neg">${v}</span>`;
+  return `<span class="delta-zero">0</span>`;
+}
+
+function selectHistTeam(name) {
+  histSelectedTeam = name;
+  renderHistTab();
+}
+
+function renderHistTab() {
+  const el = document.getElementById('histContent');
+  if (!el) return;
+  if (!_histEntries || !_histEntries.length) {
+    el.innerHTML = '<div class="history-panel"><div class="history-empty">Még nincs rögzített változás.<br><span style="font-size:.6rem;color:var(--text-muted)">Az adatok automatikusan mentődnek minden frissítéskor.</span></div></div>';
+    return;
   }
+  const snapshots = _histEntries
+    .filter(e => e.standingsSnapshot && e.standingsSnapshot.length)
+    .map(e => ({
+      ts: new Date(e.timestamp).getTime(),
+      seasonId: e.seasonId,
+      standings: e.standingsSnapshot.map(t => ({
+        team: t.team, pos: t.pos, pts: t.pts||0,
+        goalsFor: t.goalsFor||0, goalsAgainst: t.goalsAgainst||0,
+      }))
+    }))
+    .sort((a, b) => a.ts - b.ts);
+
+  if (!snapshots.length) {
+    el.innerHTML = '<div class="history-panel"><div class="history-empty">Még nincs rögzített változás.<br><span style="font-size:.6rem;color:var(--text-muted)">Az adatok automatikusan mentődnek minden frissítéskor.</span></div></div>';
+    return;
+  }
+  const seasonId = snapshots[snapshots.length-1]?.seasonId || '–';
+  const teams = [...new Set(snapshots.flatMap(s => s.standings.map(t => t.team)))].sort();
+  if (!histSelectedTeam || !teams.includes(histSelectedTeam)) histSelectedTeam = teams[0];
+
+  const tabsHtml = `<div class="history-tabs" style="margin-bottom:12px">${
+    teams.map(t => `<button class="history-tab${t===histSelectedTeam?' active':''}" onclick="selectHistTeam('${t.replace(/'/g,"\\'")}')">
+      ${t}
+    </button>`).join('')
+  }</div>`;
+
+  const rows = snapshots.map((snap, i) => {
+    const t = snap.standings.find(s => s.team === histSelectedTeam);
+    if (!t) return null;
+    const prev = i > 0 ? snapshots[i-1].standings.find(s => s.team === histSelectedTeam) : null;
+    return {
+      ts: snap.ts, pos: t.pos, pts: t.pts,
+      goalsFor: t.goalsFor, goalsAgainst: t.goalsAgainst,
+      deltaPts: prev ? t.pts - prev.pts : null,
+      deltaGF: prev ? t.goalsFor - prev.goalsFor : null,
+      deltaGA: prev ? t.goalsAgainst - prev.goalsAgainst : null,
+      deltaPos: prev ? prev.pos - t.pos : null,
+    };
+  }).filter(Boolean).reverse();
+
+  const tableHtml = `
+    <table class="history-table">
+      <thead><tr>
+        <th>Időpont</th><th class="r">Hely</th><th class="r">Lőtt</th>
+        <th class="r">Kapott</th><th class="r">Pont</th><th class="r">Δ Pont</th>
+        <th class="r">Δ Lőtt</th><th class="r">Δ Kap.</th><th class="r">Δ Hely</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r=>`<tr>
+          <td><span class="hist-ts">${tsStr(r.ts)}</span></td>
+          <td class="r">${r.pos}.</td><td class="r">${r.goalsFor}</td>
+          <td class="r">${r.goalsAgainst}</td>
+          <td class="r" style="font-weight:700;color:#fff">${r.pts}</td>
+          <td class="r">${deltaHtml(r.deltaPts)}</td><td class="r">${deltaHtml(r.deltaGF)}</td>
+          <td class="r">${deltaHtml(r.deltaGA)}</td><td class="r">${deltaHtml(r.deltaPos)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  const first = rows[rows.length-1], latest = rows[0];
+  const totalPtsGained = first&&latest ? latest.pts-first.pts : 0;
+  const totalGF = first&&latest ? latest.goalsFor-first.goalsFor : 0;
+  const totalGA = first&&latest ? latest.goalsAgainst-first.goalsAgainst : 0;
+  const posChange = first&&latest ? first.pos-latest.pos : 0;
+
+  const summaryHtml = `<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">
+    ${[['Pont szerzett',totalPtsGained,'pt'],['Lőtt gól',totalGF,''],['Kapott gól',totalGA,''],['Helyezés változás',posChange,'']].map(([lbl,val,unit])=>`
+      <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:3px;padding:10px;text-align:center">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.48rem;color:var(--text-muted);letter-spacing:1px;margin-bottom:4px">${lbl}</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:800;color:${val>0?'var(--green)':val<0?'var(--red)':'var(--text-muted)'}">${val>0?'+':''}${val}${unit}</div>
+      </div>`).join('')}
+  </div>`;
+
+  el.innerHTML = `<div class="history-panel">
+    <div class="history-panel-hdr">
+      <div class="history-panel-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 8v4l3 3M3.05 11a9 9 0 1 0 .5-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Szezon napló · ${snapshots.length} snapshot
+      </div>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:.5rem;color:var(--text-muted)">Szezon ID: ${seasonId}</span>
+    </div>
+    <div class="history-body">
+      ${tabsHtml}
+      ${summaryHtml}
+      <div style="overflow-x:auto">${tableHtml}</div>
+    </div>
+  </div>`;
+}
+
+let _histEntries = [];
+
+async function fetchAndRenderHistory() {
+  const countEl = document.getElementById('historyCount');
+  const el = document.getElementById('histContent');
+  if (el) el.innerHTML = '<div class="history-panel"><div class="history-empty"><div class="dots"><span></span><span></span><span></span></div>Betöltés...</div></div>';
+  try {
+    const data = await apiFetchHistory();
+    _histEntries = data.entries || [];
+    if (countEl) countEl.textContent = _histEntries.length > 0 ? `${_histEntries.length} bejegyzés` : '';
+    renderHistTab();
+  } catch(err) {
+    console.error('[History render]', err);
+    if (el) el.innerHTML = `<div class="history-panel"><div class="history-empty">⚠ Betöltési hiba: ${err.message}</div></div>`;
+  }
+}
+
+function exportHistory() {
+  const blob = new Blob([JSON.stringify(_histEntries, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `vsport_history_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
 }
 
 function toggleMiniTable(id,btn){
