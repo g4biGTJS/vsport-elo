@@ -127,9 +127,19 @@ function buildForms(historyEntries) {
     const last5Avg = last5g.length ? last5g.reduce((a, b) => a + b, 0) / last5g.length : avgGain;
 
     // Utolsó 5 snapshot gólátlag
-    const last5snaps = timeline.slice(-5);
-    const avgGF5 = last5snaps.reduce((s, t) => s + t.gf, 0) / last5snaps.length;
-    const avgGA5 = last5snaps.reduce((s, t) => s + t.ga, 0) / last5snaps.length;
+    // Gól PER FORDULÓ: snapshot-ok közötti különbségek (kumulatív → delta)
+    const gfDeltas = [];
+    const gaDeltas = [];
+    for (let i = 1; i < timeline.length; i++) {
+      const dgf = timeline[i].gf - timeline[i - 1].gf;
+      const dga = timeline[i].ga - timeline[i - 1].ga;
+      if (dgf >= 0) gfDeltas.push(dgf); // negatív = adathiba, kihagyjuk
+      if (dga >= 0) gaDeltas.push(dga);
+    }
+    const last5gf   = gfDeltas.slice(-5);
+    const last5ga   = gaDeltas.slice(-5);
+    const avgGF5    = last5gf.length ? last5gf.reduce((a, b) => a + b, 0) / last5gf.length : 1.5;
+    const avgGA5    = last5ga.length ? last5ga.reduce((a, b) => a + b, 0) / last5ga.length : 1.5;
 
     // Pozíció trend
     const half = Math.max(1, Math.floor(timeline.length / 2));
@@ -237,10 +247,17 @@ function calcMatch(home, away, standings, forms) {
   // xG becslés
   // Ha van history forma: azt használjuk
   // Ha nem: goalsFor / (n * 2) alapú becslés, de legalább 1.2 / mérkőzés
-  const totalGoalsAvg = n > 0 ? maxPts * 0.5 / n : 2.0; // durva átlag
-  const xGH = fH?.avgGF5 ?? (sH?.goalsFor  ? sH.goalsFor  / Math.max(n * 1.8, 1) : Math.max(totalGoalsAvg * 0.55, 1.2));
-  const xGA = fA?.avgGF5 ?? (sA?.goalsFor  ? sA.goalsFor  / Math.max(n * 1.8, 1) : Math.max(totalGoalsAvg * 0.55, 1.2));
-  const xG  = Math.max(xGH + xGA, 1.5);
+  // FONTOS: sH.goalsFor KUMULATÍV szezon total → le kell osztani becsült meccsszámmal
+  // Ha van history forma (avgGF5), az már helyes delta-alapú átlag/forduló
+  const estMatchesH = sH?.pts ? Math.max(sH.pts / 2.0, 1) : (n * 1.5);
+  const estMatchesA = sA?.pts ? Math.max(sA.pts / 2.0, 1) : (n * 1.5);
+  const xGH = (fH && fH.avgGF5 > 0)
+    ? fH.avgGF5
+    : (sH?.goalsFor ? Math.min(sH.goalsFor / estMatchesH, 4.5) : 1.5);
+  const xGA = (fA && fA.avgGF5 > 0)
+    ? fA.avgGF5
+    : (sA?.goalsFor ? Math.min(sA.goalsFor / estMatchesA, 4.5) : 1.5);
+  const xG = Math.min(Math.max(xGH + xGA, 1.2), 7.5);
 
   const over15 = overXGoalsPct(xG, 1);
   const over25 = overXGoalsPct(xG, 2);
