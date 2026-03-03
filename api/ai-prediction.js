@@ -1,4 +1,5 @@
-// api/ai-prediction.js – v3: valódi trend-alapú előrejelzés + szezonváltás reset
+// api/ai-prediction.js – v4: csapatnevek mindig a valódi standings-ből jönnek
+// Az AI csak a sorrendet és statisztikákat becsüli – soha nem talál ki csapatneveket
 export const config = { runtime: 'edge' };
 
 const corsHeaders = {
@@ -77,7 +78,7 @@ async function callAI(prompt, temp = 0.85) {
   return d.choices?.[0]?.message?.content || '';
 }
 
-// ── History context: per-csapat trend elemzéssel ──────────────────────────────
+// ── History context ───────────────────────────────────────────────────────────
 async function getHistoryContext(seasonId) {
   try {
     const key = seasonId
@@ -85,7 +86,6 @@ async function getHistoryContext(seasonId) {
       : 'vsport:league_history';
 
     let raw = await kvGet(key);
-    // Fallback legacy kulcsra ha nincs szezon-specifikus még
     if (!raw && key !== 'vsport:league_history') {
       raw = await kvGet('vsport:league_history');
     }
@@ -95,7 +95,6 @@ async function getHistoryContext(seasonId) {
     const entries = JSON.parse(raw);
     if (!Array.isArray(entries) || !entries.length) return { context: '', entryCount: 0, teamStats: {} };
 
-    // ── Per-csapat statisztika összesítés az egész szezonból ──────────────────
     const teamHistory = {};
     for (const entry of entries) {
       const snap  = entry.standingsSnapshot || [];
@@ -112,12 +111,10 @@ async function getHistoryContext(seasonId) {
       }
     }
 
-    // Rendezés forduló szerint
     for (const team of Object.keys(teamHistory)) {
       teamHistory[team].sort((a, b) => (a.round || 0) - (b.round || 0));
     }
 
-    // Trend számítás: első vs utolsó + utolsó félév vs első félév
     const teamStats = {};
     for (const [team, history] of Object.entries(teamHistory)) {
       if (history.length < 2) {
@@ -135,13 +132,12 @@ async function getHistoryContext(seasonId) {
 
       const first = history[0];
       const last  = history[history.length - 1];
-      const posChange  = first.pos - last.pos; // pozitív = javult
+      const posChange  = first.pos - last.pos;
       const ptsGrowth  = last.pts - first.pts;
       const rounds     = history.length;
       const avgGoalsFor     = Math.round(history.reduce((s, h) => s + h.goalsFor, 0)     / rounds);
       const avgGoalsAgainst = Math.round(history.reduce((s, h) => s + h.goalsAgainst, 0) / rounds);
 
-      // Részletes trend: utolsó fele vs első fele
       let recentTrend = 'same';
       if (history.length >= 4) {
         const mid = Math.floor(history.length / 2);
@@ -164,7 +160,6 @@ async function getHistoryContext(seasonId) {
       };
     }
 
-    // ── Szöveges context ──────────────────────────────────────────────────────
     const recent = entries.slice(0, 6);
     const roundLines = recent.map((e, idx) => {
       const d = new Date(e.timestamp);
@@ -185,7 +180,6 @@ async function getHistoryContext(seasonId) {
       return `\n  [${dateStr} – ${label}]\n${standingsStr}${moversStr ? `\n  Mozgások: ${moversStr}` : ''}`;
     });
 
-    // Per-csapat összefoglaló – ez a legfontosabb az AI-nek
     const teamSummaryLines = Object.entries(teamStats)
       .sort((a, b) => (a[1].lastPos || 99) - (b[1].lastPos || 99))
       .map(([team, s]) => {
@@ -217,14 +211,26 @@ ${roundLines.join('\n')}
 async function generatePrediction(standings, seasonId) {
   const { context: historyContext, entryCount, teamStats } = await getHistoryContext(seasonId);
 
-  const allTeamsData = standings.map(t =>
-    `${t.pos}. ${t.team}: ${t.pts}pt, ${t.goalsFor || 0}:${t.goalsAgainst || 0}`
+  // ════════════════════════════════════════════════════════════════
+  // FONTOS: A csapatnevek sorszámmal indexelve – az AI CSAK sorszámra hivatkozik!
+  // Ez megakadályozza, hogy az AI kitalált neveket (Arsenal stb.) írjon be.
+  // ════════════════════════════════════════════════════════════════
+  const teamIndexed = standings.map((t, i) => ({
+    index: i + 1,
+    team: t.team,
+    pts: t.pts,
+    goalsFor: t.goalsFor || 0,
+    goalsAgainst: t.goalsAgainst || 0,
+    pos: t.pos,
+  }));
+
+  const allTeamsData = teamIndexed.map(t =>
+    `#${t.index} (jelenleg ${t.pos}. hely) ${t.team}: ${t.pts}pt, ${t.goalsFor}:${t.goalsAgainst}`
   ).join('\n');
 
   const totalPts = standings.reduce((s, t) => s + (t.pts || 0), 0);
   const hasHistory = entryCount > 0;
 
-  // Hátralévő fordulók becslése
   const estimatedRoundsTotal  = 34;
   const estimatedRoundsPlayed = totalPts > 0
     ? Math.round(totalPts / Math.max(1, standings.length) / 2)
@@ -232,31 +238,34 @@ async function generatePrediction(standings, seasonId) {
   const estimatedRoundsLeft = Math.max(0, estimatedRoundsTotal - estimatedRoundsPlayed);
 
   const seasonNote = totalPts < 50
-    ? `SZEZON ELEJE – kb. ${estimatedRoundsPlayed} forduló játszva, ~${estimatedRoundsLeft} van hátra. Extrapolálj a TELJES szezonra!`
+    ? `SZEZON ELEJE – kb. ${estimatedRoundsPlayed} forduló játszva, ~${estimatedRoundsLeft} van hátra.`
     : estimatedRoundsLeft <= 5
-    ? `SZEZON VÉGE KÖZELEDIK – ~${estimatedRoundsLeft} forduló van hátra. A jelenlegi arányok megszilárdulnak.`
-    : `SZEZON KÖZEPE – ~${estimatedRoundsLeft} forduló van hátra. Még lehetnek változások.`;
+    ? `SZEZON VÉGE KÖZELEDIK – ~${estimatedRoundsLeft} forduló van hátra.`
+    : `SZEZON KÖZEPE – ~${estimatedRoundsLeft} forduló van hátra.`;
 
-  const prompt = `Te egy virtuális futball liga profi statisztikusa vagy. KÖTELEZŐ feladatod: ténylegesen eltérő, trend-alapú szezonvégi előrejelzést készíteni.
+  // Az AI CSAK indexeket kap vissza – NEM csapatneveket!
+  const prompt = `Te egy virtuális futball liga statisztikusa vagy. Becsüld meg a szezonvégi végső tabellát.
 
-JELENLEGI TABELLA (${standings.length} csapat):
+JELENLEGI TABELLA (${standings.length} csapat, indexszámmal jelölve):
 ${allTeamsData}
 
-${historyContext || 'Nincs előzmény – a gól/pont arányok alapján becsülj!'}
+${historyContext || 'Nincs előzmény adat.'}
 
 HELYZET: ${seasonNote}
+Extrapolálj a TELJES szezonra (szorzó: ~${Math.max(1.1, (estimatedRoundsTotal / Math.max(1, estimatedRoundsPlayed))).toFixed(1)}).
 
-SZIGORÚ SZABÁLYOK:
-1. Az aktuális állás 1:1-ben visszaadása TILOS. A pontok legyenek extrapoláltak (szorozd ~${Math.max(1.1, (estimatedRoundsTotal / Math.max(1, estimatedRoundsPlayed))).toFixed(1)}-szal).
-2. Ha van per-csapat trend adat (EMELKEDŐ/ESŐ/STAGNÁLÓ): a szezonvégi sorrend TÜKRÖZZE ezeket. EMELKEDŐ csapatok végezzék előrébb, ESŐ csapatok hátrább.
-3. A gólstatisztikák is legyenek arányosan extrapolálva.
-4. A középmezőnyben (4-12. hely) legyenek sorrendváltozások a trendek alapján.
-5. trend mező: "up" ha a csapat várhatóan javít helyezésén a szezon végéig, "down" ha romlik, "same" ha marad.
+KRITIKUS SZABÁLY: A válaszban CSAK az indexszámot (#1, #2, stb.) használd a csapatok azonosítására.
+NE írj csapatneveket – csak az index számot! A csapatneveket a rendszer automatikusan hozzárendeli.
 
-Válaszolj KIZÁRÓLAG valid JSON tömbbel – semmi más szöveg, magyarázat vagy prefix:
-[{"pos":1,"team":"Csapatnév","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},...]
+Válaszolj KIZÁRÓLAG valid JSON tömbbel:
+[{"index":1,"goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"up"},{"index":3,"goalsFor":65,"goalsAgainst":35,"pts":82,"trend":"same"},...]
 
-KÖTELEZŐ: pontosan ${standings.length} csapat, és a pontszámok MAGASABBAK legyenek az aktuálisnál (szezonvégi extrapoláció)!`;
+Szabályok:
+1. Minden csapat szerepeljen (pontosan ${standings.length} elem)
+2. Az "index" mező az eredeti sorszám (#1–#${standings.length})
+3. A sorrend a becsült végső helyezés szerint legyen (legtöbb pont = első)
+4. trend: "up"=javul, "down"=romlik, "same"=marad
+5. A pontok legyenek magasabbak az aktuálisnál (szezonvégi extrapoláció)`;
 
   const text  = await callAI(prompt);
   const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
@@ -270,43 +279,84 @@ KÖTELEZŐ: pontosan ${standings.length} csapat, és a pontszámok MAGASABBAK le
   }
 
   const parsed = JSON.parse(clean.slice(start, end + 1));
-  const aiStandings = parsed.map((r, i) => {
-    const rawPts = r.pts ?? r.points ?? r.Pts ?? r.pont ?? 0;
-    return {
-      pos:          parseInt(String(r.pos || (i + 1)), 10),
-      team:         String(r.team || r.name || r.csapat || '–'),
-      goalsFor:     parseInt(String(r.goalsFor  ?? r.gf ?? 0), 10) || 0,
-      goalsAgainst: parseInt(String(r.goalsAgainst ?? r.ga ?? 0), 10) || 0,
-      pts:          parseInt(String(rawPts), 10) || 0,
-      trend:        String(r.trend || 'same'),
-    };
-  });
+
+  // ════════════════════════════════════════════════════════════════
+  // CSAPATNÉV VISSZARENDELÉS: Az AI indexei alapján a VALÓDI neveket rendeljük vissza.
+  // Ha az AI ismeretlen indexet ad (pl. "Arsenal"), azt kihagyjuk és fallback-et alkalmazunk.
+  // ════════════════════════════════════════════════════════════════
+  const teamMap = {};
+  teamIndexed.forEach(t => { teamMap[t.index] = t; });
+
+  // Először megpróbáljuk index alapján párosítani
+  let aiStandings = [];
+  const usedIndexes = new Set();
+
+  for (const r of parsed) {
+    const idx = parseInt(String(r.index || 0), 10);
+    if (idx >= 1 && idx <= standings.length && teamMap[idx] && !usedIndexes.has(idx)) {
+      usedIndexes.add(idx);
+      aiStandings.push({
+        pos:          aiStandings.length + 1, // pozíciót majd újra rendezzük
+        team:         teamMap[idx].team,       // ← MINDIG a valódi csapatnév!
+        goalsFor:     parseInt(String(r.goalsFor  ?? r.gf ?? 0), 10) || 0,
+        goalsAgainst: parseInt(String(r.goalsAgainst ?? r.ga ?? 0), 10) || 0,
+        pts:          parseInt(String(r.pts ?? r.points ?? 0), 10) || 0,
+        trend:        String(r.trend || 'same'),
+        logo:         teamMap[idx].logo || null,
+      });
+    }
+  }
+
+  // Ha az AI nem adott vissza minden csapatot (pl. kihagyott néhányat),
+  // a hiányzókat az eredeti standings alapján adjuk hozzá
+  if (aiStandings.length < standings.length) {
+    console.warn(`[ai-prediction] AI csak ${aiStandings.length}/${standings.length} csapatot adott vissza – hiányzók pótlása`);
+    for (const t of teamIndexed) {
+      if (!usedIndexes.has(t.index)) {
+        const multiplier = Math.max(1.1, estimatedRoundsTotal / Math.max(1, estimatedRoundsPlayed));
+        aiStandings.push({
+          pos:          aiStandings.length + 1,
+          team:         t.team,
+          goalsFor:     Math.round((t.goalsFor || 0) * multiplier),
+          goalsAgainst: Math.round((t.goalsAgainst || 0) * multiplier),
+          pts:          Math.round((t.pts || 0) * multiplier),
+          trend:        'same',
+          logo:         t.logo || null,
+        });
+      }
+    }
+  }
 
   if (!aiStandings.length) throw new Error('Üres AI tabella');
 
-  // Ellenőrzés: ha az AI nem extrapolált rendesen, kézi becslés
+  // Rendezés pontszám szerint és pozíció frissítés
+  aiStandings.sort((a, b) => b.pts - a.pts || b.goalsFor - b.goalsAgainst - (a.goalsFor - a.goalsAgainst));
+  aiStandings.forEach((t, i) => { t.pos = i + 1; });
+
+  // Ellenőrzés: ha az AI nem extrapolált rendesen
   const totalAIPts   = aiStandings.reduce((s, t) => s + t.pts, 0);
   const totalRealPts = standings.reduce((s, t) => s + (t.pts || 0), 0);
   const ptsRatio     = totalRealPts > 0 ? totalAIPts / totalRealPts : 1;
 
   if (ptsRatio < 1.08 && estimatedRoundsLeft > 3) {
-    console.warn('[ai-prediction] AI nem extrapolált rendesen – kézi extrapoláció alkalmazva');
+    console.warn('[ai-prediction] AI nem extrapolált rendesen – kézi extrapoláció');
     const multiplier = Math.max(1.2, estimatedRoundsTotal / Math.max(1, estimatedRoundsPlayed));
-    aiStandings.forEach((t, i) => {
-      const basePts        = standings[i]?.pts        || 0;
-      const baseGoalsFor   = standings[i]?.goalsFor   || 0;
-      const baseGoalsAgainst = standings[i]?.goalsAgainst || 0;
-      const trendMod       = t.trend === 'up' ? 1.12 : t.trend === 'down' ? 0.90 : 1.0;
-      t.pts          = Math.round(basePts * multiplier * trendMod);
-      t.goalsFor     = Math.round(baseGoalsFor     * multiplier * (t.trend === 'up'   ? 1.08 : 1.0));
-      t.goalsAgainst = Math.round(baseGoalsAgainst * multiplier * (t.trend === 'down' ? 1.08 : 1.0));
+    // Az aiStandings-ban már a valódi nevek vannak, csak a számokat korrigáljuk
+    aiStandings.forEach(t => {
+      // Megkeressük az eredeti standings-ban ezt a csapatot (névegyezéssel – már biztosan helyes)
+      const orig = standings.find(s => s.team === t.team);
+      if (orig) {
+        const trendMod = t.trend === 'up' ? 1.12 : t.trend === 'down' ? 0.90 : 1.0;
+        t.pts          = Math.round((orig.pts || 0) * multiplier * trendMod);
+        t.goalsFor     = Math.round((orig.goalsFor || 0)     * multiplier * (t.trend === 'up'   ? 1.08 : 1.0));
+        t.goalsAgainst = Math.round((orig.goalsAgainst || 0) * multiplier * (t.trend === 'down' ? 1.08 : 1.0));
+      }
     });
-    // Rendezés és pozíció frissítés
     aiStandings.sort((a, b) => b.pts - a.pts);
     aiStandings.forEach((t, i) => { t.pos = i + 1; });
   }
 
-  // Elemzés szöveg
+  // Elemzés szöveg – csapatnevekkel (már biztosan helyesek)
   const top3      = aiStandings.slice(0, 3).map(t  => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
   const bot3      = aiStandings.slice(-3).map(t     => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
   const upTeams   = aiStandings.filter(t => t.trend === 'up').map(t   => t.team).join(', ') || 'nincs';
@@ -319,7 +369,7 @@ Szezonvégi előrejelzés:
 - Emelkedő csapatok: ${upTeams}
 - Csökkenő csapatok: ${downTeams}
 - Adatbázis: ${hasHistory ? `${entryCount} forduló history` : 'nincs history, gól-arányok alapján'}
-Miért lehetnek ilyen helyzetben a szezon végén? Milyen trendek vezethetek ide?`;
+Miért lehetnek ilyen helyzetben a szezon végén?`;
 
   const analysis = await callAI(analysisPrompt, 0.7);
 
@@ -339,7 +389,6 @@ export default async function handler(req) {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
 
   try {
-    // GET – aktuális AI előrejelzés lekérése
     if (req.method === 'GET') {
       const rawPred = await kvGet(AI_KEY);
       const rawMeta = await kvGet(AI_META_KEY);
@@ -363,7 +412,6 @@ export default async function handler(req) {
       });
     }
 
-    // POST – generálás kérése
     if (req.method === 'POST') {
       const body = await req.json();
       const { standings, seasonId, force } = body;
@@ -376,7 +424,6 @@ export default async function handler(req) {
 
       const currentFP = fingerprint(standings);
 
-      // Ha nem force, ellenőrizzük szükséges-e újragenerálás
       if (!force) {
         const rawMeta = await kvGet(AI_META_KEY);
         if (rawMeta) {
@@ -390,9 +437,19 @@ export default async function handler(req) {
                 let prediction = null;
                 try { prediction = JSON.parse(rawPred); } catch (e) {}
                 if (prediction) {
-                  return new Response(JSON.stringify({
-                    prediction, meta, regenerated: false, reason: 'already_current',
-                  }), { status: 200, headers: corsHeaders });
+                  // ── EXTRA ELLENŐRZÉS: Ha a tárolt előrejelzés csapatai nem egyeznek a valódiakkal, újragenerálunk ──
+                  const realTeams = new Set(standings.map(t => t.team));
+                  const aiTeams  = (prediction.standings || []).map(t => t.team);
+                  const hasWrongTeams = aiTeams.some(name => !realTeams.has(name));
+
+                  if (hasWrongTeams) {
+                    console.warn('[ai-prediction] Tárolt előrejelzés helytelen csapatneveket tartalmaz – újragenerálás!');
+                    // Ne adjuk vissza, menjünk tovább a generáláshoz
+                  } else {
+                    return new Response(JSON.stringify({
+                      prediction, meta, regenerated: false, reason: 'already_current',
+                    }), { status: 200, headers: corsHeaders });
+                  }
                 }
               }
             }
@@ -400,11 +457,9 @@ export default async function handler(req) {
         }
       }
 
-      // Generálás
-      console.log('[ai-prediction] Generating... force=', force, 'seasonId=', seasonId, 'fp=', currentFP.slice(0, 60));
+      console.log('[ai-prediction] Generating... force=', force, 'seasonId=', seasonId);
       const prediction = await generatePrediction(standings, seasonId);
 
-      // Mentés KV-ba
       await kvSet(AI_KEY, JSON.stringify(prediction));
       await kvSet(AI_META_KEY, JSON.stringify({
         generatedAt: prediction.generatedAt,
