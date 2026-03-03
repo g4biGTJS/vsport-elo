@@ -160,7 +160,7 @@ async function getHistoryContext(seasonId) {
       };
     }
 
-    const recent = entries.slice(0, 6);
+    const recent = entries.slice(0, 30);
     const roundLines = recent.map((e, idx) => {
       const d = new Date(e.timestamp);
       const dateStr = d.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
