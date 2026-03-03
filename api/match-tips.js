@@ -1,4 +1,4 @@
-// api/match-tips.js – v5: Elo + Poisson + okos AI prompt
+// api/match-tips.js – v6: MATH számítja a %-okat, AI csak szöveget ír
 export const config = { runtime: 'edge' };
 
 const corsHeaders = {
@@ -8,253 +8,263 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-// ─── Elo modell ───────────────────────────────────────────────────────────────
-// Skála: 1000–1900. Hazai pálya bónusz = +50 Elo (~5-7% előny azonos erőknél)
-const HOME_ELO_BONUS = 50;
+const HOME_ELO_BONUS = 50; // ~6% előny azonos erőknél
 
-function teamElo(pos, pts, totalTeams, maxPts, formBonus = 0) {
-  const posScore = ((totalTeams - pos) / Math.max(totalTeams - 1, 1)) * 600;
+// ─── Elo ─────────────────────────────────────────────────────────────────────
+function teamElo(pos, pts, n, maxPts, formBonus = 0) {
+  const posScore = ((n - pos) / Math.max(n - 1, 1)) * 600;
   const ptsScore = maxPts > 0 ? (pts / maxPts) * 300 : 0;
   return Math.round(1000 + posScore + ptsScore + formBonus);
 }
 
-function eloToWinProb(eloA, eloB) {
+function eloWinProb(eloA, eloB) {
   return 1 / (1 + Math.pow(10, (eloB - eloA) / 400));
 }
 
-// Dixon-Coles közelítés: döntetlen ráta az Elo-különbség alapján
-function drawRate(eloDiff) {
-  // eloDiff=0 → ~28%, eloDiff=300 → ~11%
-  return Math.max(0.08, Math.min(0.30, 0.28 - (Math.abs(eloDiff) / 300) * 0.17));
-}
-
-// ─── Poisson gól valószínűség ─────────────────────────────────────────────────
+// ─── Poisson ─────────────────────────────────────────────────────────────────
 function poissonPMF(lambda, k) {
+  if (lambda <= 0) return k === 0 ? 1 : 0;
   let logP = k * Math.log(lambda) - lambda;
   for (let i = 1; i <= k; i++) logP -= Math.log(i);
   return Math.exp(logP);
 }
 
-function overXGoals(lambda, x) {
-  // P(goals > x) = 1 - sum(P(k) for k=0..floor(x))
-  let cumulative = 0;
-  for (let k = 0; k <= Math.floor(x); k++) cumulative += poissonPMF(lambda, k);
-  return Math.max(0, Math.min(1, 1 - cumulative));
+function overXGoalsPct(lambda, x) {
+  let cum = 0;
+  for (let k = 0; k <= Math.floor(x); k++) cum += poissonPMF(lambda, k);
+  return Math.round(Math.min(Math.max((1 - cum) * 100, 10), 95));
 }
 
-// ─── Forma adatok feldolgozása history-ból ────────────────────────────────────
-function buildTeamForms(historyEntries) {
+// ─── Forma feldolgozás ────────────────────────────────────────────────────────
+function buildForms(historyEntries) {
   if (!historyEntries?.length) return {};
 
-  const snapshots = historyEntries
+  const snaps = historyEntries
     .filter(e => e.standingsSnapshot?.length)
     .slice(0, 20)
-    .reverse(); // legrégebbi elöl
+    .reverse();
 
-  if (snapshots.length < 2) return {};
+  if (snaps.length < 2) return {};
 
   const forms = {};
-  const allTeams = new Set(snapshots.flatMap(s => s.standingsSnapshot.map(t => t.team)));
+  const teams = new Set(snaps.flatMap(s => s.standingsSnapshot.map(t => t.team)));
 
-  for (const teamName of allTeams) {
-    const timeline = snapshots.map(snap => {
-      const t = snap.standingsSnapshot.find(x => x.team === teamName);
-      return t ? {
-        pts: t.pts || 0, pos: t.pos,
-        gf: t.goalsFor || 0, ga: t.goalsAgainst || 0,
-      } : null;
+  for (const name of teams) {
+    const tl = snaps.map(s => {
+      const t = s.standingsSnapshot.find(x => x.team === name);
+      return t ? { pts: t.pts || 0, pos: t.pos, gf: t.goalsFor || 0, ga: t.goalsAgainst || 0 } : null;
     }).filter(Boolean);
 
-    if (timeline.length < 2) continue;
+    if (tl.length < 2) continue;
 
     const gains = [];
-    for (let i = 1; i < timeline.length; i++) {
-      gains.push(timeline[i].pts - timeline[i - 1].pts);
-    }
+    for (let i = 1; i < tl.length; i++) gains.push(tl[i].pts - tl[i - 1].pts);
 
     const avgGain  = gains.reduce((a, b) => a + b, 0) / gains.length;
     const last5    = gains.slice(-5);
     const last5Avg = last5.length ? last5.reduce((a, b) => a + b, 0) / last5.length : avgGain;
 
-    // Utolsó 5 snapshot átlagai
-    const last5snaps = timeline.slice(-5);
-    const avgGF5  = last5snaps.reduce((s, t) => s + t.gf, 0) / last5snaps.length;
-    const avgGA5  = last5snaps.reduce((s, t) => s + t.ga, 0) / last5snaps.length;
+    const last5snaps = tl.slice(-5);
+    const avgGF5 = last5snaps.reduce((s, t) => s + t.gf, 0) / last5snaps.length;
+    const avgGA5 = last5snaps.reduce((s, t) => s + t.ga, 0) / last5snaps.length;
 
-    // Trend: korai vs késői pozíció átlag
-    const half    = Math.floor(timeline.length / 2);
-    const earlyAvgPos = timeline.slice(0, half).reduce((s, t) => s + t.pos, 0) / half;
-    const lateAvgPos  = timeline.slice(-half).reduce((s, t)  => s + t.pos, 0) / half;
-    const trend   = lateAvgPos < earlyAvgPos - 1 ? 'up' : lateAvgPos > earlyAvgPos + 1 ? 'down' : 'same';
+    const half = Math.floor(tl.length / 2);
+    const earlyPos = tl.slice(0, half).reduce((s, t) => s + t.pos, 0) / half;
+    const latePos  = tl.slice(-half).reduce((s, t) => s + t.pos, 0) / half;
+    const trend = latePos < earlyPos - 1 ? 'up' : latePos > earlyPos + 1 ? 'down' : 'same';
 
-    // Győzelem / döntetlen / vereség arány
     const wins   = gains.filter(g => g >= 3).length;
     const draws  = gains.filter(g => g === 1).length;
     const losses = gains.filter(g => g === 0).length;
     const total  = wins + draws + losses;
 
-    forms[teamName] = {
-      avgPtsPerRound: Math.round(avgGain  * 100) / 100,
-      last5Avg:       Math.round(last5Avg * 100) / 100,
-      avgGF5:         Math.round(avgGF5   * 10)  / 10,
-      avgGA5:         Math.round(avgGA5   * 10)  / 10,
+    forms[name] = {
+      last5Avg:  Math.round(last5Avg * 100) / 100,
+      avgGF5:    Math.round(avgGF5   * 10)  / 10,
+      avgGA5:    Math.round(avgGA5   * 10)  / 10,
       trend,
-      winRate:   total ? Math.round(wins   / total * 100) : 0,
-      drawRate:  total ? Math.round(draws  / total * 100) : 0,
-      lossRate:  total ? Math.round(losses / total * 100) : 0,
-      snapCount: timeline.length,
-      // Forma bónusz Elo-ban: átlagtól való eltérés
+      winRate:  total ? Math.round(wins   / total * 100) : 0,
+      drawRate: total ? Math.round(draws  / total * 100) : 0,
+      lossRate: total ? Math.round(losses / total * 100) : 0,
+      // Elo módosító: 1.5 pt/forduló az átlag, ennél jobb/rosszabb = +/- Elo
       eloBonus: Math.round((last5Avg - 1.5) * 18),
     };
   }
   return forms;
 }
 
-// ─── Precíz lokális számítás ──────────────────────────────────────────────────
-function computeLocalTips(matches, aiStandings, forms) {
+// ─── A FŐ SZÁMÍTÁS – ez adja a végleges %-okat, NEM az AI ───────────────────
+function calcMatch(home, away, aiStandings, forms) {
   const n      = aiStandings.length || 20;
   const maxPts = Math.max(...aiStandings.map(t => t.pts || 0), 1);
 
-  return matches.map(m => {
-    const aiH = aiStandings.find(t => t.team === m.home);
-    const aiA = aiStandings.find(t => t.team === m.away);
-    const fH  = forms[m.home];
-    const fA  = forms[m.away];
+  const aiH = aiStandings.find(t => t.team === home);
+  const aiA = aiStandings.find(t => t.team === away);
+  const fH  = forms[home];
+  const fA  = forms[away];
 
-    const posH = aiH?.pos ?? Math.round(n / 2);
-    const posA = aiA?.pos ?? Math.round(n / 2);
-    const ptsH = aiH?.pts ?? 0;
-    const ptsA = aiA?.pts ?? 0;
+  const posH = aiH?.pos ?? Math.round(n / 2);
+  const posA = aiA?.pos ?? Math.round(n / 2);
+  const ptsH = aiH?.pts ?? 0;
+  const ptsA = aiA?.pts ?? 0;
 
-    const eloH = teamElo(posH, ptsH, n, maxPts, fH?.eloBonus ?? 0) + HOME_ELO_BONUS;
-    const eloA = teamElo(posA, ptsA, n, maxPts, fA?.eloBonus ?? 0);
-    const eloDiff = eloH - HOME_ELO_BONUS - eloA;
+  const eloH_base = teamElo(posH, ptsH, n, maxPts, fH?.eloBonus ?? 0);
+  const eloA_base = teamElo(posA, ptsA, n, maxPts, fA?.eloBonus ?? 0);
+  const eloH = eloH_base + HOME_ELO_BONUS;
+  const eloA = eloA_base;
 
-    const rawH = eloToWinProb(eloH, eloA);
-    const rawA = eloToWinProb(eloA, eloH);
-    const dr   = drawRate(eloDiff);
-    const pool = 1 - dr;
+  const eloDiff = eloH_base - eloA_base; // hazai pálya nélkül
 
-    let homePct = Math.round(rawH * pool * 100);
-    let awayPct = Math.round(rawA * pool * 100);
-    let drawPct = 100 - homePct - awayPct;
+  // Győzelem valószínűségek
+  const rawH = eloWinProb(eloH, eloA);
+  const rawA = eloWinProb(eloA, eloH);
 
-    // Minimumok
-    homePct = Math.max(homePct, 8);
-    awayPct = Math.max(awayPct, 8);
-    drawPct = Math.max(drawPct, 8);
-    // Normalizálás
-    const s = homePct + drawPct + awayPct;
-    homePct = Math.round(homePct / s * 100);
-    drawPct = Math.round(drawPct / s * 100);
-    awayPct = 100 - homePct - drawPct;
+  // Döntetlen ráta: Elo-különbség alapján
+  // |diff|=0 → 28%, |diff|=300 → 11%
+  const dr   = Math.max(0.08, Math.min(0.30, 0.28 - (Math.abs(eloDiff) / 300) * 0.17));
+  const pool = 1 - dr;
 
-    // xG: history gólátlag > tabella gólátlag > default
-    const xGH = fH?.avgGF5 ?? (aiH ? (aiH.goalsFor || 50) / Math.max(n * 1.5, 1) : 1.8);
-    const xGA = fA?.avgGF5 ?? (aiA ? (aiA.goalsFor || 50) / Math.max(n * 1.5, 1) : 1.8);
-    const xGTotal = xGH + xGA;
+  // Nyers %-ok
+  let h = rawH * pool * 100;
+  let a = rawA * pool * 100;
+  let d = dr * 100;
 
-    const over15Pct = Math.round(overXGoals(xGTotal, 1) * 100);
-    const over25Pct = Math.round(overXGoals(xGTotal, 2) * 100);
+  // Kerekítés, min 8%
+  h = Math.max(Math.round(h), 8);
+  a = Math.max(Math.round(a), 8);
+  d = Math.max(Math.round(d), 8);
 
-    const label = Math.abs(eloDiff) > 250 ? 'nagy erőfölény' : Math.abs(eloDiff) > 100 ? 'közepes különbség' : 'kiegyenlített';
-    const fav   = homePct >= awayPct ? m.home : m.away;
+  // Normalizálás → összeg = 100
+  const sum = h + d + a;
+  h = Math.round(h / sum * 100);
+  d = Math.round(d / sum * 100);
+  a = 100 - h - d;
+  if (a < 8) { a = 8; h = 100 - d - a; }
 
-    return {
-      home: m.home, away: m.away,
-      homePct, drawPct, awayPct,
-      over15Pct, over25Pct,
-      over15Comment: over15Pct >= 68
-        ? `xG ≈ ${xGTotal.toFixed(1)}, magas gólszám várható`
-        : `xG ≈ ${xGTotal.toFixed(1)}, szoros, alacsony gólszámú mérkőzés`,
-      over25Comment: over25Pct >= 55
-        ? '3+ gól valószínű, mindkét csapat támadó játékot játszik'
-        : '3 gólnál több nem várható, inkább defenzív meccs',
-      analysis: `${fav} az esélyes (${label}). Tabella: ${posH}. vs ${posA}. hely, Elo-különbség: ${Math.abs(Math.round(eloDiff))} pont.${fH ? ` ${m.home} forma: ${fH.trend === 'up' ? 'emelkedő' : fH.trend === 'down' ? 'eső' : 'stabil'} (${fH.winRate}% win rate).` : ''}${fA ? ` ${m.away} forma: ${fA.trend === 'up' ? 'emelkedő' : fA.trend === 'down' ? 'eső' : 'stabil'} (${fA.winRate}% win rate).` : ''}`,
-      _eloH: Math.round(eloH - HOME_ELO_BONUS),
-      _eloA: Math.round(eloA),
-      _xGTotal: xGTotal,
-      source: 'local',
-    };
-  });
+  // xG
+  const xGH = fH?.avgGF5 ?? (aiH ? (aiH.goalsFor  || 50) / Math.max(n * 1.5, 1) : 1.8);
+  const xGA = fA?.avgGF5 ?? (aiA ? (aiA.goalsFor  || 50) / Math.max(n * 1.5, 1) : 1.8);
+  const xG  = xGH + xGA;
+
+  const over15 = overXGoalsPct(xG, 1);
+  const over25 = overXGoalsPct(xG, 2);
+
+  return {
+    homePct:  h,
+    drawPct:  d,
+    awayPct:  a,
+    over15Pct: over15,
+    over25Pct: over25,
+    // meta az AI szöveghez
+    _eloH:    eloH_base,
+    _eloA:    eloA_base,
+    _eloDiff: Math.round(eloDiff),
+    _xG:      Math.round(xG * 100) / 100,
+    _posH:    posH,
+    _posA:    posA,
+    _fH:      fH,
+    _fA:      fA,
+  };
 }
 
-// ─── Eredmény validálás ──────────────────────────────────────────────────────
-function validateResults(results, matches) {
-  return results.map((r, i) => {
-    let h = Math.max(8, Math.round(Number(r.homePct) || 0));
-    let d = Math.max(8, Math.round(Number(r.drawPct) || 0));
-    let a = Math.max(8, Math.round(Number(r.awayPct) || 0));
-    const sum = h + d + a;
-    if (sum !== 100 && sum > 0) {
-      h = Math.round(h / sum * 100);
-      d = Math.round(d / sum * 100);
-      a = 100 - h - d;
-    }
-    return {
-      ...r,
-      home:    r.home || matches[i]?.home || '?',
-      away:    r.away || matches[i]?.away || '?',
-      homePct: h, drawPct: d, awayPct: a,
-    };
-  });
-}
+// ─── AI: csak szöveges elemzést kér, számokat NEM ────────────────────────────
+async function getAIAnalysis(matches, calcResults, aiStandings) {
+  const matchLines = matches.map((m, i) => {
+    const c = calcResults[i];
+    const fav = c.homePct >= c.awayPct ? m.home : m.away;
+    const label = Math.abs(c._eloDiff) > 250 ? 'nagy erőfölény'
+      : Math.abs(c._eloDiff) > 100 ? 'közepes különbség' : 'kiegyenlített';
+    return [
+      `MECCS ${i+1}: ${m.home} (HAZAI, ${c._posH}. hely, Elo=${c._eloH}) vs ${m.away} (VENDÉG, ${c._posA}. hely, Elo=${c._eloA})`,
+      `  Favorit: ${fav} | Erőkülönbség: ${label} (${Math.abs(c._eloDiff)} Elo pont)`,
+      `  Esélyek: Hazai ${c.homePct}% | Döntetlen ${c.drawPct}% | Vendég ${c.awayPct}%`,
+      `  Gól: Over 1.5 = ${c.over15Pct}%, Over 2.5 = ${c.over25Pct}%, xG ≈ ${c._xG}`,
+      c._fH ? `  ${m.home} forma: ${c._fH.trend === 'up' ? '↑emelkedő' : c._fH.trend === 'down' ? '↓eső' : '→stabil'}, win%=${c._fH.winRate}%, utolsó5=${c._fH.last5Avg}pt/forduló` : '',
+      c._fA ? `  ${m.away} forma: ${c._fA.trend === 'up' ? '↑emelkedő' : c._fA.trend === 'down' ? '↓eső' : '→stabil'}, win%=${c._fA.winRate}%, utolsó5=${c._fA.last5Avg}pt/forduló` : '',
+    ].filter(Boolean).join('\n');
+  }).join('\n\n');
 
-// ─── LLM hívás ────────────────────────────────────────────────────────────────
-async function callLLM(systemPrompt, userPrompt) {
-  // 1. llm7.io
+  const prompt = `Te egy virtuális futball kommentátor vagy. Az alábbi meccsekhez már ki vannak számítva az esélyek matematikailag – te csak rövid, informatív SZÖVEGES elemzést írj minden meccshez magyarul.
+
+${matchLines}
+
+Adj vissza KIZÁRÓLAG valid JSON tömböt:
+[
+  {
+    "over15Comment": "1 mondat – miért valószínű/nem valószínű 1.5 gól felett, hivatkozz az xG értékre",
+    "over25Comment": "1 mondat – 2.5 gól felett",
+    "analysis": "2-3 mondat – ki az esélyes és miért, tabella pozícióra és ha van formára hivatkozva"
+  }
+]
+
+FONTOS: Ne adj meg százalékokat a szövegben, azok már ki vannak töltve. Csak a szöveges magyarázatot add.`;
+
   try {
     const res = await fetch('https://api.llm7.io/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: userPrompt },
-        ],
-        temperature: 0.1,
-        max_tokens: 4000,
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.4,
+        max_tokens: 2000,
       }),
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(25000),
     });
     if (res.ok) {
       const data = await res.json();
-      const txt  = data.choices?.[0]?.message?.content;
-      if (txt) return txt;
+      const txt  = data.choices?.[0]?.message?.content || '';
+      const clean = txt.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      const jsonMatch = clean.match(/\[[\s\S]*\]/);
+      if (jsonMatch) return JSON.parse(jsonMatch[0]);
     }
   } catch (e) {
-    console.warn('[match-tips] llm7.io:', e.message);
+    console.warn('[match-tips] AI text hiba:', e.message);
   }
 
-  // 2. Anthropic fallback
+  // Anthropic fallback
   const key = process.env.ANTHROPIC_API_KEY;
   if (key) {
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-        },
+        headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 4000,
-          system: systemPrompt,
-          messages: [{ role: 'user', content: userPrompt }],
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: prompt }],
         }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(25000),
       });
       if (res.ok) {
         const data = await res.json();
-        return data.content?.[0]?.text || null;
+        const txt  = data.content?.[0]?.text || '';
+        const clean = txt.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        const jsonMatch = clean.match(/\[[\s\S]*\]/);
+        if (jsonMatch) return JSON.parse(jsonMatch[0]);
       }
     } catch (e) {
-      console.warn('[match-tips] Anthropic:', e.message);
+      console.warn('[match-tips] Anthropic text hiba:', e.message);
     }
   }
+
   return null;
+}
+
+// ─── Fallback szöveg ha az AI nem válaszol ────────────────────────────────────
+function fallbackText(m, c) {
+  const fav   = c.homePct >= c.awayPct ? m.home : m.away;
+  const label = Math.abs(c._eloDiff) > 250 ? 'nagy erőfölénnyel'
+    : Math.abs(c._eloDiff) > 100 ? 'közepes előnnyel' : 'kis előnnyel';
+  return {
+    over15Comment: c.over15Pct >= 65
+      ? `xG ≈ ${c._xG}, gólgazdag meccs várható mindkét csapattól.`
+      : `xG ≈ ${c._xG}, szoros, alacsony gólszámú mérkőzés várható.`,
+    over25Comment: c.over25Pct >= 55
+      ? '3+ gól valószínű, mindkét csapat támadó játékot játszik.'
+      : '3 gólnál több nem várható, inkább taktikai mérkőzés.',
+    analysis: `${fav} az esélyes ${label} (${c._posH}. vs ${c._posA}. hely a tabellán, Elo-különbség: ${Math.abs(c._eloDiff)} pont).${c._fH ? ` ${m.home} formája ${c._fH.trend === 'up' ? 'emelkedő' : c._fH.trend === 'down' ? 'eső' : 'stabil'}.` : ''}${c._fA ? ` ${m.away} formája ${c._fA.trend === 'up' ? 'emelkedő' : c._fA.trend === 'down' ? 'eső' : 'stabil'}.` : ''}`,
+  };
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
@@ -273,109 +283,35 @@ export default async function handler(req) {
     }
 
     const aiStandings = aiPrediction?.standings || [];
-    const n      = aiStandings.length || 20;
-    const maxPts = Math.max(...aiStandings.map(t => t.pts || 0), 1);
+    const forms = buildForms(history || []);
 
-    // Forma adatok
-    const forms = buildTeamForms(history || []);
+    // ── 1. MATEMATIKA számítja az összes %-ot ────────────────────────────────
+    const calcResults = matches.map(m => calcMatch(m.home, m.away, aiStandings, forms));
 
-    // Lokális Elo-Poisson számítás (referencia az AI-nak is)
-    const localTips = computeLocalTips(matches, aiStandings, forms);
+    // ── 2. AI csak szöveges elemzést ad ─────────────────────────────────────
+    const aiTexts = await getAIAnalysis(matches, calcResults, aiStandings);
 
-    // ── AI kontextus összeállítása ────────────────────────────────────────
-    const tableCtx = aiStandings.length
-      ? aiStandings.map(t => {
-          const elo  = teamElo(t.pos, t.pts || 0, n, maxPts);
-          const gd   = (t.goalsFor || 0) - (t.goalsAgainst || 0);
-          const form = forms[t.team];
-          const fStr = form
-            ? ` | forma: ${form.trend === 'up' ? '↑emelkedő' : form.trend === 'down' ? '↓eső' : '→stabil'} | W/D/L: ${form.winRate}%/${form.drawRate}%/${form.lossRate}% | utolsó5: ${form.last5Avg}pt/forduló | xG: ${form.avgGF5}:${form.avgGA5}`
-            : '';
-          return `${String(t.pos).padStart(2)}. ${t.team.padEnd(22)} ${String(t.pts||0).padStart(3)}pt  GF:${String(t.goalsFor||0).padStart(3)}  GA:${String(t.goalsAgainst||0).padStart(3)}  GD:${String(gd).padStart(4)}  Elo:${elo}${fStr}`;
-        }).join('\n')
-      : 'Tabella nem elérhető';
+    // ── 3. Eredmények összeállítása ──────────────────────────────────────────
+    const results = matches.map((m, i) => {
+      const c   = calcResults[i];
+      const txt = aiTexts?.[i] || fallbackText(m, c);
+      return {
+        home:    m.home,
+        away:    m.away,
+        // Százalékok: KIZÁRÓLAG a matematikai számításból
+        homePct:  c.homePct,
+        drawPct:  c.drawPct,
+        awayPct:  c.awayPct,
+        over15Pct: c.over15Pct,
+        over25Pct: c.over25Pct,
+        // Szöveg: AI-tól (vagy fallback)
+        over15Comment: txt.over15Comment || fallbackText(m, c).over15Comment,
+        over25Comment: txt.over25Comment || fallbackText(m, c).over25Comment,
+        analysis:      txt.analysis      || fallbackText(m, c).analysis,
+      };
+    });
 
-    // Meccs lista Elo + Poisson referenciával
-    const matchCtx = matches.map((m, i) => {
-      const loc = localTips[i];
-      const aiH = aiStandings.find(t => t.team === m.home);
-      const aiA = aiStandings.find(t => t.team === m.away);
-      const fH  = forms[m.home];
-      const fA  = forms[m.away];
-      return [
-        `\n━ MECCS ${i+1}: ${m.home} (HAZAI) vs ${m.away} (VENDÉG)`,
-        `  ${m.home}: ${aiH ? aiH.pos + '. hely, ' + aiH.pts + 'pt' : '?'}, Elo≈${loc._eloH}${fH ? `, forma: ${fH.trend === 'up' ? '↑' : fH.trend === 'down' ? '↓' : '→'}, win%: ${fH.winRate}%` : ''}`,
-        `  ${m.away}: ${aiA ? aiA.pos + '. hely, ' + aiA.pts + 'pt' : '?'}, Elo≈${loc._eloA}${fA ? `, forma: ${fA.trend === 'up' ? '↑' : fA.trend === 'down' ? '↓' : '→'}, win%: ${fA.winRate}%` : ''}`,
-        `  Elo-különbség: ${Math.abs(loc._eloH - loc._eloA)} pont (${loc._eloH > loc._eloA ? m.home + ' az erősebb' : m.away + ' az erősebb'})`,
-        `  xG összesen: ≈${loc._xGTotal?.toFixed(2) || '?'}`,
-        `  Matematikai referencia (Elo+Poisson): Hazai ${loc.homePct}% | Döntetlen ${loc.drawPct}% | Vendég ${loc.awayPct}%`,
-        `  Over 1.5 referencia: ${loc.over15Pct}% | Over 2.5 referencia: ${loc.over25Pct}%`,
-      ].join('\n');
-    }).join('\n');
-
-    const systemPrompt = `Te egy profi virtuális futball statisztikus és Elo-rendszer szakértő vagy.
-
-TUDÁSOD:
-- Elo-rendszer: a magasabb Elo csapat egyértelműen erősebb, a különbség logaritmikusan skálázódik
-- Hazai pálya előny valós értéke: 5-7% (kb. 50 Elo pont) – SOHA nem fordítja meg a nagy erőkülönbséget
-- Döntetlen valószínűsége: nagy Elo-különbségnél (>250) max 13%, kis különbségnél (<50) max 30%
-- xG (Expected Goals) alapján Poisson-eloszlással számolsz gól valószínűséget
-- A tabella pozíció + pontszám + forma EGYÜTT adja a valódi erőt
-
-KÖTELEZŐ LOGIKA:
-- Ha az Elo-különbség > 200: az erősebb csapat >65% valószínűséggel nyer
-- Ha az Elo-különbség > 300: az erősebb csapat >72% valószínűséggel nyer
-- A matematikai referenciától csak forma adat alapján térhetsz el, maximum ±7%
-- Minden kimenetelre minimum 8%
-- homePct + drawPct + awayPct = PONTOSAN 100`;
-
-    const userPrompt = `TABELLA ÉS FORMA ADATOK:
-${tableCtx}
-
-MECCSEK ELO + POISSON REFERENCIÁVAL:
-${matchCtx}
-
-FELADAT: Elemezd az összes meccset. A matematikai referencia helyes – az AI elemzésed ettől maximum ±7%-ban térhet el, kizárólag ha a forma adatok (W/D/L arány, utolsó 5 forduló, trend) egyértelműen indokolják.
-
-Adj vissza KIZÁRÓLAG valid JSON tömböt, semmi más szöveg:
-[
-  {
-    "home": "csapatnév",
-    "away": "csapatnév",
-    "homePct": X,
-    "drawPct": X,
-    "awayPct": X,
-    "over15Pct": X,
-    "over25Pct": X,
-    "over15Comment": "Magyar szöveg – hivatkozz az xG értékre",
-    "over25Comment": "Magyar szöveg",
-    "analysis": "2-3 mondat magyarul: kik az esélyek, miért, tabella pozícióra és formára hivatkozva"
-  }
-]`;
-
-    const llmText = await callLLM(systemPrompt, userPrompt);
-    let results = null, source = 'local';
-
-    if (llmText) {
-      try {
-        const clean  = llmText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-        const match  = clean.match(/\[[\s\S]*\]/);
-        const parsed = JSON.parse(match ? match[0] : clean);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          results = validateResults(parsed, matches);
-          source  = 'ai';
-        }
-      } catch (e) {
-        console.warn('[match-tips] parse hiba:', e.message);
-      }
-    }
-
-    if (!results) {
-      results = localTips.map(({ _eloH, _eloA, _xGTotal, ...r }) => r);
-      source  = 'local';
-    }
-
-    return new Response(JSON.stringify({ results, source, count: results.length }), {
+    return new Response(JSON.stringify({ results, source: aiTexts ? 'ai' : 'local', count: results.length }), {
       status: 200, headers: corsHeaders,
     });
 
