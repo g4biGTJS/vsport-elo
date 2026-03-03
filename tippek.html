@@ -618,6 +618,7 @@ function renderRealTable(standings){
 /* ═══ RENDER AI TABLE ═══ */
 function renderAITable(prediction){
   const standings=prediction.standings||[];
+  astAIPrediction = prediction;
   const aiTable=document.getElementById('aiTable'),aiPanel=document.getElementById('aiPanel'),aiBody=document.getElementById('aiBody'),meta=document.getElementById('aiMeta');
   if(!standings.length){aiTable.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:.7rem">Nincs AI adat</div>';return;}
   const total=standings.length;
@@ -712,7 +713,7 @@ async function loadExistingAI(){
 let tipsMatches = []; // [{id, home, away}]
 let tipsIdCounter = 0;
 let tipsGenerating = false;
-
+let lastAIPrediction = null;
 function tipsGetTeamList(){
   if(realStandings && realStandings.length) return realStandings.map(t=>t.team);
   return ['Csapat 1','Csapat 2','Csapat 3','Csapat 4','Csapat 5','Csapat 6',
@@ -901,14 +902,16 @@ Válaszolj CSAK valid JSON tömbben, minden más szöveg nélkül:
   ...
 ]`;
 
-    const response = await fetch('/api/match-tips', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        matches: tipsMatches.map(m => ({ home: m.home, away: m.away })),
-        standings: realStandings
-      })
-    });
+const response = await fetch('/api/match-tips', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    matches: tipsMatches.map(m => ({ home: m.home, away: m.away })),
+    standings: realStandings,
+    aiPrediction: lastAIPrediction,          // ← AI tabella előrejelzés
+    history: _histEntries.slice(0, 15)       // ← utolsó 15 history bejegyzés
+  })
+});
 
     if(!response.ok){
       const results = tipsComputeFallback();
