@@ -391,10 +391,10 @@ async function fetchRealStandings(){
   return{standings:data.standings||[],seasonId:data.seasonId||null};
 }
 
-/* ═══ API: HISTORY – GLOBÁLIS ═══ */
 async function apiSaveHistoryEntry(entry){
   try{
-    const res=await fetch('/api/history',{
+    const seasonId=entry.seasonId||lastSeasonId||'';
+    const res=await fetch(`/api/history${seasonId?`?seasonId=${seasonId}`:''}`,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({entry})
@@ -404,7 +404,8 @@ async function apiSaveHistoryEntry(entry){
   }catch(e){console.warn('[History save]',e.message);return false;}
 }
 async function apiFetchHistory(){
-  const res=await fetch('/api/history');
+  const seasonId=lastSeasonId||'';
+  const res=await fetch(`/api/history${seasonId?`?seasonId=${seasonId}`:''}`)
   if(!res.ok)throw new Error(`History API hiba: ${res.status}`);
   return res.json();
 }
@@ -441,8 +442,17 @@ function detectChanges(standings,serverSeasonId){
   const totalPts=standings.reduce((s,t)=>s+(t.pts||0),0);
   const fp=calcFP(standings);
   let changeType=null;
-  if(serverSeasonId&&lastSeasonId&&serverSeasonId!==lastSeasonId)changeType='season';
-  if(lastTotalPoints!==null&&lastTotalPoints>100&&totalPts<lastTotalPoints*.3)changeType='season';
+  if(serverSeasonId&&lastSeasonId&&serverSeasonId!==lastSeasonId){
+    changeType='season';
+    _histEntries=[];           // helyi cache reset – ne keverje a régi szezont
+    histSelectedTeam=null;     // csapat-szűrő reset
+    console.log('[Season] Szezonváltás:',lastSeasonId,'→',serverSeasonId);
+  }
+  if(lastTotalPoints!==null&&lastTotalPoints>100&&totalPts<lastTotalPoints*.3){
+    changeType='season';
+    _histEntries=[];
+    histSelectedTeam=null;
+  }
   if(!changeType&&lastRoundFingerprint!==null&&lastRoundFingerprint!==fp)changeType='round';
   // Mentsük a fordulatot globálisan
   if(changeType&&prevStandingsForHistory&&prevStandingsForHistory.length>0){
@@ -782,11 +792,11 @@ function showTab(tab){
 
 /* ═══ INIT ═══ */
 document.addEventListener('DOMContentLoaded',()=>{
-  // Meglévő globális AI azonnal betölt
-  loadExistingAI();
+  // Előző sessionből mentett seasonId visszaállítása (index.html menti localStorage-ba)
+  const savedSeason=localStorage.getItem('vsport-season-id');
+  if(savedSeason)lastSeasonId=savedSeason;
 
-  // Valós tábla betöltés, majd AI frissítés ellenőrzése
-  // FIX: mindig megkérdezzük a szervert (fingerprint alapján dönt, nem csak !hasData)
+  loadExistingAI();
   loadRealTable(true).then(async()=>{
     await generateGlobalAI(false);
   });
