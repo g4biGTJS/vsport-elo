@@ -326,9 +326,13 @@
       <div class="section-title">
         <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="currentColor" stroke="currentColor" stroke-width="0.5"/></svg>
         AI Előrejelzés
-        <span class="ai-badge-pill">LLM7</span>
+        <span class="ai-badge-pill">AI</span>
         <span class="global-badge">🌐 GLOBÁLIS</span>
       </div>
+      <button class="btn" id="refreshAIBtn" onclick="forceRegenerateAI()">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Újra generálás
+      </button>
     </div>
     <div class="season-notice" id="seasonNotice" style="display:none">
       <svg style="width:14px;height:14px;flex-shrink:0" viewBox="0 0 24 24" fill="none"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -518,13 +522,32 @@ async function apiFetchAIPrediction(){
   return data;
 }
 async function apiGenerateAIPrediction(standings,seasonId,force=false){
+  // History betöltés ha még nincs – az AI felhasználja a trendekhez
+  if(!_histEntries||!_histEntries.length){
+    try{const hd=await apiFetchHistory();_histEntries=hd.entries||[];}catch(e){}
+  }
   const res=await fetch('/api/ai-prediction',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({standings,seasonId,force})
+    body:JSON.stringify({standings,seasonId,force,history:_histEntries.slice(0,15)})
   });
   if(!res.ok)throw new Error(`AI generálás hiba: ${res.status}`);
   return res.json();
+}
+
+/* ═══ AI KÉNYSZERES ÚJRAGENERÁLÁS ═══ */
+async function forceRegenerateAI(){
+  const btn=document.getElementById('refreshAIBtn');
+  if(btn){btn.disabled=true;btn.style.opacity='0.5';}
+  try{
+    if(!realStandings.length){
+      const{standings,seasonId}=await fetchRealStandings();
+      detectChanges(standings,seasonId);realStandings=standings;
+    }
+    await generateGlobalAI(true);
+    showToast('✓ AI előrejelzés kényszer-újragenerálva',3000);
+  }catch(e){showError(e.message);}
+  finally{if(btn){btn.disabled=false;btn.style.opacity='1';}}
 }
 
 /* ═══ VÁLTOZÁS DETEKTÁLÁS ═══ */
