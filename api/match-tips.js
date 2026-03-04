@@ -1,4 +1,4 @@
-// api/match-tips.js – v2: AI tabella + history alapú elemzés
+// api/match-tips.js – v3: hazai/vendég előny eltávolítva, lastAIPrediction fix
 export const config = { runtime: 'edge' };
 
 const corsHeaders = {
@@ -12,15 +12,13 @@ const corsHeaders = {
 function buildFormContext(historyEntries) {
   if (!historyEntries || !historyEntries.length) return null;
 
-  // Legfrissebb 8 snapshot feldolgozása
   const snapshots = historyEntries
     .filter(e => e.standingsSnapshot && e.standingsSnapshot.length)
     .slice(0, 8)
-    .reverse(); // időrendbe
+    .reverse();
 
   if (snapshots.length < 2) return null;
 
-  // Minden csapathoz kiszámítjuk a pontszerzési trendet
   const teamForms = {};
   const allTeams = new Set(snapshots.flatMap(s => s.standingsSnapshot.map(t => t.team)));
 
@@ -32,7 +30,6 @@ function buildFormContext(historyEntries) {
 
     if (pts.length < 2) return;
 
-    // Utolsó 3 fordulóban szerzett pontok
     const recentGains = [];
     for (let i = 1; i < Math.min(pts.length, 4); i++) {
       recentGains.push(pts[i] - pts[i - 1]);
@@ -41,8 +38,7 @@ function buildFormContext(historyEntries) {
     const avgGain = recentGains.reduce((a, b) => a + b, 0) / recentGains.length;
     const lastSnap = snapshots[snapshots.length - 1].standingsSnapshot.find(t => t.team === teamName);
     const firstSnap = snapshots[0].standingsSnapshot.find(t => t.team === teamName);
-
-    const posTrend = firstSnap && lastSnap ? firstSnap.pos - lastSnap.pos : 0; // pozitív = javult
+    const posTrend = firstSnap && lastSnap ? firstSnap.pos - lastSnap.pos : 0;
 
     teamForms[teamName] = {
       avgPtsPerRound: Math.round(avgGain * 10) / 10,
@@ -56,7 +52,7 @@ function buildFormContext(historyEntries) {
   return teamForms;
 }
 
-// ─── Lokális fallback számítás ──────────────────────────────────────────────
+// ─── Lokális fallback számítás – szimmetrikus, nincs hazai előny ────────────
 function computeLocalTips(matches, standings, aiStandings, formData) {
   return matches.map(m => {
     const live  = standings.find(t => t.team === m.home);
@@ -66,11 +62,11 @@ function computeLocalTips(matches, standings, aiStandings, formData) {
     const form  = formData ? formData[m.home] : null;
     const formA = formData ? formData[m.away] : null;
 
-    // Pontozás: élő adat + AI végső pozíció + forma
+    // Szimmetrikus erőszámítás – hazai/vendég pozíció nem számít
     const homeScore =
       (live ? live.pts * 1.5 + ((live.goalsFor||0)-(live.goalsAgainst||0)) * 0.8 + (20 - live.pos) * 2 : 20) +
       (ai   ? (20 - ai.pos) * 1.5 : 0) +
-      (form ? form.avgPtsPerRound * 4 + form.positionTrend * 0.5 : 0) + 30; // hazai előny
+      (form ? form.avgPtsPerRound * 4 + form.positionTrend * 0.5 : 0);
 
     const awayScore =
       (liveA ? liveA.pts * 1.5 + ((liveA.goalsFor||0)-(liveA.goalsAgainst||0)) * 0.8 + (20 - liveA.pos) * 2 : 20) +
@@ -78,8 +74,8 @@ function computeLocalTips(matches, standings, aiStandings, formData) {
       (formA ? formA.avgPtsPerRound * 4 + formA.positionTrend * 0.5 : 0);
 
     const total = Math.max(homeScore + awayScore, 1);
-    let homePct = Math.min(Math.max(Math.round((homeScore / total) * 80), 20), 70);
-    let awayPct = Math.min(Math.max(Math.round((awayScore / total) * 65), 10), 55);
+    let homePct = Math.min(Math.max(Math.round((homeScore / total) * 75), 15), 75);
+    let awayPct = Math.min(Math.max(Math.round((awayScore / total) * 75), 15), 75);
     const drawPct = Math.max(100 - homePct - awayPct, 5);
     const homePctFinal = 100 - drawPct - awayPct;
 
@@ -88,8 +84,8 @@ function computeLocalTips(matches, standings, aiStandings, formData) {
     const over25Pct = Math.min(Math.max(Math.round(35 + avgGF * 0.9), 22), 82);
 
     const favorit = homePctFinal >= awayPct ? m.home : m.away;
-    const formTxt = form ? ` Forma: ${form.trend} (${form.avgPtsPerRound} pt/forduló).` : '';
-    const formTxtA = formA ? ` ${m.away} forma: ${formA.trend}.` : '';
+    const formTxt  = form  ? ` ${m.home} forma: ${form.trend} (${form.avgPtsPerRound} pt/forduló).`  : '';
+    const formTxtA = formA ? ` ${m.away} forma: ${formA.trend} (${formA.avgPtsPerRound} pt/forduló).` : '';
 
     return {
       home: m.home, away: m.away,
@@ -97,7 +93,7 @@ function computeLocalTips(matches, standings, aiStandings, formData) {
       over15Pct, over25Pct,
       over15Comment: over15Pct >= 60 ? 'Mindkét csapat sokat lő, magas gólvárakozás' : 'Szoros, taktikai meccs – alacsony gólszám várható',
       over25Comment: over25Pct >= 55 ? 'Gólgazdag összecsapás valószínűsíthető' : 'Inkább zárt, defenzív mérkőzés várható',
-      analysis: `${favorit} az esélyes a tabella és forma alapján.${formTxt}${formTxtA} Az AI szezonvégi előrejelzés ${ai ? `${m.home}-t ${ai.pos}. helyre` : 'ismeretlen pozícióra'} várja.`,
+      analysis: `${favorit} az esélyes a tabella és forma alapján.${formTxt}${formTxtA}`,
       source: 'local'
     };
   });
@@ -185,7 +181,7 @@ export default async function handler(req) {
         ).join('\n')
       : 'Nem elérhető';
 
-    // 3. Forma – history alapján (utolsó fordulók pontszerzése)
+    // 3. Forma – history alapján
     const formData = buildFormContext(history || []);
     let formCtx = 'Nem elérhető';
     if (formData && Object.keys(formData).length) {
@@ -196,15 +192,15 @@ export default async function handler(req) {
         .join('\n');
     }
 
-    // 4. Meccs lista
+    // 4. Meccs lista – hazai/vendég jelölés nélkül
     const matchList = matches.map((m, i) =>
-      `${i+1}. ${m.home} (HAZAI) vs ${m.away} (VENDÉG)`
+      `${i+1}. ${m.home} vs ${m.away}`
     ).join('\n');
 
     // ── Prompt ──────────────────────────────────────────────────────────────
     const prompt = `Te egy profi virtuális futball elemző vagy. Három adatforrás alapján elemezd meg a meccseket:
 
-━━━ 1. ÉLŐVLŐ TABELLA (jelenlegi állás) ━━━
+━━━ 1. ÉLŐ TABELLA (jelenlegi állás) ━━━
 ${liveCtx}
 
 ━━━ 2. AI SZEZONVÉGI ELŐREJELZÉS (várható végső sorrend) ━━━
@@ -217,9 +213,9 @@ ${formCtx}
 ${matchList}
 
 Minden meccshez adj meg a következő JSON struktúrában:
-- homePct: hazai győzelem % (egész, 0-100)
+- homePct: az első csapat győzelem % (egész, 0-100)
 - drawPct: döntetlen % (egész, 0-100)
-- awayPct: vendég győzelem % (egész, 0-100)
+- awayPct: a második csapat győzelem % (egész, 0-100)
 - over15Pct: 1.5 gól felett % (egész, 0-100)
 - over25Pct: 2.5 gól felett % (egész, 0-100)
 - over15Comment: 1 mondat magyarul (gól-valószínűség indoklása)
@@ -230,8 +226,9 @@ SZABÁLYOK:
 1. homePct + drawPct + awayPct = PONTOSAN 100
 2. Vedd figyelembe MINDHÁROM adatforrást (élő tabella + AI előrejelzés + forma)
 3. Ha a forma és a tabella ellentmond egymásnak, magyarázd meg
-4. Reális, differenciált százalékok (ne 33-33-33 vagy 50-50)
-5. Az analysis-ban MINDIG nevesítsd a favorit csapatot
+4. NINCS hazai pálya előny – kizárólag a tabella pozíció, gólstatisztika és forma számít
+5. Az analysis-ban MINDIG nevesítsd az esélyes csapatot
+6. Reális, differenciált százalékok – a gyengébb csapat is kapjon legalább 15%-ot
 
 CSAK valid JSON tömböt adj vissza, semmi más szöveget:
 [{"home":"...","away":"...","homePct":X,"drawPct":X,"awayPct":X,"over15Pct":X,"over25Pct":X,"over15Comment":"...","over25Comment":"...","analysis":"..."}]`;
