@@ -326,13 +326,9 @@
       <div class="section-title">
         <svg class="section-title-icon" viewBox="0 0 24 24" fill="none"><path d="M12 2L13.5 8.5L20 10L13.5 11.5L12 18L10.5 11.5L4 10L10.5 8.5L12 2Z" fill="currentColor" stroke="currentColor" stroke-width="0.5"/></svg>
         AI Előrejelzés
-        <span class="ai-badge-pill">AI</span>
+        <span class="ai-badge-pill">LLM7</span>
         <span class="global-badge">🌐 GLOBÁLIS</span>
       </div>
-      <button class="btn" id="refreshAIBtn" onclick="forceRegenerateAI()">
-        <svg class="btn-icon" viewBox="0 0 24 24" fill="none"><path d="M1 4v6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Újra generálás
-      </button>
     </div>
     <div class="season-notice" id="seasonNotice" style="display:none">
       <svg style="width:14px;height:14px;flex-shrink:0" viewBox="0 0 24 24" fill="none"><path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
@@ -522,32 +518,13 @@ async function apiFetchAIPrediction(){
   return data;
 }
 async function apiGenerateAIPrediction(standings,seasonId,force=false){
-  // History betöltés ha még nincs – az AI felhasználja a trendekhez
-  if(!_histEntries||!_histEntries.length){
-    try{const hd=await apiFetchHistory();_histEntries=hd.entries||[];}catch(e){}
-  }
   const res=await fetch('/api/ai-prediction',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({standings,seasonId,force,history:_histEntries.slice(0,15)})
+    body:JSON.stringify({standings,seasonId,force})
   });
   if(!res.ok)throw new Error(`AI generálás hiba: ${res.status}`);
   return res.json();
-}
-
-/* ═══ AI KÉNYSZERES ÚJRAGENERÁLÁS ═══ */
-async function forceRegenerateAI(){
-  const btn=document.getElementById('refreshAIBtn');
-  if(btn){btn.disabled=true;btn.style.opacity='0.5';}
-  try{
-    if(!realStandings.length){
-      const{standings,seasonId}=await fetchRealStandings();
-      detectChanges(standings,seasonId);realStandings=standings;
-    }
-    await generateGlobalAI(true);
-    showToast('✓ AI előrejelzés kényszer-újragenerálva',3000);
-  }catch(e){showError(e.message);}
-  finally{if(btn){btn.disabled=false;btn.style.opacity='1';}}
 }
 
 /* ═══ VÁLTOZÁS DETEKTÁLÁS ═══ */
@@ -641,7 +618,7 @@ function renderRealTable(standings){
 /* ═══ RENDER AI TABLE ═══ */
 function renderAITable(prediction){
   const standings=prediction.standings||[];
-  lastAIPrediction = prediction;
+  astAIPrediction = prediction;
   const aiTable=document.getElementById('aiTable'),aiPanel=document.getElementById('aiPanel'),aiBody=document.getElementById('aiBody'),meta=document.getElementById('aiMeta');
   if(!standings.length){aiTable.innerHTML='<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:.7rem">Nincs AI adat</div>';return;}
   const total=standings.length;
@@ -887,25 +864,55 @@ async function tipsGenerate(){
   </div>`;
 
   try {
-    // History betöltés ha még üres (pl. a History tab nem volt megnyitva)
-    if (!_histEntries || !_histEntries.length) {
-      try {
-        const hData = await apiFetchHistory();
-        _histEntries = hData.entries || [];
-      } catch(e) { console.warn('[Tips] history prefetch hiba:', e.message); }
-    }
+    // Standings kontextus összeállítása
+    const standingsCtx = realStandings.length
+      ? realStandings.map(t=>`${t.pos}. ${t.team} – ${t.pts}pt, GF:${t.goalsFor} GA:${t.goalsAgainst} GD:${(t.goalsFor||0)-(t.goalsAgainst||0)}`).join('\n')
+      : 'Tabella adat nem elérhető';
 
-    const response = await fetch('/api/match-tips', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        matches: tipsMatches.map(m => ({ home: m.home, away: m.away })),
-        standings: realStandings,
-        aiPrediction: lastAIPrediction,
-        history: _histEntries.slice(0, 8),
-        seasonId: lastSeasonId || null
-      })
-    });
+    const matchList = tipsMatches.map((m,i)=>`${i+1}. ${m.home} (HAZAI) vs ${m.away} (VENDÉG)`).join('\n');
+
+    const prompt = `Te egy profi virtuális futball elemző vagy. Az alábbi élő tabella adatok alapján elemezd meg a megadott meccseket:
+
+JELENLEGI TABELLA (Premier Liga Virtuális):
+${standingsCtx}
+
+ELEMZENDŐ MECCSEK:
+${matchList}
+
+Minden meccshez adj meg PONTOSAN a következő JSON struktúrában:
+- homePct: hazai győzelem valószínűsége (egész szám, 0-100)
+- drawPct: döntetlen valószínűsége (egész szám, 0-100)  
+- awayPct: vendég győzelem valószínűsége (egész szám, 0-100)
+- over15Pct: 1.5 gól felett valószínűsége (egész szám, 0-100)
+- over25Pct: 2.5 gól felett valószínűsége (egész szám, 0-100)
+- over15Comment: rövid magyarázat (1 sor, magyar)
+- over25Comment: rövid magyarázat (1 sor, magyar)
+- analysis: részletes elemzés (2-3 mondat, magyar) – ki az esélyes nyerni és miért, a tabella pozíció, gólkülönbség és pontszám alapján
+
+FONTOS szabályok:
+1. homePct + drawPct + awayPct = 100 (összeg mindig 100!)
+2. Vedd figyelembe a tabella pozíciót és a statisztikákat
+3. A magasabb tabella pozíció és jobb GD erősebb csapatot jelent
+4. Adj reális, differenciált százalékokat (ne mindig 50-50)
+5. Az analysis-ban nevezd meg egyértelműen a favorit csapatot
+
+Válaszolj CSAK valid JSON tömbben, minden más szöveg nélkül:
+[
+  {"home":"...", "away":"...", "homePct":X, "drawPct":X, "awayPct":X, "over15Pct":X, "over25Pct":X, "over15Comment":"...", "over25Comment":"...", "analysis":"..."},
+  ...
+]`;
+
+const response = await fetch('/api/match-tips', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    matches: tipsMatches.map(m => ({ home: m.home, away: m.away })),
+    standings: realStandings,
+    aiPrediction: lastAIPrediction,          // ← AI tabella előrejelzés
+    history: _histEntries.slice(0, 15)       // ← utolsó 15 history bejegyzés
+  })
+});
+
     if(!response.ok){
       const results = tipsComputeFallback();
       tipsRenderResults(results);
@@ -951,59 +958,34 @@ function tipsComputeFallback(){
     const homePos = home ? home.pos : 10;
     const awayPos = away ? away.pos : 10;
 
-    // Erőindex: pts/m + GD/m + pozíció – NINCS hazai előny
-    const n = realStandings.length || 20;
-    function teamStr(t) {
-      if (!t) return 50;
-      const gp = Math.max((t.wins||0)+(t.draws||0)+(t.losses||0), 1);
-      const ppgN = t.pts / gp / 3 * 100;
-      const gdN  = Math.min(Math.max(((t.goalsFor||0)-(t.goalsAgainst||0)) / gp + 3, 0) / 6 * 100, 100);
-      const posN = (n - t.pos) / Math.max(n - 1, 1) * 100;
-      return ppgN * 0.5 + gdN * 0.3 + posN * 0.2;
-    }
-    const sA = teamStr(home), sB = teamStr(away);
-    // Logisztikus valószínűség
-    const k = 0.04;
-    const rawA = 1 / (1 + Math.exp(-k * (sA - sB)));
-    const rawB = 1 - rawA;
-    const bal  = 1 - Math.abs(rawA - rawB) * 2;
-    const drawR = 0.10 + bal * 0.18;
-    const s = rawA*(1-drawR) + rawB*(1-drawR) + drawR;
-    let finalHomePct = Math.round(rawA*(1-drawR)/s*100);
-    let awayPct      = Math.round(rawB*(1-drawR)/s*100);
-    let drawPct      = 100 - finalHomePct - awayPct;
-    if (drawPct < 8) { drawPct = 8; finalHomePct = Math.max(100-drawPct-awayPct, 5); }
+    // Erő-számítás (magasabb = jobb)
+    const homeStr = homePts * 1.5 + homeGD * 0.8 + (20 - homePos) * 2 + 30;
+    const awayStr = awayPts * 1.5 + awayGD * 0.8 + (20 - awayPos) * 2 + 5; // hazai pálya -előny
 
-    // Poisson gól valószínűség
-    const ligaAvgXG = realStandings.length
-      ? realStandings.reduce((s,t)=>s+(t.goalsFor||0),0) /
-        Math.max(realStandings.reduce((s,t)=>s+Math.max((t.wins||0)+(t.draws||0)+(t.losses||0),0),0),1)
-      : 1.30;
-    const gp_a = Math.max((home?.wins||0)+(home?.draws||0)+(home?.losses||0), 1);
-    const gp_b = Math.max((away?.wins||0)+(away?.draws||0)+(away?.losses||0), 1);
-    const xgA = home?.goalsFor ? home.goalsFor/gp_a*0.7+ligaAvgXG*0.3 : ligaAvgXG;
-    const xgB = away?.goalsFor ? away.goalsFor/gp_b*0.7+ligaAvgXG*0.3 : ligaAvgXG;
-    const lA = Math.max(((sA-sB)*0.03), -0.5) + xgA * 0.5 + ligaAvgXG * 0.5;
-    const lB = Math.max(((sB-sA)*0.03), -0.5) + xgB * 0.5 + ligaAvgXG * 0.5;
-    // P(összgól > 1)
-    const p00 = Math.exp(-lA)*Math.exp(-lB);
-    const p10 = lA*Math.exp(-lA)*Math.exp(-lB);
-    const p01 = Math.exp(-lA)*lB*Math.exp(-lB);
-    const over15Pct = Math.min(Math.max(Math.round((1 - p00 - p10 - p01)*100), 25), 93);
-    // P(összgól > 2)
-    const p11 = lA*Math.exp(-lA)*lB*Math.exp(-lB);
-    const p20 = lA*lA/2*Math.exp(-lA)*Math.exp(-lB);
-    const p02 = Math.exp(-lA)*lB*lB/2*Math.exp(-lB);
-    const over25Pct = Math.min(Math.max(Math.round((1 - p00-p10-p01-p11-p20-p02)*100), 12), 90);
+    const totalStr = Math.max(homeStr + awayStr, 1);
+    let homePct = Math.round((homeStr / totalStr) * 80);
+    let awayPct = Math.round((awayStr / totalStr) * 65);
+    homePct = Math.min(Math.max(homePct, 20), 70);
+    awayPct = Math.min(Math.max(awayPct, 10), 55);
+    const drawPct = Math.max(100 - homePct - awayPct, 5);
+    const adj = 100 - homePct - drawPct - awayPct;
+    const finalHomePct = homePct + adj;
 
-    const favorit = finalHomePct >= awayPct ? m.home : m.away;
+    // Gól valószínűség (erős csapatok több gólt lőnek)
+    const avgGF = ((home?.goalsFor||5) + (away?.goalsFor||5)) / 2;
+    const over15Pct = Math.min(Math.max(Math.round(55 + avgGF * 1.2), 40), 90);
+    const over25Pct = Math.min(Math.max(Math.round(35 + avgGF * 0.9), 25), 80);
+
+    const favoriteName = finalHomePct > awayPct ? m.home : (awayPct > finalHomePct ? m.away : 'Kiegyenlített');
+    const favoriteLabel = finalHomePct > awayPct ? 'hazai pályán játszik' : (awayPct > finalHomePct ? 'vendégként jobb formában van' : 'nagyon kiegyenlített a meccs');
+
     return {
       home: m.home, away: m.away,
       homePct: finalHomePct, drawPct, awayPct,
       over15Pct, over25Pct,
-      over15Comment: over15Pct >= 65 ? `Aktív meccs várható (becsült xG: ${lA.toFixed(1)}+${lB.toFixed(1)})` : `Szoros, taktikai mérkőzés (becsült xG: ${lA.toFixed(1)}+${lB.toFixed(1)})`,
-      over25Comment: over25Pct >= 55 ? 'Gólgazdag összecsapás valószínűsíthető' : 'Inkább defenzív, alacsony gólszámú meccs',
-      analysis: `${favorit} az esélyes (erőindex: ${Math.round(sA)} vs ${Math.round(sB)}, tabella: ${homePos}. vs ${awayPos}. hely, ${homePts}pt vs ${awayPts}pt). Várható gólszám: ${lA.toFixed(2)} – ${lB.toFixed(2)}.`
+      over15Comment: over15Pct >= 60 ? 'Mindkét csapat sokat támad' : 'Szoros, alacsony gólszámú meccs várható',
+      over25Comment: over25Pct >= 55 ? 'Gólgazdag meccs valószínűsíthető' : 'Inkább taktikai, kevés gólos összecsapás',
+      analysis: `${favoriteName} az esélyes, ${favoriteLabel}. ${m.home} jelenlegi tabella pozíciója: ${homePos}., ${m.away}: ${awayPos}. A gólkülönbség és pontszám alapján ${finalHomePct > awayPct ? m.home : m.away} rendelkezik jobb esélyekkel.`
     };
   });
 }
