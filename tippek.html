@@ -950,7 +950,6 @@ function tipsComputeFallback(){
     const home = realStandings.find(t=>t.team===m.home);
     const away = realStandings.find(t=>t.team===m.away);
 
-    // Alap számítás tabella adatokból
     const homePts = home ? home.pts : 0;
     const awayPts = away ? away.pts : 0;
     const homeGD  = home ? (home.goalsFor||0)-(home.goalsAgainst||0) : 0;
@@ -958,26 +957,23 @@ function tipsComputeFallback(){
     const homePos = home ? home.pos : 10;
     const awayPos = away ? away.pos : 10;
 
-    // Erő-számítás (magasabb = jobb)
-    const homeStr = homePts * 1.5 + homeGD * 0.8 + (20 - homePos) * 2 + 30;
-    const awayStr = awayPts * 1.5 + awayGD * 0.8 + (20 - awayPos) * 2 + 5; // hazai pálya -előny
+    // Szimmetrikus – nincs hazai előny
+    const homeStr = homePts * 1.5 + homeGD * 0.8 + (20 - homePos) * 2;
+    const awayStr = awayPts * 1.5 + awayGD * 0.8 + (20 - awayPos) * 2;
 
     const totalStr = Math.max(homeStr + awayStr, 1);
-    let homePct = Math.round((homeStr / totalStr) * 80);
-    let awayPct = Math.round((awayStr / totalStr) * 65);
-    homePct = Math.min(Math.max(homePct, 20), 70);
-    awayPct = Math.min(Math.max(awayPct, 10), 55);
+    let homePct = Math.round((homeStr / totalStr) * 75);
+    let awayPct = Math.round((awayStr / totalStr) * 75);
+    homePct = Math.min(Math.max(homePct, 15), 75);
+    awayPct = Math.min(Math.max(awayPct, 15), 75);
     const drawPct = Math.max(100 - homePct - awayPct, 5);
-    const adj = 100 - homePct - drawPct - awayPct;
-    const finalHomePct = homePct + adj;
+    const finalHomePct = 100 - drawPct - awayPct;
 
-    // Gól valószínűség (erős csapatok több gólt lőnek)
     const avgGF = ((home?.goalsFor||5) + (away?.goalsFor||5)) / 2;
     const over15Pct = Math.min(Math.max(Math.round(55 + avgGF * 1.2), 40), 90);
     const over25Pct = Math.min(Math.max(Math.round(35 + avgGF * 0.9), 25), 80);
 
     const favoriteName = finalHomePct > awayPct ? m.home : (awayPct > finalHomePct ? m.away : 'Kiegyenlített');
-    const favoriteLabel = finalHomePct > awayPct ? 'hazai pályán játszik' : (awayPct > finalHomePct ? 'vendégként jobb formában van' : 'nagyon kiegyenlített a meccs');
 
     return {
       home: m.home, away: m.away,
@@ -985,7 +981,7 @@ function tipsComputeFallback(){
       over15Pct, over25Pct,
       over15Comment: over15Pct >= 60 ? 'Mindkét csapat sokat támad' : 'Szoros, alacsony gólszámú meccs várható',
       over25Comment: over25Pct >= 55 ? 'Gólgazdag meccs valószínűsíthető' : 'Inkább taktikai, kevés gólos összecsapás',
-      analysis: `${favoriteName} az esélyes, ${favoriteLabel}. ${m.home} jelenlegi tabella pozíciója: ${homePos}., ${m.away}: ${awayPos}. A gólkülönbség és pontszám alapján ${finalHomePct > awayPct ? m.home : m.away} rendelkezik jobb esélyekkel.`
+      analysis: `${favoriteName} az esélyes a tabella és statisztikák alapján. ${m.home} pozíciója: ${homePos}., ${m.away} pozíciója: ${awayPos}.`
     };
   });
 }
