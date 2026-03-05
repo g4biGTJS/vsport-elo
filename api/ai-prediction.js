@@ -226,40 +226,35 @@ async function generatePrediction(standings, seasonId) {
     `${t.currentPos}. ${t.team}: JELENLEGI ${t.currentPts}pt (${t.currentGF}:${t.currentGA}) → BECSÜLT ${t.projectedPts}pt | trend: ${t.trend}`
   ).join('\n');
 
-  const prompt = `Te egy virtuális futball liga statisztikusa vagy. A VALÓS TABELLA alapján készíts szezonvégi előrejelzést.
+  const prompt = `Virtuális futball liga statisztikus vagy. EGY válaszban adj: 1) szezonvégi tabella JSON, 2) rövid elemzés.
 
-JELENLEGI VALÓS TABELLA (ezt KÖTELEZŐ alapul venni!):
+VALÓS TABELLA ALAP:
 ${allTeamsData}
 
-${historyContext || ''}
+SZABÁLYOK:
+- Max ±3 hely eltérés a becsült pozíciótól
+- Pontszámok magasabbak legyenek (${estimatedRoundsLeft} forduló van még)
+- trend: "up"/"down"/"same"
 
-SZIGORÚ SZABÁLYOK:
-1. A "BECSÜLT" pontszámokat használd alapként
-2. Max ±3 helyet mozdulhat egy csapat a becsült pozíciójától
-3. Ha egy csapat jelenleg 1., a szezon végén is top 3-ban kell lennie
-4. Ha egy csapat jelenleg utolsó, kieső zónában kell maradnia
-5. A pontszámok MAGASABBAK legyenek a jelenleginél (még ${estimatedRoundsLeft} forduló van hátra)
-6. trend mező: "up" ha javul, "down" ha romlik, "same" ha stabil
-
-Válaszolj KIZÁRÓLAG valid JSON tömbbel, semmi más szöveg vagy markdown:
-[{"pos":1,"team":"Csapatnév","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"same"},...]
-
-KÖTELEZŐ: pontosan ${standings.length} csapat!`;
+Válasz PONTOSAN ebben a formátumban (semmi más):
+STANDINGS:
+[{"pos":1,"team":"...","goalsFor":0,"goalsAgainst":0,"pts":0,"trend":"same"}]
+ANALYSIS:
+3 mondatos magyar elemzés itt.`;
 
   const text = await callGemini(prompt, 0.4);
-  const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-  const start = clean.indexOf('[');
-  if (start === -1) throw new Error('JSON nem található a Gemini válaszban');
 
-  let depth = 0, end = start;
-  for (; end < clean.length; end++) {
-    if (clean[end] === '[') depth++;
-    else if (clean[end] === ']') { depth--; if (depth === 0) break; }
-  }
+  // Tabella kinyerése
+  const standingsMatch = text.match(/STANDINGS:\s*(\[[\s\S]*?\])/);
+  if (!standingsMatch) throw new Error('STANDINGS szekció nem található');
 
   let parsed;
-  try { parsed = JSON.parse(clean.slice(start, end + 1)); }
+  try { parsed = JSON.parse(standingsMatch[1]); }
   catch(e) { throw new Error('JSON parse hiba: ' + e.message); }
+
+  // Elemzés kinyerése
+  const analysisMatch = text.match(/ANALYSIS:\s*([\s\S]+)$/);
+  const analysis = analysisMatch ? analysisMatch[1].trim() : '';
 
   let aiStandings = parsed.map((r, i) => ({
     pos:          parseInt(String(r.pos || (i + 1)), 10),
@@ -270,8 +265,7 @@ KÖTELEZŐ: pontosan ${standings.length} csapat!`;
     trend:        String(r.trend || 'same'),
   }));
 
-  // Validáció – ha az AI kihagyott csapatokat, fallback
-  const realTeams = new Set(standings.map(t => t.team));
+  // Validáció – ha az AI kihagyott csapatokat, fallback  const realTeams = new Set(standings.map(t => t.team));
   const aiTeams   = new Set(aiStandings.map(t => t.team));
   const missing   = [...realTeams].filter(t => !aiTeams.has(t));
 
@@ -300,22 +294,7 @@ KÖTELEZŐ: pontosan ${standings.length} csapat!`;
 
   if (!aiStandings.length) throw new Error('Üres AI tabella');
 
-  // Elemzés generálás
-  const top3      = aiStandings.slice(0, 3).map(t  => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
-  const bot3      = aiStandings.slice(-3).map(t     => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
-  const upTeams   = aiStandings.filter(t => t.trend === 'up').map(t   => t.team).join(', ') || 'nincs';
-  const downTeams = aiStandings.filter(t => t.trend === 'down').map(t => t.team).join(', ') || 'nincs';
 
-  const analysisPrompt = `Rövid elemzés MAGYARUL (3-4 mondat, hivatkozz konkrét csapatokra):
-Szezonvégi előrejelzés (${estimatedRoundsLeft} forduló van még hátra):
-- Várható top 3: ${top3}
-- Várható kieső zóna: ${bot3}
-- Emelkedő tendencia: ${upTeams}
-- Csökkenő tendencia: ${downTeams}
-- Adatbázis: ${entryCount > 0 ? `${entryCount} forduló history` : 'nincs history'}
-Miért ilyen a várható végeredmény?`;
-
-  const analysis = await callGemini(analysisPrompt, 0.6);
 
   return {
     standings: aiStandings,
