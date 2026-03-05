@@ -33,7 +33,7 @@ async function callGemini(prompt, temp = 0.4) {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: temp,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 8192,
           },
         }),
         signal: AbortSignal.timeout(40000),
@@ -399,8 +399,8 @@ export default async function handler(req) {
     });
 
   } catch (err) {
-    console.error('[ai-prediction] Error:', err.message);
-    return new Response(JSON.stringify({ error: err.message }), {
+    console.error('[ai-prediction] Error:', err.message, err.stack);
+    return new Response(JSON.stringify({ error: err.message, stack: err.stack }), {
       status: 500, headers: corsHeaders,
     });
   }
