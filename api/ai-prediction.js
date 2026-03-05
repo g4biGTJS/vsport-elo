@@ -1,4 +1,4 @@
-// api/ai-prediction.js – v6: Gemini 2.5 Flash + model fallback
+// api/ai-prediction.js – v7: llm7.io (OpenAI-compatible, no key needed)
 export const config = { runtime: 'edge' };
 
 const corsHeaders = {
@@ -10,37 +10,36 @@ const corsHeaders = {
 
 const AI_KEY      = 'vsport:ai_prediction';
 const AI_META_KEY = 'vsport:ai_meta';
-const GEMINI_KEY  = process.env.GEMINI_API_KEY || 'AIzaSyDgpQrXm0Et2lWoXdIr_se6h8mEMgeZDDI';
 
-const GROQ_KEY = process.env.GROQ_API_KEY || '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';
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const LLM7_URL   = 'https://api.llm7.io/v1/chat/completions';
+const LLM7_MODEL = 'llama-3.3-70b-instruct-fp8-fast';
 
-// ── Groq hívás ────────────────────────────────────────────────────────────────
-async function callGemini(prompt, temp = 0.4) {
-  const res = await fetch(GROQ_URL, {
+// ── llm7.io hívás ─────────────────────────────────────────────────────────────
+async function callLLM7(prompt, temp = 0.4) {
+  const res = await fetch(LLM7_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${GROQ_KEY}`,
+      'Authorization': 'Bearer unused',
     },
     body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
+      model: LLM7_MODEL,
       messages: [{ role: 'user', content: prompt }],
       temperature: temp,
       max_tokens: 8192,
     }),
-    signal: AbortSignal.timeout(22000),
+    signal: AbortSignal.timeout(30000),
   });
 
   if (!res.ok) {
     const errText = await res.text().catch(() => String(res.status));
-    throw new Error(`Groq hiba: ${res.status} – ${errText.slice(0, 200)}`);
+    throw new Error(`llm7.io hiba: ${res.status} – ${errText.slice(0, 200)}`);
   }
 
   const data = await res.json();
   const text = data.choices?.[0]?.message?.content || '';
-  if (!text) throw new Error('Groq üres választ adott');
-  console.log('[Groq] sikeres');
+  if (!text) throw new Error('llm7.io üres választ adott');
+  console.log('[llm7.io ai-prediction] sikeres');
   return text;
 }
 
@@ -177,7 +176,6 @@ async function generatePrediction(standings, seasonId) {
   const estimatedRoundsLeft = Math.max(2, estimatedRoundsTotal - estimatedRoundsPlayed);
   const multiplier = Math.min(3.0, estimatedRoundsTotal / Math.max(1, estimatedRoundsPlayed));
 
-  // Saját extrapoláció alapként
   const baseStandings = standings
     .slice()
     .sort((a, b) => a.pos - b.pos)
@@ -220,9 +218,8 @@ STANDINGS:
 ANALYSIS:
 3 mondatos magyar elemzés itt.`;
 
-  const text = await callGemini(prompt, 0.4);
+  const text = await callLLM7(prompt, 0.4);
 
-  // Tabella kinyerése
   const standingsMatch = text.match(/STANDINGS:\s*(\[[\s\S]*?\])/);
   if (!standingsMatch) throw new Error('STANDINGS szekció nem található');
 
@@ -230,7 +227,6 @@ ANALYSIS:
   try { parsed = JSON.parse(standingsMatch[1]); }
   catch(e) { throw new Error('JSON parse hiba: ' + e.message); }
 
-  // Elemzés kinyerése
   const analysisMatch = text.match(/ANALYSIS:\s*([\s\S]+)$/);
   const analysis = analysisMatch ? analysisMatch[1].trim() : '';
 
@@ -243,19 +239,18 @@ ANALYSIS:
     trend:        String(r.trend || 'same'),
   }));
 
-  // Validáció – ha az AI kihagyott csapatokat, fallback  const realTeams = new Set(standings.map(t => t.team));
+  const realTeams = new Set(standings.map(t => t.team));
   const aiTeams   = new Set(aiStandings.map(t => t.team));
   const missing   = [...realTeams].filter(t => !aiTeams.has(t));
 
   if (missing.length > 0 || aiStandings.length !== standings.length) {
-    console.warn('[ai-prediction] Gemini kihagyott csapatokat, fallback alkalmazva. Missing:', missing);
+    console.warn('[ai-prediction] llm7.io kihagyott csapatokat, fallback alkalmazva. Missing:', missing);
     aiStandings = baseStandings.map((t, i) => ({
       pos: i + 1, team: t.team,
       goalsFor: t.projectedGF, goalsAgainst: t.projectedGA,
       pts: t.projectedPts, trend: t.trend,
     }));
   } else {
-    // Pozíció korrekció: max ±4 hely
     const basePosByTeam = {};
     baseStandings.forEach(t => { basePosByTeam[t.team] = t.projectedPos; });
     aiStandings.forEach(t => {
@@ -271,8 +266,6 @@ ANALYSIS:
   }
 
   if (!aiStandings.length) throw new Error('Üres AI tabella');
-
-
 
   return {
     standings: aiStandings,
@@ -336,7 +329,7 @@ export default async function handler(req) {
         }
       }
 
-      console.log('[ai-prediction] Generating with Gemini... force=', force, 'seasonId=', seasonId);
+      console.log('[ai-prediction] Generating with llm7.io... force=', force, 'seasonId=', seasonId);
       const prediction = await generatePrediction(standings, seasonId);
 
       await kvSet(AI_KEY, JSON.stringify(prediction));
