@@ -1,234 +1,306 @@
-// api/match-tips.js – v6: llm7.io (OpenAI-compatible, no key needed), nincs hazai előny
+// api/match-tips.js – v7 · teljes újraírás · llm7.io
+// ─────────────────────────────────────────────────────────────────────────────
 export const config = { runtime: 'edge' };
 
-const corsHeaders = {
+const CORS = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-const LLM7_URL   = 'https://api.llm7.io/v1/chat/completions';
-const LLM7_MODEL = 'llama-3.3-70b-instruct-fp8-fast';
+const LLM = {
+  url:       'https://api.llm7.io/v1/chat/completions',
+  model:     'llama-3.3-70b-instruct-fp8-fast',
+  timeout:   32_000,
+  maxTokens: 4096,
+};
 
-// ── llm7.io hívás ─────────────────────────────────────────────────────────────
-async function callLLM7(prompt, temp = 0.35) {
-  const res = await fetch(LLM7_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer unused',
-    },
-    body: JSON.stringify({
-      model: LLM7_MODEL,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: temp,
-      max_tokens: 8192,
-    }),
-    signal: AbortSignal.timeout(30000),
-  });
+// ─── Segédek ─────────────────────────────────────────────────────────────────
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => String(res.status));
-    throw new Error(`llm7.io hiba: ${res.status} – ${errText.slice(0, 200)}`);
+const jsonRes = (data, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: CORS });
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ─── LLM hívás retry-jal ─────────────────────────────────────────────────────
+
+async function llmCall(systemPrompt, userPrompt, temp = 0.28, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(LLM.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer unused' },
+        body: JSON.stringify({
+          model: LLM.model,
+          temperature: temp,
+          max_tokens: LLM.maxTokens,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user',   content: userPrompt   },
+          ],
+        }),
+        signal: AbortSignal.timeout(LLM.timeout),
+      });
+
+      if (!res.ok) {
+        const err = await res.text().catch(() => String(res.status));
+        throw new Error(`HTTP ${res.status}: ${err.slice(0, 120)}`);
+      }
+
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (!text) throw new Error('Üres LLM válasz');
+      return text;
+
+    } catch (err) {
+      if (i === retries) throw err;
+      await sleep(700 * (i + 1));
+    }
+  }
+}
+
+// ─── JSON kibontása ───────────────────────────────────────────────────────────
+
+function extractArray(text) {
+  const clean = text.replace(/```(?:json)?\s*/g, '').replace(/```/g, '').trim();
+  const m = clean.match(/\[[\s\S]*\]/);
+  if (!m) throw new Error('Nem található JSON tömb');
+  return JSON.parse(m[0]);
+}
+
+// ─── Forma statisztikák ───────────────────────────────────────────────────────
+
+function computeFormStats(history) {
+  if (!history?.length) return {};
+
+  const snapshots = history
+    .filter(e => e.standingsSnapshot?.length)
+    .slice(0, 10)
+    .map(e => e.standingsSnapshot)
+    .reverse(); // legrégebbi → legújabb
+
+  if (snapshots.length < 2) return {};
+
+  const teams = [...new Set(snapshots.flatMap(s => s.map(t => t.team)))];
+  const out = {};
+
+  for (const team of teams) {
+    const series = snapshots.map(s => s.find(t => t.team === team)).filter(Boolean);
+    if (series.length < 2) continue;
+
+    const recent = series.slice(-5);
+    const gains  = [];
+    for (let i = 1; i < recent.length; i++) gains.push(recent[i].pts - recent[i - 1].pts);
+    const avg = gains.length ? gains.reduce((a, b) => a + b, 0) / gains.length : 0;
+
+    const posFirst = series[0].pos;
+    const posLast  = series.at(-1).pos;
+    const posDelta = posFirst - posLast; // pozitív = javult
+
+    const gdLast  = (series.at(-1).goalsFor  || 0) - (series.at(-1).goalsAgainst  || 0);
+    const gdFirst = (series[0].goalsFor || 0) - (series[0].goalsAgainst || 0);
+
+    out[team] = {
+      avgPtsPerRound: +(avg.toFixed(2)),
+      positionTrend:  posDelta,
+      gdTrend:        gdLast - gdFirst,
+      formLabel:      avg >= 2.1 ? 'kiváló' : avg >= 1.5 ? 'jó' : avg >= 0.9 ? 'közepes' : 'gyenge',
+      posLabel:       posDelta > 0 ? `↑${posDelta}` : posDelta < 0 ? `↓${Math.abs(posDelta)}` : '→',
+    };
   }
 
-  const data = await res.json();
-  const text = data.choices?.[0]?.message?.content || '';
-  if (!text) throw new Error('llm7.io üres választ adott');
-  console.log('[llm7.io match-tips] sikeres');
-  return text;
+  return out;
 }
 
-// ── Forma számítás history alapján ────────────────────────────────────────────
-function buildFormContext(historyEntries) {
-  if (!historyEntries || !historyEntries.length) return null;
+// ─── Lokális fallback ─────────────────────────────────────────────────────────
 
-  const snapshots = historyEntries
-    .filter(e => e.standingsSnapshot && e.standingsSnapshot.length)
-    .slice(0, 8)
-    .reverse();
+function localFallback(matches, live, aiSt, form) {
+  const n = live.length || 20;
 
-  if (snapshots.length < 2) return null;
+  const score = team => {
+    const l = live.find(t => t.team === team);
+    const a = aiSt.find(t => t.team === team);
+    const f = form[team];
+    return (
+      (l ? l.pts * 1.4 + ((l.goalsFor||0)-(l.goalsAgainst||0)) * 0.7 + (n+1-l.pos)*2.2 : 25) +
+      (a ? (n+1-a.pos)*1.4 : 0) +
+      (f ? f.avgPtsPerRound*5 + f.positionTrend*0.6 + f.gdTrend*0.3 : 0)
+    );
+  };
 
-  const teamForms = {};
-  const allTeams = new Set(snapshots.flatMap(s => s.standingsSnapshot.map(t => t.team)));
-
-  allTeams.forEach(teamName => {
-    const pts = snapshots.map(snap => {
-      const t = snap.standingsSnapshot.find(x => x.team === teamName);
-      return t ? t.pts : null;
-    }).filter(v => v !== null);
-
-    if (pts.length < 2) return;
-
-    const recentGains = [];
-    for (let i = 1; i < Math.min(pts.length, 4); i++) recentGains.push(pts[i] - pts[i - 1]);
-
-    const avgGain = recentGains.reduce((a, b) => a + b, 0) / recentGains.length;
-    const lastSnap  = snapshots[snapshots.length - 1].standingsSnapshot.find(t => t.team === teamName);
-    const firstSnap = snapshots[0].standingsSnapshot.find(t => t.team === teamName);
-    const posTrend  = firstSnap && lastSnap ? firstSnap.pos - lastSnap.pos : 0;
-
-    teamForms[teamName] = {
-      avgPtsPerRound: Math.round(avgGain * 10) / 10,
-      positionTrend:  posTrend,
-      trend: avgGain > 1.8 ? 'erős' : avgGain > 1.2 ? 'közepes' : 'gyenge',
-      posLabel: posTrend > 0 ? `+${posTrend} hely` : posTrend < 0 ? `${posTrend} hely` : 'stabil',
-    };
-  });
-
-  return teamForms;
-}
-
-// ── Lokális fallback – szimmetrikus, nincs hazai előny ────────────────────────
-function computeLocalTips(matches, standings, aiStandings, formData) {
   return matches.map(m => {
-    const live  = standings.find(t => t.team === m.home);
-    const liveA = standings.find(t => t.team === m.away);
-    const ai    = (aiStandings || []).find(t => t.team === m.home);
-    const aiA   = (aiStandings || []).find(t => t.team === m.away);
-    const form  = formData ? formData[m.home] : null;
-    const formA = formData ? formData[m.away] : null;
+    const hs = score(m.home), as_ = score(m.away);
+    const total = Math.max(hs + as_, 1);
 
-    const homeScore =
-      (live ? live.pts * 1.5 + ((live.goalsFor||0)-(live.goalsAgainst||0)) * 0.8 + (20 - live.pos) * 2 : 20) +
-      (ai   ? (20 - ai.pos) * 1.5 : 0) +
-      (form ? form.avgPtsPerRound * 4 + form.positionTrend * 0.5 : 0);
+    let h = Math.min(Math.max(Math.round((hs / total) * 72), 13), 72);
+    let a = Math.min(Math.max(Math.round((as_ / total) * 72), 13), 72);
+    let d = Math.max(100 - h - a, 5);
+    h = 100 - d - a;
 
-    const awayScore =
-      (liveA ? liveA.pts * 1.5 + ((liveA.goalsFor||0)-(liveA.goalsAgainst||0)) * 0.8 + (20 - liveA.pos) * 2 : 20) +
-      (aiA   ? (20 - aiA.pos) * 1.5 : 0) +
-      (formA ? formA.avgPtsPerRound * 4 + formA.positionTrend * 0.5 : 0);
+    const lh   = live.find(t => t.team === m.home);
+    const la   = live.find(t => t.team === m.away);
+    const avgGF = ((lh?.goalsFor || 3.5) + (la?.goalsFor || 3.5)) / 2;
+    const o15  = Math.min(Math.max(Math.round(58 + avgGF * 1.1), 42), 92);
+    const o25  = Math.min(Math.max(Math.round(36 + avgGF * 0.85), 22), 82);
 
-    const total = Math.max(homeScore + awayScore, 1);
-    let homePct = Math.min(Math.max(Math.round((homeScore / total) * 75), 15), 75);
-    let awayPct = Math.min(Math.max(Math.round((awayScore / total) * 75), 15), 75);
-    const drawPct = Math.max(100 - homePct - awayPct, 5);
-    const homePctFinal = 100 - drawPct - awayPct;
-
-    const avgGF = ((live?.goalsFor || 4) + (liveA?.goalsFor || 4)) / 2;
-    const over15Pct = Math.min(Math.max(Math.round(55 + avgGF * 1.2), 40), 92);
-    const over25Pct = Math.min(Math.max(Math.round(35 + avgGF * 0.9), 22), 82);
-
-    const favorit   = homePctFinal >= awayPct ? m.home : m.away;
-    const formTxt   = form  ? ` ${m.home} forma: ${form.trend} (${form.avgPtsPerRound} pt/forduló).`  : '';
-    const formTxtA  = formA ? ` ${m.away} forma: ${formA.trend} (${formA.avgPtsPerRound} pt/forduló).` : '';
+    const fav = h >= a ? m.home : m.away;
+    const fh  = form[m.home], fa = form[m.away];
 
     return {
       home: m.home, away: m.away,
-      homePct: homePctFinal, drawPct, awayPct,
-      over15Pct, over25Pct,
-      over15Comment: over15Pct >= 60 ? 'Mindkét csapat sokat lő, magas gólvárakozás' : 'Szoros, taktikai meccs – alacsony gólszám várható',
-      over25Comment: over25Pct >= 55 ? 'Gólgazdag összecsapás valószínűsíthető' : 'Inkább zárt, defenzív mérkőzés várható',
-      analysis: `${favorit} az esélyes a tabella és forma alapján.${formTxt}${formTxtA}`,
+      homePct: h, drawPct: d, awayPct: a,
+      over15Pct: o15, over25Pct: o25,
+      over15Comment: o15 >= 62
+        ? 'Gólgazdag meccs várható, mindkét csapat aktívan támad.'
+        : 'Taktikai, szoros meccs – kevés gólra számítunk.',
+      over25Comment: o25 >= 55
+        ? 'Nagy valószínűséggel 3 vagy több gól lesz a meccsen.'
+        : 'Defenzív, zárt összecsapás valószínű.',
+      analysis: [
+        `${fav} az esélyes a tabella és statisztikák alapján.`,
+        fh ? `${m.home} formája: ${fh.formLabel} (${fh.avgPtsPerRound} pt/forduló, ${fh.posLabel}).` : '',
+        fa ? `${m.away} formája: ${fa.formLabel} (${fa.avgPtsPerRound} pt/forduló, ${fa.posLabel}).` : '',
+      ].filter(Boolean).join(' '),
       source: 'local',
     };
   });
 }
 
-// ── Handler ───────────────────────────────────────────────────────────────────
+// ─── Prompt építés ────────────────────────────────────────────────────────────
+
+function buildPrompts(matches, live, aiSt, form) {
+  const system = [
+    'Te egy precíz virtuális futball-elemző vagy.',
+    'Kizárólag valid JSON-t adsz vissza – semmi más szöveg, semmi markdown, semmi magyarázat.',
+    'Minden meccsnél: homePct + drawPct + awayPct = pontosan 100 (egész számok).',
+    'Minimum százalék bármely kimenetelre: 12.',
+  ].join(' ');
+
+  const pad = (s, n) => String(s).padEnd(n);
+  const rpad = (s, n) => String(s).padStart(n);
+
+  const liveBlock = live.length
+    ? live.map(t => {
+        const gd = (t.goalsFor||0) - (t.goalsAgainst||0);
+        return `  ${rpad(t.pos,2)}. ${pad(t.team,22)} ${rpad(t.pts,3)}pt  GF:${rpad(t.goalsFor??'?',3)} GA:${rpad(t.goalsAgainst??'?',3)} GD:${gd>=0?'+':''}${gd}  trend:${t.trend||'same'}`;
+      }).join('\n')
+    : '  (nem elérhető)';
+
+  const aiBlock = aiSt.length
+    ? aiSt.map(t =>
+        `  ${rpad(t.pos,2)}. ${pad(t.team,22)} → ${rpad(t.pts,3)}pt végső  trend:${t.trend||'same'}`
+      ).join('\n')
+    : '  (nem elérhető)';
+
+  const formBlock = Object.keys(form).length
+    ? Object.entries(form).map(([team, f]) =>
+        `  ${pad(team,22)} forma:${pad(f.formLabel,8)} ${f.avgPtsPerRound}pt/rd  poz:${f.posLabel}  GD-δ:${f.gdTrend>=0?'+':''}${f.gdTrend}`
+      ).join('\n')
+    : '  (nem elérhető)';
+
+  const matchBlock = matches
+    .map((m, i) => `  ${i+1}. ${m.home}  vs  ${m.away}`)
+    .join('\n');
+
+  const user = `
+# AKTUÁLIS TABELLA
+${liveBlock}
+
+# AI SZEZONVÉGI ELŐREJELZÉS
+${aiBlock}
+
+# CSAPAT-FORMA TRENDEK (legutóbbi fordulók alapján)
+${formBlock}
+
+# MECCSEK
+${matchBlock}
+
+# FELADAT
+Elemezd mindegyik meccset. Figyelj arra, hogy:
+- NINCS hazai pálya előny – csak tabella, statisztika, forma számít
+- Az esélyes csapatot mindig nevesítsd az analysis-ban és indokold
+- Az over-kommentek legyenek specifikusak (ne generikusak)
+- Minden százalék egész szám, minimum 12
+
+Válasz: JSON tömb, pontosan ${matches.length} objektum, ebben a sémában:
+[{"home":"...","away":"...","homePct":0,"drawPct":0,"awayPct":0,"over15Pct":0,"over25Pct":0,"over15Comment":"...","over25Comment":"...","analysis":"..."}]
+`.trim();
+
+  return { system, user };
+}
+
+// ─── Validálás & normalizálás ─────────────────────────────────────────────────
+
+function validateResults(raw, matches) {
+  if (!Array.isArray(raw) || !raw.length) throw new Error('Üres vagy nem tömb válasz');
+
+  return raw.slice(0, matches.length).map((r, i) => {
+    const m = matches[i] || {};
+
+    let h = Math.min(Math.max(parseInt(r.homePct) || 33, 12), 76);
+    let a = Math.min(Math.max(parseInt(r.awayPct) || 33, 12), 76);
+    let d = Math.min(Math.max(parseInt(r.drawPct) || 25,  5), 50);
+
+    // Normalizálás 100-ra
+    const sum = h + d + a;
+    if (sum !== 100) {
+      h = Math.round(h * 100 / sum);
+      a = Math.round(a * 100 / sum);
+      d = 100 - h - a;
+    }
+    if (d < 5) { d = 5; h = Math.max(h - 3, 12); }
+
+    return {
+      home:          r.home || m.home || '?',
+      away:          r.away || m.away || '?',
+      homePct:       h,
+      drawPct:       d,
+      awayPct:       a,
+      over15Pct:     Math.min(Math.max(parseInt(r.over15Pct) || 65, 30), 95),
+      over25Pct:     Math.min(Math.max(parseInt(r.over25Pct) || 48, 20), 85),
+      over15Comment: String(r.over15Comment || '').trim() || 'Közepes gólvárakozás.',
+      over25Comment: String(r.over25Comment || '').trim() || 'Közepes gólvárakozás.',
+      analysis:      String(r.analysis     || '').trim() || `${r.home || m.home} vs ${r.away || m.away} – elemzés nem elérhető.`,
+      source:        'ai',
+    };
+  });
+}
+
+// ─── Handler ──────────────────────────────────────────────────────────────────
+
 export default async function handler(req) {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: corsHeaders });
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  if (req.method !== 'POST')    return jsonRes({ error: 'Method not allowed' }, 405);
+
+  let body;
+  try { body = await req.json(); }
+  catch { return jsonRes({ error: 'Érvénytelen JSON body' }, 400); }
+
+  const { matches, standings = [], aiPrediction, history = [] } = body;
+
+  if (!Array.isArray(matches) || !matches.length) {
+    return jsonRes({ error: '"matches" mező kötelező és nem lehet üres.' }, 400);
   }
 
+  const aiStandings = aiPrediction?.standings || [];
+  const formStats   = computeFormStats(history);
+
   try {
-    const body = await req.json();
-    const { matches, standings, aiPrediction, history } = body;
+    const { system, user } = buildPrompts(matches, standings, aiStandings, formStats);
+    const text    = await llmCall(system, user, 0.28);
+    const raw     = extractArray(text);
+    const results = validateResults(raw, matches);
 
-    if (!matches?.length) {
-      return new Response(JSON.stringify({ error: 'Hiányzó matches' }), { status: 400, headers: corsHeaders });
+    if (results.length !== matches.length) {
+      throw new Error(`Várt ${matches.length} meccs, kapott ${results.length}`);
     }
 
-    const liveCtx = (standings || []).length
-      ? standings.map(t =>
-          `${t.pos}. ${t.team} – ${t.pts}pt | GF:${t.goalsFor} GA:${t.goalsAgainst} GD:${(t.goalsFor||0)-(t.goalsAgainst||0)} | trend:${t.trend||'same'}`
-        ).join('\n')
-      : 'Nem elérhető';
-
-    const aiStandings = aiPrediction?.standings || [];
-    const aiCtx = aiStandings.length
-      ? aiStandings.map(t => `${t.pos}. ${t.team} – előrejelzett végső pont: ${t.pts}`).join('\n')
-      : 'Nem elérhető';
-
-    const formData = buildFormContext(history || []);
-    const formCtx = formData && Object.keys(formData).length
-      ? Object.entries(formData).map(([team, f]) =>
-          `${team}: ${f.trend} forma | ${f.avgPtsPerRound} pt/forduló | pozíció trend: ${f.posLabel}`
-        ).join('\n')
-      : 'Nem elérhető';
-
-    const matchList = matches.map((m, i) => `${i+1}. ${m.home} vs ${m.away}`).join('\n');
-
-    const prompt = `Te egy profi virtuális futball elemző vagy. Három adatforrás alapján elemezd meg a meccseket:
-
-━━━ 1. ÉLŐ TABELLA (jelenlegi állás) ━━━
-${liveCtx}
-
-━━━ 2. AI SZEZONVÉGI ELŐREJELZÉS ━━━
-${aiCtx}
-
-━━━ 3. CSAPATOK FORMÁJA (history alapján) ━━━
-${formCtx}
-
-━━━ ELEMZENDŐ MECCSEK ━━━
-${matchList}
-
-Minden meccshez adj meg a következő JSON struktúrában:
-- homePct: az első csapat győzelem % (egész, 0-100)
-- drawPct: döntetlen % (egész, 0-100)
-- awayPct: a második csapat győzelem % (egész, 0-100)
-- over15Pct: 1.5 gól felett % (egész, 0-100)
-- over25Pct: 2.5 gól felett % (egész, 0-100)
-- over15Comment: 1 mondat magyarul
-- over25Comment: 1 mondat magyarul
-- analysis: 2-3 mondat magyarul – KI az esélyes és MIÉRT
-
-SZABÁLYOK:
-1. homePct + drawPct + awayPct = PONTOSAN 100
-2. Vedd figyelembe MINDHÁROM adatforrást
-3. NINCS hazai pálya előny – kizárólag tabella, statisztika és forma számít
-4. Reális százalékok – minimum 15% a gyengébb csapatnak is
-5. Az analysis-ban MINDIG nevesítsd az esélyes csapatot
-
-CSAK valid JSON tömböt adj vissza, semmi más szöveget vagy markdown-t:
-[{"home":"...","away":"...","homePct":X,"drawPct":X,"awayPct":X,"over15Pct":X,"over25Pct":X,"over15Comment":"...","over25Comment":"...","analysis":"..."}]`;
-
-    const llmText = await callLLM7(prompt);
-    let results = null;
-    let source = 'local';
-
-    if (llmText) {
-      try {
-        const clean = llmText.replace(/```json|```/g, '').trim();
-        const jsonMatch = clean.match(/\[[\s\S]*\]/);
-        const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : clean);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          results = parsed.map((r, i) => ({
-            ...r,
-            home: r.home || matches[i]?.home || '?',
-            away: r.away || matches[i]?.away || '?',
-          }));
-          source = 'ai';
-        }
-      } catch (e) {
-        console.warn('[match-tips] JSON parse hiba, lokális fallback');
-      }
-    }
-
-    if (!results) {
-      results = computeLocalTips(matches, standings || [], aiStandings, formData);
-      source = 'local';
-    }
-
-    return new Response(JSON.stringify({ results, source, count: results.length }), {
-      status: 200, headers: corsHeaders,
-    });
+    return jsonRes({ results, source: 'ai', count: results.length });
 
   } catch (err) {
-    console.error('[match-tips]', err.message);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
+    console.warn('[match-tips] fallback:', err.message);
+    const results = localFallback(matches, standings, aiStandings, formStats);
+    return jsonRes({ results, source: 'local', count: results.length, fallbackReason: err.message });
   }
 }
