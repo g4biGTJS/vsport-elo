@@ -11,7 +11,7 @@ const corsHeaders = {
 const AI_KEY        = 'vsport:ai_prediction';
 const AI_META_KEY   = 'vsport:ai_meta';
 const GEMINI_KEY    = process.env.GEMINI_API_KEY || 'AIzaSyDgpQrXm0Et2lWoXdIr_se6h8mEMgeZDDI';
-const GEMINI_URL    = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_URL    = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
 
 function kvUrl(path) {
   const base = process.env.KV_REST_API_URL;
