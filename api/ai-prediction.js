@@ -1,4 +1,4 @@
-// api/ai-prediction.js – v7 · teljes újraírás · llm7.io
+// api/ai-prediction.js – v8 · llm7.io · valódi előrejelzés, nem tükör
 // ─────────────────────────────────────────────────────────────────────────────
 export const config = { runtime: 'edge' };
 
@@ -30,6 +30,8 @@ const jsonRes = (data, status = 200) =>
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
+
 // ─── KV store ────────────────────────────────────────────────────────────────
 
 function kvBase() {
@@ -43,8 +45,7 @@ async function kvGet(key) {
   try {
     const { url, headers } = kvBase();
     const res = await fetch(`${url}/get/${encodeURIComponent(key)}`, {
-      headers,
-      signal: AbortSignal.timeout(8000),
+      headers, signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
     const d = await res.json();
@@ -58,8 +59,7 @@ async function kvGet(key) {
 async function kvSet(key, value) {
   const { url, headers } = kvBase();
   const res = await fetch(`${url}/pipeline`, {
-    method: 'POST',
-    headers,
+    method: 'POST', headers,
     body: JSON.stringify([['SET', key, value]]),
     signal: AbortSignal.timeout(10000),
   });
@@ -68,7 +68,7 @@ async function kvSet(key, value) {
 
 // ─── LLM hívás retry-jal ─────────────────────────────────────────────────────
 
-async function llmCall(systemPrompt, userPrompt, temp = 0.35, retries = 2) {
+async function llmCall(systemPrompt, userPrompt, temp = 0.7, retries = 2) {
   for (let i = 0; i <= retries; i++) {
     try {
       const res = await fetch(LLM.url, {
@@ -98,17 +98,52 @@ async function llmCall(systemPrompt, userPrompt, temp = 0.35, retries = 2) {
 
     } catch (err) {
       if (i === retries) throw err;
-      await sleep(800 * (i + 1));
+      await sleep(900 * (i + 1));
     }
   }
 }
 
-// ─── Ujjlenyomat (cache invalidáció) ─────────────────────────────────────────
+// ─── Ujjlenyomat ─────────────────────────────────────────────────────────────
 
 function fingerprint(standings) {
-  return standings
-    .map(t => `${t.team}:${t.pts}:${t.goalsFor}:${t.goalsAgainst}`)
-    .join('|');
+  return standings.map(t => `${t.team}:${t.pts}:${t.goalsFor}:${t.goalsAgainst}`).join('|');
+}
+
+// ─── Szezon állapot kiszámítása ───────────────────────────────────────────────
+
+function computeSeasonState(standings) {
+  const n           = standings.length;
+  const totalPts    = standings.reduce((s, t) => s + (t.pts || 0), 0);
+  const avgPts      = totalPts / Math.max(n, 1);
+  // Átlagosan ~2 pt/meccs → fordulók száma
+  const roundsPlayed = clamp(Math.round(avgPts / 2), 1, SEASON_ROUNDS - 1);
+  const roundsLeft   = SEASON_ROUNDS - roundsPlayed;
+  const pctDone      = roundsPlayed / SEASON_ROUNDS; // 0..1
+
+  // Várható teljes szezon pontok (egyenes arányú extrapoláció per csapat)
+  const withProjection = standings.map(t => {
+    const pts     = t.pts || 0;
+    const gf      = t.goalsFor || 0;
+    const ga      = t.goalsAgainst || 0;
+    const gd      = gf - ga;
+    // Lineáris vetítés a szezon végére
+    const projPts = pctDone > 0 ? Math.round(pts / pctDone) : pts + roundsLeft * 2;
+    const projGF  = pctDone > 0 ? Math.round(gf / pctDone)  : gf  + roundsLeft;
+    const projGA  = pctDone > 0 ? Math.round(ga / pctDone)  : ga  + roundsLeft;
+    // Pont/forduló arány (jobb összehasonlítási alap mint a nyers pont)
+    const ptsPerRound = roundsPlayed > 0 ? +(pts / roundsPlayed).toFixed(2) : 0;
+    const gfPerRound  = roundsPlayed > 0 ? +(gf  / roundsPlayed).toFixed(2) : 0;
+    const gaPerRound  = roundsPlayed > 0 ? +(ga  / roundsPlayed).toFixed(2) : 0;
+
+    return {
+      ...t,
+      pts, gf, ga, gd,
+      projPts, projGF, projGA,
+      ptsPerRound, gfPerRound, gaPerRound,
+    };
+  });
+
+  return { withProjection, roundsPlayed, roundsLeft, pctDone };
 }
 
 // ─── History trendek ──────────────────────────────────────────────────────────
@@ -121,260 +156,228 @@ async function loadHistoryTrends(seasonId) {
   let entries = null;
   for (const key of keys) {
     const raw = await kvGet(key);
-    if (raw) {
-      try { entries = JSON.parse(raw); break; } catch { /* continue */ }
-    }
+    if (raw) { try { entries = JSON.parse(raw); break; } catch { /* next */ } }
   }
 
-  if (!Array.isArray(entries) || !entries.length) {
-    return { summary: '', teamStats: {}, entryCount: 0 };
+  if (!Array.isArray(entries) || entries.length < 2) {
+    return { lines: '', teamStats: {}, entryCount: entries?.length || 0 };
   }
 
-  // Csapatonkénti statisztikák
   const teamMap = {};
   for (const entry of entries) {
     for (const t of (entry.standingsSnapshot || [])) {
-      if (!teamMap[t.team]) teamMap[t.team] = [];
-      teamMap[t.team].push({
-        pos:  t.pos,
-        pts:  t.pts || 0,
-        gf:   t.goalsFor  || 0,
-        ga:   t.goalsAgainst || 0,
+      (teamMap[t.team] = teamMap[t.team] || []).push({
+        pos: t.pos, pts: t.pts || 0, gf: t.goalsFor || 0, ga: t.goalsAgainst || 0,
       });
     }
   }
 
   const teamStats = {};
   for (const [team, hist] of Object.entries(teamMap)) {
-    if (hist.length < 2) {
-      teamStats[team] = { trend: 'same', ptsPerRound: 0, posChange: 0, dataPoints: hist.length };
-      continue;
-    }
+    if (hist.length < 2) { teamStats[team] = { trend: 'same', ptsPerRound: 0 }; continue; }
 
     const first = hist[0], last = hist.at(-1);
-    const ptsGrowth = last.pts - first.pts;
-    const posChange = first.pos - last.pos; // pozitív = javult
+    const posChange  = first.pos - last.pos;
+    const ptsGrowth  = last.pts - first.pts;
+    const ptsPerRound = +(ptsGrowth / (hist.length - 1)).toFixed(2);
 
     let trend = 'same';
     if (hist.length >= 4) {
-      const mid = Math.floor(hist.length / 2);
+      const mid     = Math.floor(hist.length / 2);
       const recAvg  = hist.slice(mid).reduce((s, h) => s + h.pos, 0) / (hist.length - mid);
       const earAvg  = hist.slice(0, mid).reduce((s, h) => s + h.pos, 0) / mid;
-      if (recAvg < earAvg - 1)      trend = 'up';
-      else if (recAvg > earAvg + 1) trend = 'down';
+      if (recAvg < earAvg - 0.8)      trend = 'up';
+      else if (recAvg > earAvg + 0.8) trend = 'down';
     } else {
-      if (posChange > 1)       trend = 'up';
-      else if (posChange < -1) trend = 'down';
+      if (posChange >  1) trend = 'up';
+      if (posChange < -1) trend = 'down';
     }
 
-    const ptsPerRound = hist.length > 1
-      ? +(ptsGrowth / (hist.length - 1)).toFixed(2) : 0;
-
-    teamStats[team] = { trend, ptsPerRound, posChange, dataPoints: hist.length };
+    teamStats[team] = { trend, ptsPerRound, posChange };
   }
 
-  const trendLabel = t => t === 'up' ? '▲ EMELKEDŐ' : t === 'down' ? '▼ ESŐ' : '► STAGNÁLÓ';
-  const pad = (s, n) => String(s).padEnd(n);
+  const tL = t => t === 'up' ? '▲' : t === 'down' ? '▼' : '►';
+  const lines = Object.entries(teamStats)
+    .map(([team, s]) =>
+      `  ${team.padEnd(22)} ${tL(s.trend)} ${s.ptsPerRound > 0 ? '+' : ''}${s.ptsPerRound}pt/forduló  poz.változás:${s.posChange > 0 ? '+' : ''}${s.posChange}`
+    ).join('\n');
 
-  const lines = Object.entries(teamStats).map(([team, s]) =>
-    `  ${pad(team,22)} ${trendLabel(s.trend)}  ${s.ptsPerRound>0?'+':''}${s.ptsPerRound}pt/fd  poz.δ:${s.posChange>0?'+':''}${s.posChange}  (${s.dataPoints} minta)`
-  );
-
-  const recentRounds = entries.slice(0, 3).map((e, idx) => {
-    const snap = (e.standingsSnapshot || [])
-      .map(t => `    ${String(t.pos).padStart(2)}. ${pad(t.team,20)} ${t.pts}pt`)
-      .join('\n');
-    return `  [${idx === 0 ? 'LEGFRISSEBB' : `${idx+1}. korábbi`}]\n${snap}`;
-  });
-
-  const summary = [
-    `═══ HISTORY TRENDEK (${entries.length} forduló alapján) ═══`,
-    lines.join('\n'),
-    '',
-    'LEGUTÓBBI FORDULÓK:',
-    recentRounds.join('\n\n'),
-    '═══════════════════════════════════════════════════',
-  ].join('\n');
-
-  return { summary, teamStats, entryCount: entries.length };
-}
-
-// ─── Matematikai alap-előrejelzés ─────────────────────────────────────────────
-
-function computeBaseProjection(standings, teamStats) {
-  const totalPts    = standings.reduce((s, t) => s + (t.pts || 0), 0);
-  const avgPts      = totalPts / Math.max(standings.length, 1);
-  const roundsPlayed = Math.max(1, Math.round(avgPts / 2));
-  const roundsLeft  = Math.max(2, SEASON_ROUNDS - roundsPlayed);
-  const multiplier  = Math.min(3.5, SEASON_ROUNDS / Math.max(1, roundsPlayed));
-
-  const projected = standings.map(t => {
-    const stat    = teamStats[t.team];
-    const trendM  = stat
-      ? (stat.trend === 'up' ? 1.09 : stat.trend === 'down' ? 0.92 : 1.0)
-      : 1.0;
-    const gfM     = stat?.trend === 'up'   ? 1.07 : 1.0;
-    const gaM     = stat?.trend === 'down' ? 1.07 : 1.0;
-
-    return {
-      team:         t.team,
-      currentPos:   t.pos,
-      currentPts:   t.pts || 0,
-      currentGF:    t.goalsFor  || 0,
-      currentGA:    t.goalsAgainst || 0,
-      projectedPts: Math.round((t.pts || 0) * multiplier * trendM),
-      projectedGF:  Math.round((t.goalsFor  || 0) * multiplier * gfM),
-      projectedGA:  Math.round((t.goalsAgainst || 0) * multiplier * gaM),
-      trend:        stat?.trend || 'same',
-    };
-  });
-
-  projected.sort((a, b) => b.projectedPts - a.projectedPts);
-  projected.forEach((t, i) => { t.projectedPos = i + 1; });
-
-  return { projected, roundsPlayed, roundsLeft };
+  return { lines, teamStats, entryCount: entries.length };
 }
 
 // ─── Prompt felépítés ─────────────────────────────────────────────────────────
+// KULCS VÁLTOZTATÁS: az AI pt/forduló rátát és szezonvégi VETÍTÉST lát,
+// NEM a jelenlegi nyers pontot → nem tud "visszahúzódni" a jelenlegire
 
-function buildPrompts(projected, historySummary, roundsLeft) {
-  const system = [
-    'Te egy profi futball szezonvégi előrejelző vagy.',
-    'Kizárólag a megadott formátumban válaszolsz – STANDINGS: JSON, ANALYSIS: szöveg.',
-    'Semmi más markdown, semmi más szöveg.',
-  ].join(' ');
+function buildPrompts({ withProjection, roundsPlayed, roundsLeft, pctDone }, histLines) {
+  const system = `Te egy futball-statisztikus vagy, aki szezonvégi tabellát jósol.
+Kizárólag valid JSON-t adsz vissza a megadott formátumban – semmi más szöveg, semmi markdown.
+A végső tabellában a pozíciók 1-től N-ig folyamatosak, ismétlés nélkül.`;
 
-  const pad  = (s, n) => String(s).padEnd(n);
-  const rpad = (s, n) => String(s).padStart(n);
+  // Táblázat: csapat, pt/forduló arány, GF/GA ráta, lineáris vetítés
+  const rows = withProjection
+    .slice()
+    .sort((a, b) => a.pos - b.pos)
+    .map(t => [
+      `  ${String(t.pos).padStart(2)}. ${t.team.padEnd(22)}`,
+      `pt/fd:${t.ptsPerRound.toFixed(2).padStart(5)}`,
+      `GF/fd:${t.gfPerRound.toFixed(2).padStart(5)}`,
+      `GA/fd:${t.gaPerRound.toFixed(2).padStart(5)}`,
+      `GD:${t.gd >= 0 ? '+' : ''}${t.gd}`,
+      `→ lin.vetítés: ${t.projPts}pt (${t.projGF}:${t.projGA})`,
+      `trend:${t.trend || 'same'}`,
+    ].join('  ')
+    ).join('\n');
 
-  const tableData = projected.map(t =>
-    `  ${rpad(t.currentPos,2)}. ${pad(t.team,22)} jelenlegi:${rpad(t.currentPts,3)}pt (${t.currentGF}:${t.currentGA}) → becsült:${rpad(t.projectedPts,3)}pt  trend:${t.trend}`
-  ).join('\n');
-
-  const histSection = historySummary
-    ? `\n# HISTORY TRENDEK\n${historySummary}\n`
+  const histSection = histLines
+    ? `\n# HISTORY TRENDEK (korábbi fordulók)\n${histLines}\n`
     : '';
 
+  const totalTeams = withProjection.length;
+
   const user = `
-# JELENLEGI TABELLA + MATEMATIKAI ELŐREJELZÉS
-${tableData}
+# SZEZON ÁLLAPOTA
+Lejátszott fordulók: ${roundsPlayed} / ${SEASON_ROUNDS}  (${Math.round(pctDone * 100)}% kész)
+Hátralévő fordulók: ${roundsLeft}
+Csapatok száma: ${totalTeams}
+
+# CSAPATOK TELJESÍTMÉNYE (forduló-normalizált adatok)
+${rows}
 ${histSection}
 # FELADAT
-Generálj szezonvégi tabellát. Még hátra van ~${roundsLeft} forduló.
+Jósold meg a szezon végi végső tabellát a ${roundsLeft} hátralévő forduló alapján.
 
-SZABÁLYOK:
-1. Max ±4 hely eltérés a matematikai előrejelzéstől
-2. A pontszámok legyenek magasabbak a jelenlegi értékeknél
-3. Vedd figyelembe a history trendeket (ha van)
-4. trend mező: "up" / "down" / "same"
-5. A JSON-ban minden csapat szerepeljen
+Gondolkodj így:
+- Melyik csapat tart fenn erős pt/forduló rátát → valószínűleg folytatja
+- Melyik csapat gyengülő / erősödő trendben van → korrigálj a lin.vetítésen
+- A lin.vetítés kiindulási alap, DE az AI felülbírálhatja ha a trend indokolja
+- Legyenek VALÓDI különbségek a csapatok között – ne mindenki hasonló ponttal végezzen
+- A bajnok tipikusan 70-90pt, a kiesők 25-45pt körül végeznek (34 fordulós liga)
 
-VÁLASZ FORMÁTUM (semmi más):
+MEGSZORÍTÁS: A végső pontszámok MINDENKÉPPEN magasabbak legyenek a jelenlegi pontoknál.
+
+VÁLASZ – PONTOSAN ebben a formátumban, semmi más:
 STANDINGS:
-[{"pos":1,"team":"CsapatNév","goalsFor":50,"goalsAgainst":20,"pts":85,"trend":"same"}]
+[{"pos":1,"team":"NévPontosan","goalsFor":55,"goalsAgainst":22,"pts":82,"trend":"up"}]
 ANALYSIS:
-3 mondatos magyar elemzés: ki bajnok, kik esnek ki, meglepetések.
+2-3 mondat magyarul: ki nyeri a bajnokságot és miért, kik eshetnek ki, van-e meglepetés.
 `.trim();
 
   return { system, user };
 }
 
-// ─── LLM válasz feldolgozása ──────────────────────────────────────────────────
+// ─── LLM válasz parse ─────────────────────────────────────────────────────────
 
 function parseResponse(text) {
-  const standingsM = text.match(/STANDINGS:\s*(\[[\s\S]*?\])(?:\s*ANALYSIS:|$)/);
-  if (!standingsM) throw new Error('STANDINGS szekció nem található');
+  // STANDINGS szekció kinyerése – greedy match a záró ] -ig
+  const sMatch = text.match(/STANDINGS:\s*(\[[\s\S]*?\])[\s\S]*?(?=ANALYSIS:|$)/);
+  if (!sMatch) {
+    // Fallback: keressünk bármilyen JSON tömböt
+    const arrMatch = text.match(/\[[\s\S]*\]/);
+    if (!arrMatch) throw new Error('Nem található JSON tömb a válaszban');
+    const parsed = JSON.parse(arrMatch[0]);
+    const aMatch = text.match(/ANALYSIS:\s*([\s\S]+)$/);
+    return { parsed, analysis: aMatch?.[1]?.trim() || '' };
+  }
 
-  let parsed;
-  try { parsed = JSON.parse(standingsM[1]); }
-  catch (e) { throw new Error('STANDINGS JSON parse hiba: ' + e.message); }
-
-  const analysisM = text.match(/ANALYSIS:\s*([\s\S]+)$/);
-  const analysis  = analysisM ? analysisM[1].trim() : '';
-
-  return { parsed, analysis };
+  const parsed = JSON.parse(sMatch[1]);
+  const aMatch = text.match(/ANALYSIS:\s*([\s\S]+)$/);
+  return { parsed, analysis: aMatch?.[1]?.trim() || '' };
 }
 
-// ─── Validálás & fallback ─────────────────────────────────────────────────────
+// ─── Validálás & post-processing ─────────────────────────────────────────────
 
-function buildFinalStandings({ parsed, analysis }, projected, standings, roundsLeft) {
+function buildFinalStandings(parsed, analysis, withProjection, standings, roundsLeft) {
   const realTeams = new Set(standings.map(t => t.team));
   const aiTeams   = new Set(parsed.map(t => t.team));
   const missing   = [...realTeams].filter(t => !aiTeams.has(t));
 
-  let aiStandings;
-
-  if (missing.length > 0 || parsed.length !== standings.length) {
-    console.warn('[ai-prediction] Hiányzó csapatok az AI válaszból, matematikai fallback:', missing);
-    aiStandings = projected.map((t, i) => ({
-      pos:          i + 1,
-      team:         t.team,
-      goalsFor:     t.projectedGF,
-      goalsAgainst: t.projectedGA,
-      pts:          t.projectedPts,
-      trend:        t.trend,
-    }));
-  } else {
-    const basePosByTeam = Object.fromEntries(projected.map(t => [t.team, t.projectedPos]));
-
-    aiStandings = parsed.map((r, i) => {
-      const base    = projected.find(t => t.team === r.team);
-      const current = standings.find(t => t.team === r.team);
-
-      let pos = parseInt(r.pos) || (i + 1);
-      const basePos = basePosByTeam[r.team];
-      if (basePos && Math.abs(pos - basePos) > 4) pos = basePos;
-
-      let pts = parseInt(r.pts) || 0;
-      if (current && pts <= current.pts) {
-        pts = current.pts + Math.round(roundsLeft * 1.6);
-      }
-
-      return {
-        pos,
-        team:         String(r.team || '–'),
-        goalsFor:     parseInt(r.goalsFor)     || base?.projectedGF  || 0,
-        goalsAgainst: parseInt(r.goalsAgainst) || base?.projectedGA  || 0,
-        pts,
-        trend:        String(r.trend || 'same'),
-      };
-    });
-
-    // Rendezés pontszám szerint, pozíció újraszámítás
-    aiStandings.sort((a, b) => b.pts - a.pts);
-    aiStandings.forEach((t, i) => { t.pos = i + 1; });
+  // Ha az AI kihagyott csapatokat → teljes matematikai fallback
+  if (missing.length > 0 || parsed.length < standings.length * 0.8) {
+    console.warn('[ai-prediction] AI kihagyott csapatokat, matematikai fallback. Missing:', missing);
+    const sorted = withProjection.slice().sort((a, b) => b.projPts - a.projPts);
+    return {
+      standings: sorted.map((t, i) => ({
+        pos: i + 1, team: t.team,
+        goalsFor: t.projGF, goalsAgainst: t.projGA,
+        pts: t.projPts, trend: t.trend || 'same',
+      })),
+      analysis,
+    };
   }
 
-  return { standings: aiStandings, analysis };
+  // Az AI adta a csapatokat → csak minimális biztonsági korrekció
+  const currentPtsByTeam = Object.fromEntries(standings.map(t => [t.team, t.pts || 0]));
+  const projByTeam       = Object.fromEntries(withProjection.map(t => [t.team, t]));
+
+  let result = parsed.map((r, i) => {
+    const currentPts = currentPtsByTeam[r.team] ?? 0;
+    const proj       = projByTeam[r.team];
+
+    let pts = parseInt(r.pts) || 0;
+
+    // Kötelező: a végső pont > jelenlegi pont
+    if (pts <= currentPts) {
+      pts = currentPts + Math.max(Math.round(roundsLeft * 1.2), 5);
+    }
+
+    // Opcionális: ne legyen irreálisan magas sem (max 102pt 34 fordulóban)
+    pts = clamp(pts, currentPts + 1, 102);
+
+    return {
+      pos:          parseInt(r.pos) || (i + 1),
+      team:         String(r.team),
+      goalsFor:     Math.max(parseInt(r.goalsFor)     || proj?.projGF  || 0, proj?.gf  || 0),
+      goalsAgainst: Math.max(parseInt(r.goalsAgainst) || proj?.projGA  || 0, proj?.ga  || 0),
+      pts,
+      trend:        String(r.trend || 'same'),
+    };
+  });
+
+  // Rendezés pontszám szerint, pozíció újraszámítás
+  result.sort((a, b) => b.pts - a.pts);
+  result.forEach((t, i) => { t.pos = i + 1; });
+
+  return { standings: result, analysis };
 }
 
-// ─── Előrejelzés generálása ───────────────────────────────────────────────────
+// ─── Főbb generáló logika ─────────────────────────────────────────────────────
 
 async function generatePrediction(standings, seasonId) {
-  const { summary: historySummary, teamStats, entryCount } =
-    await loadHistoryTrends(seasonId);
+  const seasonState = computeSeasonState(standings);
+  const { lines: histLines, teamStats, entryCount } = await loadHistoryTrends(seasonId);
 
-  const { projected, roundsPlayed, roundsLeft } =
-    computeBaseProjection(standings, teamStats);
+  // Beleolvasztjuk a history trendet a csapat adataiba
+  const enriched = {
+    ...seasonState,
+    withProjection: seasonState.withProjection.map(t => ({
+      ...t,
+      trend: teamStats[t.team]?.trend || t.trend || 'same',
+    })),
+  };
 
-  const { system, user } = buildPrompts(projected, historySummary, roundsLeft);
+  const { system, user } = buildPrompts(enriched, histLines);
+  const text = await llmCall(system, user, 0.72); // magasabb temp = merészebb előrejelzés
 
-  const text = await llmCall(system, user, 0.38);
   const { parsed, analysis } = parseResponse(text);
-  const { standings: aiStandings, analysis: finalAnalysis } =
-    buildFinalStandings({ parsed, analysis }, projected, standings, roundsLeft);
+  const { standings: aiStandings, analysis: finalAnalysis } = buildFinalStandings(
+    parsed, analysis,
+    enriched.withProjection,
+    standings,
+    enriched.roundsLeft,
+  );
 
   if (!aiStandings.length) throw new Error('Üres végeredmény');
 
   return {
-    standings:            aiStandings,
-    analysis:             finalAnalysis,
-    generatedAt:          new Date().toISOString(),
-    basedOnFingerprint:   fingerprint(standings),
-    seasonId:             seasonId || null,
-    basedOnRounds:        roundsPlayed,
-    roundsLeft,
-    hasHistoryData:       entryCount > 0,
+    standings:          aiStandings,
+    analysis:           finalAnalysis,
+    generatedAt:        new Date().toISOString(),
+    basedOnFingerprint: fingerprint(standings),
+    seasonId:           seasonId || null,
+    basedOnRounds:      enriched.roundsPlayed,
+    roundsLeft:         enriched.roundsLeft,
+    hasHistoryData:     entryCount > 0,
   };
 }
 
@@ -384,21 +387,19 @@ export default async function handler(req) {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
 
   try {
-    // ── GET: cache lekérés ──
+    // GET – cache lekérés
     if (req.method === 'GET') {
       const [rawPred, rawMeta] = await Promise.all([
         kvGet(KV_KEYS.prediction),
         kvGet(KV_KEYS.meta),
       ]);
-
       let prediction = null, meta = null;
       try { prediction = rawPred ? JSON.parse(rawPred) : null; } catch { /* ignore */ }
       try { meta       = rawMeta ? JSON.parse(rawMeta) : null; } catch { /* ignore */ }
-
       return jsonRes({ prediction, meta, hasData: !!prediction });
     }
 
-    // ── POST: generálás ──
+    // POST – generálás
     if (req.method === 'POST') {
       let body;
       try { body = await req.json(); }
@@ -412,23 +413,20 @@ export default async function handler(req) {
 
       const currentFP = fingerprint(standings);
 
-      // Cache ellenőrzés (ha nem force)
+      // Cache hit ellenőrzés
       if (!force) {
         const rawMeta = await kvGet(KV_KEYS.meta);
         if (rawMeta) {
           let meta = null;
           try { meta = JSON.parse(rawMeta); } catch { /* ignore */ }
-
           if (meta) {
-            const seasonMatch = !seasonId || !meta.seasonId || String(seasonId) === String(meta.seasonId);
-            if (seasonMatch && meta.basedOnFingerprint === currentFP) {
+            const seasonOk = !seasonId || !meta.seasonId || String(seasonId) === String(meta.seasonId);
+            if (seasonOk && meta.basedOnFingerprint === currentFP) {
               const rawPred = await kvGet(KV_KEYS.prediction);
-              if (rawPred) {
-                let prediction = null;
-                try { prediction = JSON.parse(rawPred); } catch { /* ignore */ }
-                if (prediction) {
-                  return jsonRes({ prediction, meta, regenerated: false, reason: 'already_current' });
-                }
+              let prediction = null;
+              try { prediction = rawPred ? JSON.parse(rawPred) : null; } catch { /* ignore */ }
+              if (prediction) {
+                return jsonRes({ prediction, meta, regenerated: false, reason: 'already_current' });
               }
             }
           }
@@ -439,9 +437,9 @@ export default async function handler(req) {
       const prediction = await generatePrediction(standings, seasonId);
 
       const meta = {
-        generatedAt:          prediction.generatedAt,
-        basedOnFingerprint:   prediction.basedOnFingerprint,
-        seasonId:             prediction.seasonId,
+        generatedAt:        prediction.generatedAt,
+        basedOnFingerprint: prediction.basedOnFingerprint,
+        seasonId:           prediction.seasonId,
       };
 
       await Promise.all([
