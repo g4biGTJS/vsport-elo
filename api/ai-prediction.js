@@ -12,58 +12,36 @@ const AI_KEY      = 'vsport:ai_prediction';
 const AI_META_KEY = 'vsport:ai_meta';
 const GEMINI_KEY  = process.env.GEMINI_API_KEY || 'AIzaSyDgpQrXm0Et2lWoXdIr_se6h8mEMgeZDDI';
 
-const GEMINI_MODELS = [
-  'gemini-2.5-flash',
-];
+const GROQ_KEY = process.env.GROQ_API_KEY || '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';
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
-function geminiUrl(model) {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
-}
-
-// ── Gemini hívás – model fallback-kel ────────────────────────────────────────
+// ── Groq hívás ────────────────────────────────────────────────────────────────
 async function callGemini(prompt, temp = 0.4) {
-  let lastError = null;
+  const res = await fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${GROQ_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: temp,
+      max_tokens: 8192,
+    }),
+    signal: AbortSignal.timeout(22000),
+  });
 
-  for (const model of GEMINI_MODELS) {
-    try {
-      const res = await fetch(geminiUrl(model), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: temp,
-            maxOutputTokens: 8192,
-          },
-        }),
-        signal: AbortSignal.timeout(40000),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => String(res.status));
-        console.warn(`[Gemini] model ${model} hiba: ${res.status} – ${errText}`);
-        lastError = `${model}: ${res.status}`;
-        continue; // következő modell
-      }
-
-      const data = await res.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (!text) {
-        console.warn(`[Gemini] model ${model} üres választ adott`);
-        lastError = `${model}: üres válasz`;
-        continue;
-      }
-
-      console.log(`[Gemini] model ${model} sikeres`);
-      return text;
-
-    } catch (e) {
-      console.warn(`[Gemini] model ${model} exception:`, e.message);
-      lastError = `${model}: ${e.message}`;
-    }
+  if (!res.ok) {
+    const errText = await res.text().catch(() => String(res.status));
+    throw new Error(`Groq hiba: ${res.status} – ${errText.slice(0, 200)}`);
   }
 
-  throw new Error(`Minden Gemini model sikertelen. Utolsó hiba: ${lastError}`);
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content || '';
+  if (!text) throw new Error('Groq üres választ adott');
+  console.log('[Groq] sikeres');
+  return text;
 }
 
 // ── KV helpers ────────────────────────────────────────────────────────────────
