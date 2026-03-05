@@ -1,4 +1,4 @@
-// api/ai-prediction.js – v5: Gemini 2.5 Flash
+// api/ai-prediction.js – v6: Gemini 2.5 Flash + model fallback
 export const config = { runtime: 'edge' };
 
 const corsHeaders = {
@@ -8,11 +8,65 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-const AI_KEY        = 'vsport:ai_prediction';
-const AI_META_KEY   = 'vsport:ai_meta';
-const GEMINI_KEY    = process.env.GEMINI_API_KEY || 'AIzaSyDgpQrXm0Et2lWoXdIr_se6h8mEMgeZDDI';
-const GEMINI_URL    = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+const AI_KEY      = 'vsport:ai_prediction';
+const AI_META_KEY = 'vsport:ai_meta';
+const GEMINI_KEY  = process.env.GEMINI_API_KEY || 'AIzaSyDgpQrXm0Et2lWoXdIr_se6h8mEMgeZDDI';
 
+const GEMINI_MODELS = [
+  'gemini-2.5-flash',
+];
+
+function geminiUrl(model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`;
+}
+
+// ── Gemini hívás – model fallback-kel ────────────────────────────────────────
+async function callGemini(prompt, temp = 0.4) {
+  let lastError = null;
+
+  for (const model of GEMINI_MODELS) {
+    try {
+      const res = await fetch(geminiUrl(model), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: temp,
+            maxOutputTokens: 2048,
+          },
+        }),
+        signal: AbortSignal.timeout(40000),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => String(res.status));
+        console.warn(`[Gemini] model ${model} hiba: ${res.status} – ${errText}`);
+        lastError = `${model}: ${res.status}`;
+        continue; // következő modell
+      }
+
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (!text) {
+        console.warn(`[Gemini] model ${model} üres választ adott`);
+        lastError = `${model}: üres válasz`;
+        continue;
+      }
+
+      console.log(`[Gemini] model ${model} sikeres`);
+      return text;
+
+    } catch (e) {
+      console.warn(`[Gemini] model ${model} exception:`, e.message);
+      lastError = `${model}: ${e.message}`;
+    }
+  }
+
+  throw new Error(`Minden Gemini model sikertelen. Utolsó hiba: ${lastError}`);
+}
+
+// ── KV helpers ────────────────────────────────────────────────────────────────
 function kvUrl(path) {
   const base = process.env.KV_REST_API_URL;
   if (!base) throw new Error('KV_REST_API_URL nincs beállítva');
@@ -25,18 +79,20 @@ function kvHeaders() {
 }
 
 async function kvGet(key) {
-  const res = await fetch(kvUrl(`/get/${encodeURIComponent(key)}`), {
-    headers: kvHeaders(),
-    signal: AbortSignal.timeout(8000),
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const result = data.result ?? null;
-  if (result === null || result === undefined) return null;
-  if (typeof result === 'object' && result.value !== undefined)
-    return typeof result.value === 'string' ? result.value : JSON.stringify(result.value);
-  if (typeof result === 'object') return JSON.stringify(result);
-  return String(result);
+  try {
+    const res = await fetch(kvUrl(`/get/${encodeURIComponent(key)}`), {
+      headers: kvHeaders(),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const result = data.result ?? null;
+    if (result === null || result === undefined) return null;
+    if (typeof result === 'object' && result.value !== undefined)
+      return typeof result.value === 'string' ? result.value : JSON.stringify(result.value);
+    if (typeof result === 'object') return JSON.stringify(result);
+    return String(result);
+  } catch { return null; }
 }
 
 async function kvSet(key, value) {
@@ -52,28 +108,6 @@ async function kvSet(key, value) {
 
 function fingerprint(standings) {
   return standings.map(t => `${t.team}:${t.pts}:${t.goalsFor}:${t.goalsAgainst}`).join('|');
-}
-
-// ── Gemini hívás ──────────────────────────────────────────────────────────────
-async function callGemini(prompt, temp = 0.4) {
-  const res = await fetch(GEMINI_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: temp,
-        maxOutputTokens: 2048,
-      },
-    }),
-    signal: AbortSignal.timeout(40000),
-  });
-  if (!res.ok) {
-    const err = await res.text().catch(() => res.status);
-    throw new Error(`Gemini hiba: ${res.status} – ${err}`);
-  }
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
 // ── History context ───────────────────────────────────────────────────────────
@@ -100,7 +134,10 @@ async function getHistoryContext(seasonId) {
 
     const teamStats = {};
     for (const [team, history] of Object.entries(teamHistory)) {
-      if (history.length < 2) { teamStats[team] = { posChange: 0, ptsGrowthPerRound: 0, trend: 'same', dataPoints: history.length }; continue; }
+      if (history.length < 2) {
+        teamStats[team] = { posChange: 0, ptsGrowthPerRound: 0, trend: 'same', dataPoints: history.length };
+        continue;
+      }
       const first = history[0], last = history[history.length - 1];
       const posChange = first.pos - last.pos;
       const ptsGrowth = last.pts - first.pts;
@@ -119,7 +156,8 @@ async function getHistoryContext(seasonId) {
       teamStats[team] = {
         posChange,
         ptsGrowthPerRound: rounds > 1 ? +(ptsGrowth / (rounds - 1)).toFixed(2) : 0,
-        trend, dataPoints: rounds,
+        trend,
+        dataPoints: rounds,
       };
     }
 
@@ -161,7 +199,7 @@ async function generatePrediction(standings, seasonId) {
   const estimatedRoundsLeft = Math.max(2, estimatedRoundsTotal - estimatedRoundsPlayed);
   const multiplier = Math.min(3.0, estimatedRoundsTotal / Math.max(1, estimatedRoundsPlayed));
 
-  // Saját extrapoláció – ez az AI alapja
+  // Saját extrapoláció alapként
   const baseStandings = standings
     .slice()
     .sort((a, b) => a.pos - b.pos)
@@ -196,19 +234,19 @@ ${allTeamsData}
 ${historyContext || ''}
 
 SZIGORÚ SZABÁLYOK:
-1. A "BECSÜLT" pontszámokat használd alapként – ezek már trend-korrigáltak
-2. A sorrend NEM változhat drasztikusan – max ±3 helyet mozdulhat egy csapat
+1. A "BECSÜLT" pontszámokat használd alapként
+2. Max ±3 helyet mozdulhat egy csapat a becsült pozíciójától
 3. Ha egy csapat jelenleg 1., a szezon végén is top 3-ban kell lennie
 4. Ha egy csapat jelenleg utolsó, kieső zónában kell maradnia
 5. A pontszámok MAGASABBAK legyenek a jelenleginél (még ${estimatedRoundsLeft} forduló van hátra)
 6. trend mező: "up" ha javul, "down" ha romlik, "same" ha stabil
 
-Válaszolj KIZÁRÓLAG valid JSON tömbbel, semmi más szöveg, magyarázat vagy markdown:
+Válaszolj KIZÁRÓLAG valid JSON tömbbel, semmi más szöveg vagy markdown:
 [{"pos":1,"team":"Csapatnév","goalsFor":72,"goalsAgainst":28,"pts":87,"trend":"same"},...]
 
-KÖTELEZŐ: pontosan ${standings.length} csapat, a sorrend a valós tabellához KÖZELI legyen!`;
+KÖTELEZŐ: pontosan ${standings.length} csapat!`;
 
-  const text  = await callGemini(prompt, 0.4);
+  const text = await callGemini(prompt, 0.4);
   const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
   const start = clean.indexOf('[');
   if (start === -1) throw new Error('JSON nem található a Gemini válaszban');
@@ -232,20 +270,20 @@ KÖTELEZŐ: pontosan ${standings.length} csapat, a sorrend a valós tabellához 
     trend:        String(r.trend || 'same'),
   }));
 
-  // Validáció: minden csapat megvan-e
+  // Validáció – ha az AI kihagyott csapatokat, fallback
   const realTeams = new Set(standings.map(t => t.team));
   const aiTeams   = new Set(aiStandings.map(t => t.team));
   const missing   = [...realTeams].filter(t => !aiTeams.has(t));
 
   if (missing.length > 0 || aiStandings.length !== standings.length) {
-    console.warn('[ai-prediction] Gemini kihagyott csapatokat, fallback alkalmazva');
+    console.warn('[ai-prediction] Gemini kihagyott csapatokat, fallback alkalmazva. Missing:', missing);
     aiStandings = baseStandings.map((t, i) => ({
       pos: i + 1, team: t.team,
       goalsFor: t.projectedGF, goalsAgainst: t.projectedGA,
       pts: t.projectedPts, trend: t.trend,
     }));
   } else {
-    // Pozíció eltérés korrekció
+    // Pozíció korrekció: max ±4 hely
     const basePosByTeam = {};
     baseStandings.forEach(t => { basePosByTeam[t.team] = t.projectedPos; });
     aiStandings.forEach(t => {
@@ -262,7 +300,7 @@ KÖTELEZŐ: pontosan ${standings.length} csapat, a sorrend a valós tabellához 
 
   if (!aiStandings.length) throw new Error('Üres AI tabella');
 
-  // Elemzés
+  // Elemzés generálás
   const top3      = aiStandings.slice(0, 3).map(t  => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
   const bot3      = aiStandings.slice(-3).map(t     => `${t.pos}. ${t.team} (${t.pts}pt)`).join(', ');
   const upTeams   = aiStandings.filter(t => t.trend === 'up').map(t   => t.team).join(', ') || 'nincs';
@@ -275,7 +313,7 @@ Szezonvégi előrejelzés (${estimatedRoundsLeft} forduló van még hátra):
 - Emelkedő tendencia: ${upTeams}
 - Csökkenő tendencia: ${downTeams}
 - Adatbázis: ${entryCount > 0 ? `${entryCount} forduló history` : 'nincs history'}
-Miért ilyen a várható végeredmény? A jelenlegi tabella állásból kiindulva mi várható?`;
+Miért ilyen a várható végeredmény?`;
 
   const analysis = await callGemini(analysisPrompt, 0.6);
 
@@ -341,7 +379,7 @@ export default async function handler(req) {
         }
       }
 
-      console.log('[ai-prediction] Generating with Gemini 2.5 Flash... force=', force, 'seasonId=', seasonId);
+      console.log('[ai-prediction] Generating with Gemini... force=', force, 'seasonId=', seasonId);
       const prediction = await generatePrediction(standings, seasonId);
 
       await kvSet(AI_KEY, JSON.stringify(prediction));
@@ -361,7 +399,7 @@ export default async function handler(req) {
     });
 
   } catch (err) {
-    console.error('[ai-prediction]', err.message);
+    console.error('[ai-prediction] Error:', err.message);
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500, headers: corsHeaders,
     });
