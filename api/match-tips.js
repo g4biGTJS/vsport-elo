@@ -1,4 +1,4 @@
-// api/match-tips.js – v4: Gemini 2.5 Flash, nincs hazai előny
+// api/match-tips.js – v6: llm7.io (OpenAI-compatible, no key needed), nincs hazai előny
 export const config = { runtime: 'edge' };
 
 const corsHeaders = {
@@ -8,29 +8,36 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyDgpQrXm0Et2lWoXdIr_se6h8mEMgeZDDI';
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_KEY}`;
+const LLM7_URL   = 'https://api.llm7.io/v1/chat/completions';
+const LLM7_MODEL = 'llama-3.3-70b-instruct-fp8-fast';
 
-// ── Gemini hívás ──────────────────────────────────────────────────────────────
-async function callGemini(prompt, temp = 0.35) {
-  const res = await fetch(GEMINI_URL, {
+// ── llm7.io hívás ─────────────────────────────────────────────────────────────
+async function callLLM7(prompt, temp = 0.35) {
+  const res = await fetch(LLM7_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer unused',
+    },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: temp,
-        maxOutputTokens: 3000,
-      },
+      model: LLM7_MODEL,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: temp,
+      max_tokens: 8192,
     }),
-    signal: AbortSignal.timeout(35000),
+    signal: AbortSignal.timeout(30000),
   });
+
   if (!res.ok) {
-    const err = await res.text().catch(() => res.status);
-    throw new Error(`Gemini hiba: ${res.status} – ${err}`);
+    const errText = await res.text().catch(() => String(res.status));
+    throw new Error(`llm7.io hiba: ${res.status} – ${errText.slice(0, 200)}`);
   }
+
   const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  const text = data.choices?.[0]?.message?.content || '';
+  if (!text) throw new Error('llm7.io üres választ adott');
+  console.log('[llm7.io match-tips] sikeres');
+  return text;
 }
 
 // ── Forma számítás history alapján ────────────────────────────────────────────
@@ -135,7 +142,6 @@ export default async function handler(req) {
       return new Response(JSON.stringify({ error: 'Hiányzó matches' }), { status: 400, headers: corsHeaders });
     }
 
-    // Kontextus összeállítása
     const liveCtx = (standings || []).length
       ? standings.map(t =>
           `${t.pos}. ${t.team} – ${t.pts}pt | GF:${t.goalsFor} GA:${t.goalsAgainst} GD:${(t.goalsFor||0)-(t.goalsAgainst||0)} | trend:${t.trend||'same'}`
@@ -190,7 +196,7 @@ SZABÁLYOK:
 CSAK valid JSON tömböt adj vissza, semmi más szöveget vagy markdown-t:
 [{"home":"...","away":"...","homePct":X,"drawPct":X,"awayPct":X,"over15Pct":X,"over25Pct":X,"over15Comment":"...","over25Comment":"...","analysis":"..."}]`;
 
-    const llmText = await callGemini(prompt);
+    const llmText = await callLLM7(prompt);
     let results = null;
     let source = 'local';
 
