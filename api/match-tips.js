@@ -1,4 +1,4 @@
-// api/match-tips.js – v3: hazai/vendég előny eltávolítva, lastAIPrediction fix
+// api/match-tips.js – v4: Gemini 2.5 Flash, nincs hazai előny
 export const config = { runtime: 'edge' };
 
 const corsHeaders = {
@@ -8,7 +8,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-// ─── Forma számítás history alapján ────────────────────────────────────────
+const GEMINI_KEY = process.env.GEMINI_API_KEY || 'AIzaSyDgpQrXm0Et2lWoXdIr_se6h8mEMgeZDDI';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_KEY}`;
+
+// ── Gemini hívás ──────────────────────────────────────────────────────────────
+async function callGemini(prompt, temp = 0.35) {
+  const res = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: temp,
+        maxOutputTokens: 3000,
+      },
+    }),
+    signal: AbortSignal.timeout(35000),
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(() => res.status);
+    throw new Error(`Gemini hiba: ${res.status} – ${err}`);
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+}
+
+// ── Forma számítás history alapján ────────────────────────────────────────────
 function buildFormContext(historyEntries) {
   if (!historyEntries || !historyEntries.length) return null;
 
@@ -31,28 +56,25 @@ function buildFormContext(historyEntries) {
     if (pts.length < 2) return;
 
     const recentGains = [];
-    for (let i = 1; i < Math.min(pts.length, 4); i++) {
-      recentGains.push(pts[i] - pts[i - 1]);
-    }
+    for (let i = 1; i < Math.min(pts.length, 4); i++) recentGains.push(pts[i] - pts[i - 1]);
 
     const avgGain = recentGains.reduce((a, b) => a + b, 0) / recentGains.length;
-    const lastSnap = snapshots[snapshots.length - 1].standingsSnapshot.find(t => t.team === teamName);
+    const lastSnap  = snapshots[snapshots.length - 1].standingsSnapshot.find(t => t.team === teamName);
     const firstSnap = snapshots[0].standingsSnapshot.find(t => t.team === teamName);
-    const posTrend = firstSnap && lastSnap ? firstSnap.pos - lastSnap.pos : 0;
+    const posTrend  = firstSnap && lastSnap ? firstSnap.pos - lastSnap.pos : 0;
 
     teamForms[teamName] = {
       avgPtsPerRound: Math.round(avgGain * 10) / 10,
-      positionTrend: posTrend,
-      recentGains,
+      positionTrend:  posTrend,
       trend: avgGain > 1.8 ? 'erős' : avgGain > 1.2 ? 'közepes' : 'gyenge',
-      posLabel: posTrend > 0 ? `+${posTrend} hely` : posTrend < 0 ? `${posTrend} hely` : 'stabil'
+      posLabel: posTrend > 0 ? `+${posTrend} hely` : posTrend < 0 ? `${posTrend} hely` : 'stabil',
     };
   });
 
   return teamForms;
 }
 
-// ─── Lokális fallback számítás – szimmetrikus, nincs hazai előny ────────────
+// ── Lokális fallback – szimmetrikus, nincs hazai előny ────────────────────────
 function computeLocalTips(matches, standings, aiStandings, formData) {
   return matches.map(m => {
     const live  = standings.find(t => t.team === m.home);
@@ -62,7 +84,6 @@ function computeLocalTips(matches, standings, aiStandings, formData) {
     const form  = formData ? formData[m.home] : null;
     const formA = formData ? formData[m.away] : null;
 
-    // Szimmetrikus erőszámítás – hazai/vendég pozíció nem számít
     const homeScore =
       (live ? live.pts * 1.5 + ((live.goalsFor||0)-(live.goalsAgainst||0)) * 0.8 + (20 - live.pos) * 2 : 20) +
       (ai   ? (20 - ai.pos) * 1.5 : 0) +
@@ -83,9 +104,9 @@ function computeLocalTips(matches, standings, aiStandings, formData) {
     const over15Pct = Math.min(Math.max(Math.round(55 + avgGF * 1.2), 40), 92);
     const over25Pct = Math.min(Math.max(Math.round(35 + avgGF * 0.9), 22), 82);
 
-    const favorit = homePctFinal >= awayPct ? m.home : m.away;
-    const formTxt  = form  ? ` ${m.home} forma: ${form.trend} (${form.avgPtsPerRound} pt/forduló).`  : '';
-    const formTxtA = formA ? ` ${m.away} forma: ${formA.trend} (${formA.avgPtsPerRound} pt/forduló).` : '';
+    const favorit   = homePctFinal >= awayPct ? m.home : m.away;
+    const formTxt   = form  ? ` ${m.home} forma: ${form.trend} (${form.avgPtsPerRound} pt/forduló).`  : '';
+    const formTxtA  = formA ? ` ${m.away} forma: ${formA.trend} (${formA.avgPtsPerRound} pt/forduló).` : '';
 
     return {
       home: m.home, away: m.away,
@@ -94,62 +115,12 @@ function computeLocalTips(matches, standings, aiStandings, formData) {
       over15Comment: over15Pct >= 60 ? 'Mindkét csapat sokat lő, magas gólvárakozás' : 'Szoros, taktikai meccs – alacsony gólszám várható',
       over25Comment: over25Pct >= 55 ? 'Gólgazdag összecsapás valószínűsíthető' : 'Inkább zárt, defenzív mérkőzés várható',
       analysis: `${favorit} az esélyes a tabella és forma alapján.${formTxt}${formTxtA}`,
-      source: 'local'
+      source: 'local',
     };
   });
 }
 
-// ─── LLM hívás (llm7.io elsődleges, Anthropic fallback) ────────────────────
-async function callLLM(prompt) {
-  try {
-    const res = await fetch('https://api.llm7.io/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.35,
-        max_tokens: 3000
-      }),
-      signal: AbortSignal.timeout(28000)
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return data.choices?.[0]?.message?.content || null;
-    }
-  } catch (e) {
-    console.warn('[match-tips] llm7.io hiba:', e.message);
-  }
-
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (key) {
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 3000,
-          messages: [{ role: 'user', content: prompt }]
-        }),
-        signal: AbortSignal.timeout(28000)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return data.content?.[0]?.text || null;
-      }
-    } catch (e) {
-      console.warn('[match-tips] Anthropic hiba:', e.message);
-    }
-  }
-  return null;
-}
-
-// ─── Handler ────────────────────────────────────────────────────────────────
+// ── Handler ───────────────────────────────────────────────────────────────────
 export default async function handler(req) {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== 'POST') {
@@ -164,49 +135,36 @@ export default async function handler(req) {
       return new Response(JSON.stringify({ error: 'Hiányzó matches' }), { status: 400, headers: corsHeaders });
     }
 
-    // ── Kontextus összeállítása ──────────────────────────────────────────────
-
-    // 1. Élő tabella
+    // Kontextus összeállítása
     const liveCtx = (standings || []).length
       ? standings.map(t =>
           `${t.pos}. ${t.team} – ${t.pts}pt | GF:${t.goalsFor} GA:${t.goalsAgainst} GD:${(t.goalsFor||0)-(t.goalsAgainst||0)} | trend:${t.trend||'same'}`
         ).join('\n')
       : 'Nem elérhető';
 
-    // 2. AI szezonvégi előrejelzés
     const aiStandings = aiPrediction?.standings || [];
     const aiCtx = aiStandings.length
-      ? aiStandings.map(t =>
-          `${t.pos}. ${t.team} – előrejelzett végső pont: ${t.pts}`
+      ? aiStandings.map(t => `${t.pos}. ${t.team} – előrejelzett végső pont: ${t.pts}`).join('\n')
+      : 'Nem elérhető';
+
+    const formData = buildFormContext(history || []);
+    const formCtx = formData && Object.keys(formData).length
+      ? Object.entries(formData).map(([team, f]) =>
+          `${team}: ${f.trend} forma | ${f.avgPtsPerRound} pt/forduló | pozíció trend: ${f.posLabel}`
         ).join('\n')
       : 'Nem elérhető';
 
-    // 3. Forma – history alapján
-    const formData = buildFormContext(history || []);
-    let formCtx = 'Nem elérhető';
-    if (formData && Object.keys(formData).length) {
-      formCtx = Object.entries(formData)
-        .map(([team, f]) =>
-          `${team}: ${f.trend} forma | ${f.avgPtsPerRound} pt/forduló | pozíció trend: ${f.posLabel}`
-        )
-        .join('\n');
-    }
+    const matchList = matches.map((m, i) => `${i+1}. ${m.home} vs ${m.away}`).join('\n');
 
-    // 4. Meccs lista – hazai/vendég jelölés nélkül
-    const matchList = matches.map((m, i) =>
-      `${i+1}. ${m.home} vs ${m.away}`
-    ).join('\n');
-
-    // ── Prompt ──────────────────────────────────────────────────────────────
     const prompt = `Te egy profi virtuális futball elemző vagy. Három adatforrás alapján elemezd meg a meccseket:
 
 ━━━ 1. ÉLŐ TABELLA (jelenlegi állás) ━━━
 ${liveCtx}
 
-━━━ 2. AI SZEZONVÉGI ELŐREJELZÉS (várható végső sorrend) ━━━
+━━━ 2. AI SZEZONVÉGI ELŐREJELZÉS ━━━
 ${aiCtx}
 
-━━━ 3. CSAPATOK FORMÁJA (history alapján, utolsó fordulók) ━━━
+━━━ 3. CSAPATOK FORMÁJA (history alapján) ━━━
 ${formCtx}
 
 ━━━ ELEMZENDŐ MECCSEK ━━━
@@ -218,23 +176,21 @@ Minden meccshez adj meg a következő JSON struktúrában:
 - awayPct: a második csapat győzelem % (egész, 0-100)
 - over15Pct: 1.5 gól felett % (egész, 0-100)
 - over25Pct: 2.5 gól felett % (egész, 0-100)
-- over15Comment: 1 mondat magyarul (gól-valószínűség indoklása)
+- over15Comment: 1 mondat magyarul
 - over25Comment: 1 mondat magyarul
-- analysis: 2-3 mondat magyarul – KI az esélyes és MIÉRT (hivatkozz konkrétan a tabella pozícióra, formára, AI előrejelzésre)
+- analysis: 2-3 mondat magyarul – KI az esélyes és MIÉRT
 
 SZABÁLYOK:
 1. homePct + drawPct + awayPct = PONTOSAN 100
-2. Vedd figyelembe MINDHÁROM adatforrást (élő tabella + AI előrejelzés + forma)
-3. Ha a forma és a tabella ellentmond egymásnak, magyarázd meg
-4. NINCS hazai pálya előny – kizárólag a tabella pozíció, gólstatisztika és forma számít
+2. Vedd figyelembe MINDHÁROM adatforrást
+3. NINCS hazai pálya előny – kizárólag tabella, statisztika és forma számít
+4. Reális százalékok – minimum 15% a gyengébb csapatnak is
 5. Az analysis-ban MINDIG nevesítsd az esélyes csapatot
-6. Reális, differenciált százalékok – a gyengébb csapat is kapjon legalább 15%-ot
 
-CSAK valid JSON tömböt adj vissza, semmi más szöveget:
+CSAK valid JSON tömböt adj vissza, semmi más szöveget vagy markdown-t:
 [{"home":"...","away":"...","homePct":X,"drawPct":X,"awayPct":X,"over15Pct":X,"over25Pct":X,"over15Comment":"...","over25Comment":"...","analysis":"..."}]`;
 
-    // ── LLM hívás ───────────────────────────────────────────────────────────
-    const llmText = await callLLM(prompt);
+    const llmText = await callGemini(prompt);
     let results = null;
     let source = 'local';
 
@@ -262,8 +218,7 @@ CSAK valid JSON tömböt adj vissza, semmi más szöveget:
     }
 
     return new Response(JSON.stringify({ results, source, count: results.length }), {
-      status: 200,
-      headers: corsHeaders
+      status: 200, headers: corsHeaders,
     });
 
   } catch (err) {
